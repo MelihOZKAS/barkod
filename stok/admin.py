@@ -17,6 +17,7 @@ class StokAdmin(admin.ModelAdmin):
     list_display = ("Urun_Adi","Barkod","Tutar","Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi",)
     list_filter = ("Grup","Stok_Durumu",)
     list_editable = ("Favori","Tutar",)
+    search_fields = ("Urun_Adi","Barkod",)
 
 admin.site.register(Stok, StokAdmin)
 

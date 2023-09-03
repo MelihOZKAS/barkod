@@ -59,7 +59,7 @@
                         <!-- AnaKategoriler -->
                         <div class="row">
                             {% for Kategori in AnaKategoriler %}
-                                <div class="col-lg-1" style="margin-top: 8px;">
+                                <div class="col-lg-1" style="margin-top: 5px;">
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <div class="toastr media align-items-sm-center flex-column flex-sm-row mb-5">
@@ -78,7 +78,7 @@
                         <div class="row">
                             {% for favori in Favoriler %}
                                 <div class="col-lg-2 favori" data-kategori="{{ favori.Liste_grup }}"
-                                     style="margin-top: 8px;">
+                                     style="margin-top: 5px;">
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
@@ -91,10 +91,10 @@
 
 <style>
     .form-control.pd {
-        font-size: 24px;
+        font-size: 22px;
     }
     .btn.style--three {
-        font-size: 18px;
+        font-size: 16px;
     }
 </style>
 
@@ -124,9 +124,9 @@
                     <div class="card mb-30">
                         <div class="card-body py-30 pb-0">
                             {% if total %}
-                                <h4 class="font-30 text-center">GENEL TOPLAM: {{ total }} TL</h4>
+                                <h4 class="font-26 text-center">GENEL TOPLAM: {{ total }} TL</h4>
                             {% else %}
-                                <h4 class="font-30 text-center">Sepette Hiç Ürüm Yok</h4>
+                                <h4 class="font-26 text-center">Sepette Hiç Ürüm Yok</h4>
                             {% endif %}
 
                         </div>

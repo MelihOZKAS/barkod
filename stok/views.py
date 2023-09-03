@@ -253,7 +253,7 @@ def urun_miktar_guncelle(request, urun_id):
 
         urun.miktar = miktar
         urun.save()
-    return redirect('Arama')
+    #return redirect('Arama')
 
 
 @csrf_exempt

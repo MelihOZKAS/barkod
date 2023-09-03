@@ -69,8 +69,14 @@ def urun_ara(request):
             print("girdim")
             try:
                 urun = Stok.objects.get(Barkod=urun_id)
-                SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
+                try:
+                    # Sepette zaten bu üründen varsa, hiçbir şey yapma
+                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                except SepetUrun.DoesNotExist:
+                    # Sepette bu üründen yoksa, yeni bir ürün ekle
+                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+
             except Stok.DoesNotExist:
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
                 print("patladım.")

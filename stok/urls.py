@@ -1,7 +1,6 @@
 from django.urls import path
 from . import views
-from django.conf import settings
-from django.conf.urls.static import static
+
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -28,4 +27,4 @@ urlpatterns = [
     path('sepete-ekle/', views.sepete_ekle, name='sepete-ekle'),
     path('sepet/urun-sil/<int:urun_id>/', views.sepet_urun_sil, name='sepet_urun_sil'),
 
-]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]

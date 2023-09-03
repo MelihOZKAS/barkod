@@ -1,0 +1,64 @@
+{% extends 'system/user/userBase.html' %}
+{% load static %}
+
+
+
+
+
+
+{% block userContent %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+
+            <!-- AnaKategoriler -->
+
+            <div class="row">
+
+                <div class="col-12">
+                    <div class="card mb-30">
+                        <div class="card-body pt-30">
+                            <h4 class="font-20 ">Ödeme Hareketleri</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <!-- Invoice List Table -->
+                            <table class="text-nowrap hoverable dh-table">
+                                <thead>
+                                <tr>
+                                    <th>Müşteri</th>
+                                    <th>Önceki Borç</th>
+                                    <th>Tutar</th>
+                                    <th>Aciklama</th>
+                                    <th>Tarih</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for Musteri in musterihareketi %}
+                                    <tr>
+                                        <td>{{ Musteri.musteri.isim_soyisim }}</td>
+                                        <td>{{ Musteri.onceki_borc }}</td>
+                                        <td>{{ Musteri.tutar }}</td>
+                                        <td>{{ Musteri.aciklama }}</td>
+                                        <td>{{ Musteri.tarih }}</td>
+                                    </tr>
+
+                                {% endfor %}
+
+
+                                </tbody>
+                            </table>
+                            <!-- End Invoice List Table -->
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    <!-- End Main Content -->
+
+
+
+{% endblock userContent %}

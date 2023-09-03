@@ -1,0 +1,120 @@
+{% extends 'system/user/userBase.html' %}
+{% load static %}
+
+
+
+
+
+
+{% block userContent %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+
+            <!-- AnaKategoriler -->
+            <div class="row">
+                <div class="col-lg-12" style="margin-top: 8px;">
+                    <form action="{% url 'musteri-ekle' %}" method="POST">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="isim_soyisim">İsim Soyisim:</label>
+                                    <input type="text" name="isim_soyisim" id="isim_soyisim" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="Cep_Telefonu">Cep Telefonu:</label>
+                                    <input type="text" name="Cep_Telefonu" id="Cep_Telefonu" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="borc">Borç:</label>
+                                    <input type="text" name="borc" id="borc" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="aciklama">Açıklama:</label>
+                                    <textarea name="aciklama" id="aciklama" class="form-control"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn s_alert bg-success text-white mr-3 mr-sm-4 mb-10"
+                                id="submit">Müşteri Ekle
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+
+            <div class="row">
+
+                <div class="col-12">
+                    <div class="card mb-30">
+                        <div class="card-body pt-30">
+                            <h4 class="font-20 ">Müşteri Listesi</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <!-- Invoice List Table -->
+                            <table class="text-nowrap hoverable dh-table">
+                                <thead>
+                                <tr>
+                                    <th>ISIM SOYISIM</th>
+                                    <th>Cep Telefonu</th>
+                                    <th>Borcu</th>
+                                    <th>Açıklama</th>
+                                    <th>Tarih</th>
+                                    <th>Bakiye işlemleri</th>
+                                    <th>Bakiye Hareketleri</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for Musteri in Musteri_Listesi %}
+                                    <tr>
+                                        <td>{{ Musteri.isim_soyisim }}</td>
+                                        <td>{{ Musteri.Cep_Telefonu }}</td>
+                                        <td>{{ Musteri.borc }}</td>
+                                        <td>{{ Musteri.aciklama }}</td>
+                                        <td>{{ Musteri.Ekleme_Tarih }}</td>
+                                        <td>
+                                            <form action="{% url 'bakiye' Musteri.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <button type="submit" class="details-btn">Bakiye Düzenle<i
+                                                        class="icofont-arrow-right"></i></button>
+                                            </form>
+                                        </td>
+
+                                        <td>
+                                            <form action="{% url 'bakiye-hareketi' Musteri.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <button type="submit" class="details-btn">Bakiye Hareketleri<i
+                                                        class="icofont-arrow-right"></i></button>
+                                            </form>
+                                        </td>
+
+
+                                    </tr>
+
+                                {% endfor %}
+
+
+                                </tbody>
+                            </table>
+                            <!-- End Invoice List Table -->
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    <!-- End Main Content -->
+
+
+
+{% endblock userContent %}

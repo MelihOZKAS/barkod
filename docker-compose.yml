@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  postgresbarkod:
+    container_name: postgresbarkod
+    hostname: postgresbarkod
+    image: postgres:latest
+    env_file:
+      - ali/docker.env
+    ports:
+      - "5437:5432"
+    volumes:
+      - "postgresql-data-barkod:/var/lib/postgresql/data"
+    networks:
+      - main_barkod
+    command: -p 5437
+  app_barkod:
+    container_name: app_barkod
+    hostname: app_barkod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ali/docker.env
+    volumes:
+      - static-data-barkod:/srv/public
+      - .:/srv/app_barkod
+    expose:
+      - 8007
+    depends_on:
+      - postgresbarkod
+    command: gunicorn Nasipsiir.wsgi:application --bind 0.0.0.0:8007
+    networks:
+      - main_barkod
+      - bridge_network
+
+networks:
+  main_barkod:
+  bridge_network:
+    name: nginx_network
+    driver: bridge
+
+volumes:
+  postgresql-data-barkod:
+  static-data-barkod:

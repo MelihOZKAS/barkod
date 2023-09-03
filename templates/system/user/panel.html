@@ -1,0 +1,79 @@
+{% extends 'system/user/userBase.html' %}
+{% load static %}
+
+
+
+
+
+
+{% block userContent %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+
+                <div class="col-xl-3 col-sm-6">
+                    <!-- Card -->
+                    <div class="card mb-30">
+                        <div class="state">
+                            <div class="d-flex align-items-center flex-wrap">
+                                <div class="state-icon d-flex justify-content-center">
+                                    <img src="{% static 'assetsPanel/img/panel/siir_panel_2.png' %}" alt="">
+                                </div>
+                                <div class="state-content">
+                                    <p class="font-14 mb-2">Toplam Ürün Sayısı</p>
+                                    <h2 class="text-center">{{ UrunToplami }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Card -->
+                </div>
+
+                <div class="col-xl-3 col-sm-6">
+                    <!-- Card -->
+                    <div class="card mb-30">
+                        <div class="state">
+                            <div class="d-flex align-items-center flex-wrap">
+                                <div class="state-icon d-flex justify-content-center">
+                                    <img src="{% static 'assetsPanel/img/panel/soz.png' %}" alt="">
+                                </div>
+                                <div class="state-content">
+                                    <p class="font-14 mb-2">Stokta Olan Ürünler</p>
+                                    <h2 class="text-center">{{ StokVarToplami }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Card -->
+                </div>
+
+                <div class="col-xl-3 col-sm-6">
+                    <!-- Card -->
+                    <div class="card mb-30">
+                        <div class="state">
+                            <div class="d-flex align-items-center flex-wrap">
+                                <div class="state-icon d-flex justify-content-center">
+                                    <img src="{% static 'assetsPanel/img/panel/hikaye.png' %}" alt="">
+                                </div>
+                                <div class="state-content">
+                                    <p class="font-14 mb-2">Stokta Olmayan Ürünler</p>
+                                    <h2 class="text-center">{{ StokYokToplami }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Card -->
+                </div>
+
+
+
+            </div>
+        </div>
+    </div>
+    <!-- End Main Content -->
+
+
+
+{% endblock userContent %}

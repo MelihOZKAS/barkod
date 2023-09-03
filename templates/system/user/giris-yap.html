@@ -1,0 +1,94 @@
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <!-- Page Title -->
+    <title>Kullanıcı Girişi</title>
+
+    <!-- Meta Data -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Kullanıcı girişi bölümü buradan giriş yaptıktan sonra şiir, hikaye, söz paylaşabilir yada favoriye aldığı, beğendiğini takip edebilir.">
+    <meta name="keywords" content="şiirler, yazarlar, şairler, sözler, hikayeler, aşk şiirleri, ksıa aşk sözleri">
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{% static 'assetsPanel/img/favicon.png' %}">
+
+    <!-- Web Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700,700i&display=swap" rel="stylesheet">
+
+    <!-- ======= BEGIN GLOBAL MANDATORY STYLES ======= -->
+    <link rel="stylesheet" href="{% static 'assetsPanel/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assetsPanel/fonts/icofont/icofont.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assetsPanel/plugins/perfect-scrollbar/perfect-scrollbar.min.css' %}">
+    <!-- ======= END BEGIN GLOBAL MANDATORY STYLES ======= -->
+
+    <!-- ======= MAIN STYLES ======= -->
+    <link rel="stylesheet" href="{% static 'assetsPanel/css/style.css' %}">
+    <!-- ======= END MAIN STYLES ======= -->
+
+</head>
+
+<body>
+
+<div class="mn-vh-100 d-flex align-items-center">
+    <div class="container">
+        <!-- Card -->
+        <div class="card justify-content-center auth-card">
+            <div class="row justify-content-center">
+                <div class="col-xl-7 col-lg-9">
+                    <h4 class="mb-5 font-20">Stok Takip' e Hoş Geldiniz</h4>
+                    <form action="#" method="POST">
+                        {% csrf_token %}
+
+                        <!-- Form Group -->
+                        <div class="form-group mb-20">
+                            <label for="email" class="mb-2 font-14 bold">Kullanıcı Adınız</label>
+                            <input type="text" id="email" name="username" class="theme-input-style"
+                                   placeholder="Kullanını Adınız">
+                        </div>
+                        <!-- End Form Group -->
+
+                        <!-- Form Group -->
+                        <div class="form-group mb-20">
+                            <label for="password" class="mb-2 font-14 bold">Şifreniz</label>
+                            <input type="password" id="password" name="password" class="theme-input-style"
+                                   placeholder="********">
+                        </div>
+                        <!-- End Form Group -->
+
+
+
+
+                        <div class="d-flex align-items-center">
+                            <button type="submit" class="btn long mr-20">Giriş Yap</button>
+
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+        <!-- End Card -->
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer style--two">
+    www.enguzelsiirler.com © 2023 - Melih ÖZKAŞ - <a href="https://www.enguzelsiirler.com/"> En Güzel Şiirler</a>
+</footer>
+<!-- End Footer -->
+
+<!-- ======= BEGIN GLOBAL MANDATORY SCRIPTS ======= -->
+<script src="{% static 'assetsPanel/js/jquery.min.js' %}"></script>
+<script src="{% static 'assetsPanel/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assetsPanel/plugins/perfect-scrollbar/perfect-scrollbar.min.js' %}"></script>
+<script src="{% static 'assetsPanel/js/script.js' %}"></script>
+<!-- ======= BEGIN GLOBAL MANDATORY SCRIPTS ======= -->
+</body>
+
+</html>

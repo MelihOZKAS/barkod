@@ -1,0 +1,54 @@
+{% extends 'system/user/userBase.html' %}
+{% load static %}
+
+
+
+
+
+
+{% block userContent %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+
+            <!-- AnaKategoriler -->
+
+            <div class="row">
+    <div class="col-lg-12" style="margin-top: 8px;">
+<form action="{% url 'borc-duzenle' musteri_id %}" method="POST">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="isim_soyisim">Tutar</label>
+                <input type="number" name="tutar" id="tutar" class="form-control">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="aciklama">Açıklama:</label>
+                <textarea name="aciklama" id="aciklama" class="form-control"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" name="islem" value="borcekle" class="btn s_alert bg-danger text-white mr-3 mr-sm-4 mb-10">Borç Ekle</button>
+    <button type="submit" name="islem" value="borcdus" class="btn s_alert bg-success text-white mr-3 mr-sm-4 mb-10">Borç Düş</button>
+</form>
+
+    </div>
+</div>
+
+
+
+
+        </div>
+
+
+    </div>
+    <!-- End Main Content -->
+
+
+
+{% endblock userContent %}

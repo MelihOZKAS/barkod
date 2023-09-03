@@ -1,0 +1,46 @@
+{% load static %}
+
+
+<!-- Sidebar -->
+<nav class="sidebar" data-trigger="scrollbar">
+    <!-- Sidebar Header -->
+    <div class="sidebar-header d-none d-lg-block">
+        <!-- Sidebar Toggle Pin Button -->
+        <div class="sidebar-toogle-pin">
+            <i class="icofont-tack-pin"></i>
+        </div>
+        <!-- End Sidebar Toggle Pin Button -->
+    </div>
+    <!-- End Sidebar Header -->
+
+    <!-- Sidebar Body -->
+    <div class="sidebar-body">
+        <!-- Nav -->
+        <ul class="nav">
+            <li class="nav-category">Hoş Geldiniz</li>
+            <li>
+                <a href="{% url 'panel' %}">
+                    <i class="icofont-pie-chart"></i>
+                    <span class="link-title">Genel Özet</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'Arama' %}">
+                    <i class="icofont-dashboard"></i>
+                    <span class="link-title">Ürün Ara</span>
+                </a>
+
+            </li>
+
+            <li>
+                <a href="{% url 'musteri-listesi' %}">
+                    <i class="icofont-dashboard"></i>
+                    <span class="link-title">Müşteri Listesi</span>
+                </a>
+            </li>
+        </ul>
+        <!-- End Nav -->
+    </div>
+    <!-- End Sidebar Body -->
+</nav>
+<!-- End Sidebar -->

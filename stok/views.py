@@ -253,6 +253,8 @@ def urun_miktar_guncelle(request, urun_id):
 
         urun.miktar = miktar
         urun.save()
+    return JsonResponse({'success': True})
+
     #return redirect('Arama')
 
 

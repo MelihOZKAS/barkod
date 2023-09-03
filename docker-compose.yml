@@ -28,7 +28,7 @@ services:
       - 8007
     depends_on:
       - postgresbarkod
-    command: gunicorn Nasipsiir.wsgi:application --bind 0.0.0.0:8007
+    command: gunicorn ali.wsgi:application --bind 0.0.0.0:8007
     networks:
       - main_barkod
       - bridge_network

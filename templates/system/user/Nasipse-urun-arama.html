@@ -3,6 +3,20 @@
 
 
 {% block userContent %}
+
+
+        <script>
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'F1') {
+                // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/sepeti-sifirla/';
+            } else if (event.key === 'F2') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/musteri-ekle/';
+            }
+        });
+    </script>
+
     <!-- Main Content -->
     <div class="main-content d-flex justify-content-center align-items-center">
 

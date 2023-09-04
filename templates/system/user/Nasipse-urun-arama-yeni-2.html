@@ -102,7 +102,7 @@
                         <!-- AltFavoriler -->
                         <div class="row">
                             {% for favori in Favoriler %}
-                                <div class="col-md-2 favori" data-kategori="{{ favori.Liste_grup }}"
+                                <div class="col-md-1 favori" data-kategori="{{ favori.Liste_grup }}"
                                      style="margin-top: 5px;">
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}

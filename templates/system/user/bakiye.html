@@ -8,7 +8,7 @@
 
 {% block userContent %}
 
-            <script>
+        <script>
         document.addEventListener('keydown', function(event) {
             if (event.key === 'F2') {
                 // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
@@ -21,6 +21,14 @@
             else if (event.key === 'F4') {
                 // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/musteri-ekle/';
+            }
+            else if (event.key === 'F5') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/urun-ara-yeni/';
+            }
+            else if (event.key === 'F6') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/urun-ara-yeni-2/';
             }
         });
     </script>

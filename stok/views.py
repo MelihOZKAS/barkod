@@ -172,6 +172,56 @@ def urun_ara_yeni(request):
     return render(request, 'system/user/Nasipse-urun-arama-yeni.html',context)
 
 
+@login_required(login_url = 'giris-yap')
+def urun_ara_yeni_iki(request):
+    if request.method == 'POST':
+        query = request.POST.get('title')
+        if query.isdigit():
+            urun_id = int(query)
+            print("girdim")
+            try:
+                urun = Stok.objects.get(Barkod=urun_id)
+                results = Stok.objects.filter(Urun_Genel__icontains=query)
+                try:
+                    # Sepette zaten bu üründen varsa, hiçbir şey yapma
+                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                except SepetUrun.DoesNotExist:
+                    # Sepette bu üründen yoksa, yeni bir ürün ekle
+                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+
+            except Stok.DoesNotExist:
+                results = Stok.objects.filter(Urun_Genel__icontains=query)
+                print("patladım.")
+        else:
+            results = Stok.objects.filter(Urun_Genel__icontains=query)
+    else:
+        results = []
+
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user)
+    for urun in sepet_urunleri:
+        urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
+
+    Sayi = range(1, 101)
+    total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+    print(total)
+    if total != None:
+        total = '{:.2f}'.format(total)
+    first_name = request.user.first_name
+    last_name = request.user.last_name
+    email = request.user.email
+    Favoriler = Stok.objects.filter(Favori=True)
+    AnaKategoriler = Liste_Grup.objects.all()
+
+    context = {'name': f"{first_name} {last_name}",
+               'email':email,
+               'results':results,
+               'total':total,
+               'Favoriler':Favoriler,
+               'AnaKategoriler':AnaKategoriler,
+               'sepet_urunleri': sepet_urunleri,
+               'Sayi': Sayi,
+               }
+    return render(request, 'system/user/Nasipse-urun-arama-yeni-2.html',context)
 
 
 

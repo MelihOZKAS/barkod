@@ -107,7 +107,7 @@
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
-                                        <button type="submit" class="btn btn-sm">{{ favori.Urun_Adi }}</button>
+                                        <button type="submit" class="btn btn-sm" style="padding: 5px; font-size: 12px;">{{ favori.Urun_Adi }}</button>
                                     </form>
                                 </div>
                             {% endfor %}

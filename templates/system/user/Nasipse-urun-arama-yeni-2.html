@@ -89,13 +89,12 @@
                                 <div class="col-lg-1" style="margin-top: 5px;">
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
-                                        <div class="toastr media align-items-sm-center flex-column flex-sm-row mb-5">
-                                            <div class="media-body">
+
                                                 <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
                                                         class="btn s_alert bg-success text-white mr-3 mr-sm-4 mb-10"
                                                         id="submit">{{ Kategori.Grup_Adi }}</button>
-                                            </div>
-                                        </div>
+
+
                                     </form>
                                 </div>
                             {% endfor %}

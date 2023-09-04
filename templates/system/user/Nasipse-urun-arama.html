@@ -7,10 +7,14 @@
 
         <script>
         document.addEventListener('keydown', function(event) {
-            if (event.key === 'F1') {
+            if (event.key === 'F2') {
                 // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/sepeti-sifirla/';
-            } else if (event.key === 'F2') {
+            } else if (event.key === 'F3') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/Arama/';
+            }
+            else if (event.key === 'F4') {
                 // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/musteri-ekle/';
             }
@@ -48,7 +52,7 @@
                             {% csrf_token %}
                             <div class="form-container mb-4">
                                 <input type="text" name="title" class="theme-input-style large" id="large1"
-                                       placeholder="Lütfen Aranacak Barkod / Ürün Adı Giriniz">
+                                       placeholder="Lütfen Aranacak Barkod / Ürün Adı Giriniz" autofocus>
                                 <button type="submit" class="btn long">Ürünü Ara 🔍</button>
                             </div>
                         </form>

@@ -109,7 +109,7 @@ def urun_ara(request):
                'sepet_urunleri': sepet_urunleri,
                'Sayi': Sayi,
                }
-    return render(request, 'system/user/Nasipse-urun-arama.html',context)
+    return render(request, 'system/user/Nasipse-urun-arama-yeni-2.html', context)
 
 
 
@@ -239,10 +239,6 @@ def Bayi_Listesi(request):
                'Musteri_Listesi':Musteri_Listesi,
                }
     return render(request, 'system/user/bayi_listesi.html',context)
-
-
-
-
 
 
 

@@ -97,8 +97,9 @@ def urun_ara(request):
     first_name = request.user.first_name
     last_name = request.user.last_name
     email = request.user.email
-    Favoriler = Stok.objects.filter(Favori=True)
-    AnaKategoriler = Liste_Grup.objects.all()
+    Favoriler = Stok.objects.filter(Favori=True).order_by('Urun_Adi')
+    AnaKategoriler = Liste_Grup.objects.all().order_by('Grup_Adi')
+
 
     context = {'name': f"{first_name} {last_name}",
                'email':email,

@@ -191,7 +191,7 @@
                         <div class="row">
                             {% for favori in Favoriler %}
                                 <div class="col-md-2 favori" data-kategori="{{ favori.Liste_grup }}"
-                                     style="margin-top: 5px;">
+                                     style="margin-top: 5px; display: none;">
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">

@@ -88,23 +88,26 @@
     </div>
     <div class="col-9">
         <!-- AnaKategoriler -->
-        {% for Kategori in AnaKategoriler %}
-            <div class="col-lg-1" style="margin-top: 5px;">
-                <form action="{% url 'sepete-ekle' %}" method="POST">
-                    {% csrf_token %}
+        <div class="row">
+            {% for Kategori in AnaKategoriler %}
+                <div class="col">
+                    <form action="{% url 'sepete-ekle' %}" method="POST">
+                        {% csrf_token %}
 
-                    <div class="media-body" style="margin-left: 10px;">
-                        <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
-                                class="btn s_alert bg-success text-white mr-1 mr-sm-1 mb-1"
-                                id="submit"
-                                style="font-size: 12px; padding: 10px;">{{ Kategori.Grup_Adi }}</button>
-                    </div>
+                        <div class="media-body" style="margin-left: 10px;">
+                            <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
+                                    class="btn s_alert bg-success text-white mr-1 mr-sm-1 mb-1"
+                                    id="submit"
+                                    style="font-size: 12px; padding: 10px;">{{ Kategori.Grup_Adi }}</button>
+                        </div>
 
-                </form>
-            </div>
-        {% endfor %}
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
+
 
 
 

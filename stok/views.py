@@ -326,6 +326,8 @@ def sepete_ekle(request):
             sepet_urun.miktar += 1
         sepet_urun.save()
 
+        return HttpResponse(url_name)
+
         if url_name == 'urun-ara-beyaz':
             return redirect('urun-ara-beyaz')  # Sepet detay sayfasına yönlendir
         else:

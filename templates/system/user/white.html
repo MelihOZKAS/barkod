@@ -127,104 +127,104 @@
 
 
     <!-- Main Content -->
- <div style="margin-top: 65px;">
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="card mb-30">
-                    <div class="card-body pt-30">
-                        {% if total %}
-                            <h4 class="font-30 text-center">GENEL TOPLAM: {{ total }} TL</h4>
-                        {% else %}
-                            <h4 class="font-30 text-center">Sepette Hiç Ürüm Yok</h4>
-                        {% endif %}
-                    </div>
-                    <div class="table-responsive">
-                        <!-- Invoice List Table -->
-                        <table class="text-nowrap hoverable dh-table">
-                            <thead>
-                            <tr>
-                                <th>Ürün Adı</th>
-                                <th>Adeti</th>
-                                <th>Fiyatı</th>
-                                <th>Birim Fiyatı</th>
-                                <th>Sepetten Sil</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for urun in sepet_urunleri %}
-
+    <div style="margin-top: 65px;">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card mb-30">
+                        <div class="card-body pt-30">
+                            {% if total %}
+                                <h4 class="font-30 text-center">GENEL TOPLAM: {{ total }} TL</h4>
+                            {% else %}
+                                <h4 class="font-30 text-center">Sepette Hiç Ürüm Yok</h4>
+                            {% endif %}
+                        </div>
+                        <div class="table-responsive">
+                            <!-- Invoice List Table -->
+                            <table class="text-nowrap hoverable dh-table">
+                                <thead>
                                 <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="country-name">{{ urun.urun.Urun_Adi }}</div>
-                                        </div>
+                                    <th>Ürün Adı</th>
+                                    <th>Adeti</th>
+                                    <th>Fiyatı</th>
+                                    <th>Birim Fiyatı</th>
+                                    <th>Sepetten Sil</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for urun in sepet_urunleri %}
 
-                                        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-                                        <script>
-                                            $(document).ready(function () {
-                                                $('select[name="miktar"]').on('change', function () {
-                                                    // Seçilen miktarı yakala
-                                                    var miktar = $(this).val();
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="country-name">{{ urun.urun.Urun_Adi }}</div>
+                                            </div>
 
-                                                    // Ürün ID'sini yakala
-                                                    var urun_id = $(this).data('urun-id');
+                                            <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                                            <script>
+                                                $(document).ready(function () {
+                                                    $('select[name="miktar"]').on('change', function () {
+                                                        // Seçilen miktarı yakala
+                                                        var miktar = $(this).val();
 
-                                                    // Sepeti güncelle
-                                                    $.ajax({
-                                                        url: '/urun_miktar_guncelle/' + urun_id + '/',
-                                                        type: 'POST',
-                                                        data: {
-                                                            miktar: miktar,
-                                                        },
-                                                        success: function (response) {
-                                                            // Sayfayı yenile
-                                                            location.reload();
-                                                        },
+                                                        // Ürün ID'sini yakala
+                                                        var urun_id = $(this).data('urun-id');
+
+                                                        // Sepeti güncelle
+                                                        $.ajax({
+                                                            url: '/urun_miktar_guncelle/' + urun_id + '/',
+                                                            type: 'POST',
+                                                            data: {
+                                                                miktar: miktar,
+                                                            },
+                                                            success: function (response) {
+                                                                // Sayfayı yenile
+                                                                location.reload();
+                                                            },
+                                                        });
                                                     });
                                                 });
-                                            });
 
-                                        </script>
-                                    </td>
-
-
-                                    <td>
-                                        <select name="miktar" class="form-control form-control-sm"
-                                                data-urun-id="{{ urun.id }}">
-                                            {% for i in Sayi %}
-                                                {% if i == urun.miktar %}
-                                                    <option value="{{ i }}" selected>{{ i }}</option>
-                                                {% else %}
-                                                    <option value="{{ i }}">{{ i }}</option>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </select>
-                                    </td>
+                                            </script>
+                                        </td>
 
 
-                                    <td>{{ urun.toplam_fiyat }}</td>
+                                        <td>
+                                            <select name="miktar" class="form-control form-control-sm"
+                                                    data-urun-id="{{ urun.id }}">
+                                                {% for i in Sayi %}
+                                                    {% if i == urun.miktar %}
+                                                        <option value="{{ i }}" selected>{{ i }}</option>
+                                                    {% else %}
+                                                        <option value="{{ i }}">{{ i }}</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                        </td>
 
-                                    <td>{{ urun.urun.Tutar }}</td>
-                                    <td>
-                                        <form action="{% url 'sepet_urun_sil' urun.id %}" method="POST">
-                                            {% csrf_token %}
-                                            <!--<input type="submit" value="Sil"> -->
-                                            <button type="submit" class="status-btn un_paid">Sil</button>
-                                        </form>
-                                    </td>
-                                </tr>
+
+                                        <td>{{ urun.toplam_fiyat }}</td>
+
+                                        <td>{{ urun.urun.Tutar }}</td>
+                                        <td>
+                                            <form action="{% url 'sepet_urun_sil' urun.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <!--<input type="submit" value="Sil"> -->
+                                                <button type="submit" class="status-btn un_paid">Sil</button>
+                                            </form>
+                                        </td>
+                                    </tr>
 
 
-                            {% endfor %}
+                                {% endfor %}
 
-                            </tbody>
-                        </table>
-                        <!-- End Invoice List Table -->
+                                </tbody>
+                            </table>
+                            <!-- End Invoice List Table -->
+                        </div>
                     </div>
                 </div>
-            </div>
-                        <div class="col-lg-6">
+                <div class="col-lg-6">
                     <!-- Base Control -->
                     <div class="form-element base-control mb-30">
                         <h2 class="font-20 mb-4 text-center">{{ Turu }}</h2>
@@ -300,7 +300,8 @@
                                     <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
-                                        <button type="submit" class="btn btn-sm" style="padding: 13px; font-size: 15px;">{{ favori.Urun_Adi }}</button>
+                                        <button type="submit" class="btn btn-sm"
+                                                style="padding: 13px; font-size: 15px;">{{ favori.Urun_Adi }}</button>
                                     </form>
                                 </div>
                             {% endfor %}
@@ -339,15 +340,13 @@
 
                 </div>
 
-
-
                 <div class="col-lg-12">
-                    <div class="bg-3rd text-white mb-30">
+                    <div class="card mb-30">
                         <div class="card-body py-30 pb-0">
                             <h4 class="font-20 ">Bulunan Ürünler</h4>
                         </div>
                         <div class="table-responsive">
-                            <table class="style--four table-striped table-inverse text-nowrap">
+                            <table class="style--four table-striped  text-nowrap">
                                 <thead>
                                 <tr>
                                     <th>Ürün Adı</th>
@@ -413,9 +412,9 @@
                 </div>
 
 
+            </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- End Main Content -->

@@ -7,6 +7,7 @@ urlpatterns = [
     path("urun-ara/", views.urun_ara, name='Arama'),
     path("urun-ara-yeni/", views.urun_ara_yeni, name='AramaYeni'),
     path("urun-ara-yeni-2/", views.urun_ara_yeni_iki, name='AramaYeni2'),
+    path("urun-ara-beyaz/", views.urun_ara_beyaz, name='urun-ara-beyaz'),
     path("logout/", views.logout, name='cikis-yap'),
     path("panel/", views.konsol_home_detail, name='panel'),
     path("manuel-tutar/", views.manuel_tutar_ekle, name='manuel-tutar'),

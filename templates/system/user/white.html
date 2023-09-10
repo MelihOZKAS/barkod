@@ -43,8 +43,8 @@
       <header class="header white-bg fixed-top d-flex align-content-center flex-wrap">
          <!-- Logo -->
          <div class="logo">
-            <a href="../../index.html" class="default-logo"><img src="../../assets/img/logo.png" alt=""></a>
-            <a href="../../index.html" class="mobile-logo"><img src="../../assets/img/mobile-logo.png" alt=""></a>
+            <a href="{% url 'home' %}" class="default-logo"><img src="{% static 'WhiteAssetsPanel/img/logo.png' %}" alt=""></a>
+
          </div>
          <!-- End Logo -->
 
@@ -66,10 +66,7 @@
 
                               <div class="user-profile d-xl-flex align-items-center d-none">
                                  <!-- User Avatar -->
-                                 <div class="user-avatar">
-                                    <img src="../../assets/img/avatar/user.png" alt="">
-                                 </div>
-                                 <!-- End User Avatar -->
+
 
                                  <!-- User Info -->
                                  <div class="user-info">
@@ -80,22 +77,13 @@
                               </div>
                            </a>
                            <div class="dropdown-menu">
-                              <a href="#">My Profile</a>
-                              <a href="#">task</a>
-                              <a href="#">Settings</a>
-                              <a href="#">Log Out</a>
+
+                              <a href="{% url 'cikis-yap' %}">Çıkış</a>
                            </div>
                         </div>
                         <!-- End Main Header User -->
 
-                        <!-- Main Header Menu -->
-                        <div class="main-header-menu d-block d-lg-none">
-                           <div class="header-toogle-menu">
-                              <!-- <i class="icofont-navigation-menu"></i> -->
-                              <img src="../../assets/img/menu.png" alt="">
-                           </div>
-                        </div>
-                        <!-- End Main Header Menu -->
+
                      </div>
                      <!-- End Header Left -->
                   </div>
@@ -353,7 +341,7 @@
          <div class="main-content">
             <div class="container-fluid">
                 <div class="row">
-                    <div class="col-12">
+                    <div class="col-lg-6">
                         <!-- Card -->
 
                         <!-- End Card -->

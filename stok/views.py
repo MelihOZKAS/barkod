@@ -311,6 +311,7 @@ def Bayi_Listesi(request):
 
 def sepete_ekle(request):
     if request.method == 'POST':
+        url_name = request.resolver_match.url_name
         barkod = request.POST.get('barkod')
 
         try:
@@ -325,9 +326,13 @@ def sepete_ekle(request):
             sepet_urun.miktar += 1
         sepet_urun.save()
 
-        return redirect('Arama')  # Sepet detay sayfasına yönlendir
+        if url_name == 'urun-ara-beyaz':
+            return redirect('urun-ara-beyaz')  # Sepet detay sayfasına yönlendir
+        else:
+            return redirect('Arama')  # Sepet detay sayfasına yönlendir
     else:
         return HttpResponse("Hata geçersiz istek ?")
+
 
 
 

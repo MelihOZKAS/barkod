@@ -56,10 +56,6 @@ def konsol_home_detail(request):
 
 
 
-
-
-
-
 @login_required(login_url = 'giris-yap')
 def urun_ara(request):
     if request.method == 'POST':
@@ -111,13 +107,6 @@ def urun_ara(request):
                'Sayi': Sayi,
                }
     return render(request, 'system/user/Nasipse-urun-arama-yeni-2.html', context)
-
-
-
-
-
-
-
 
 
 
@@ -174,14 +163,6 @@ def urun_ara_yeni(request):
 
 
 
-
-
-
-
-
-
-
-
 @login_required(login_url = 'giris-yap')
 def urun_ara_beyaz(request):
     if request.method == 'POST':
@@ -232,10 +213,6 @@ def urun_ara_beyaz(request):
                'Sayi': Sayi,
                }
     return render(request, 'system/user/white.html',context)
-
-
-
-
 
 
 
@@ -292,8 +269,6 @@ def urun_ara_yeni_iki(request):
 
 
 
-
-
 @login_required(login_url = 'giris-yap')
 def Bayi_Listesi(request):
     Musteri_Listesi = Musteri.objects.all()
@@ -306,7 +281,6 @@ def Bayi_Listesi(request):
                'Musteri_Listesi':Musteri_Listesi,
                }
     return render(request, 'system/user/bayi_listesi.html',context)
-
 
 
 def sepete_ekle(request):
@@ -326,16 +300,31 @@ def sepete_ekle(request):
             sepet_urun.miktar += 1
         sepet_urun.save()
 
-        return HttpResponse(url_name)
-
-        if url_name == 'urun-ara-beyaz':
-            return redirect('urun-ara-beyaz')  # Sepet detay sayfasına yönlendir
-        else:
-            return redirect('Arama')  # Sepet detay sayfasına yönlendir
+        return redirect('Arama')  # Sepet detay sayfasına yönlendir
     else:
         return HttpResponse("Hata geçersiz istek ?")
 
 
+def sepete_ekle_beyaz(request):
+    if request.method == 'POST':
+        url_name = request.resolver_match.url_name
+        barkod = request.POST.get('barkod')
+
+        try:
+            urun = Stok.objects.get(Barkod=barkod)  # Stokta mevcut ve aktif olan ürünü al
+            #urun = Stok.objects.get(Barkod=barkod, Stok_Durumu=True)  # Stokta mevcut ve aktif olan ürünü al
+        except Stok.DoesNotExist:
+            return HttpResponse("Hata Urun yok ?")
+
+        # Sepete eklemek istediğiniz ürünü ve miktarını kullanarak SepetUrun nesnesi oluştur
+        sepet_urun, created = SepetUrun.objects.get_or_create(user=request.user, urun=urun)
+        if not created:
+            sepet_urun.miktar += 1
+        sepet_urun.save()
+
+        return redirect('urun-ara-beyaz')  # Sepet detay sayfasına yönlendir
+    else:
+        return HttpResponse("Hata geçersiz istek ?")
 
 
 
@@ -348,7 +337,15 @@ def sepet_urun_sil(request,urun_id: int):
         print(f"Ürün bulunamadı: user={request.user}, id={urun_id}")
 
     return redirect('Arama')
+def sepet_urun_sil_beyaz(request,urun_id: int):
+    try:
+        urun = SepetUrun.objects.get(user=request.user, id=urun_id)
+        urun.delete()
+        print(f"Ürün başarıyla silindi: {urun}")
+    except SepetUrun.DoesNotExist:
+        print(f"Ürün bulunamadı: user={request.user}, id={urun_id}")
 
+    return redirect('urun-ara-beyaz')
 
 
 
@@ -362,11 +359,24 @@ def manuel_tutar_ekle(request):
         urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)
         SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
         return redirect('Arama')
+def manuel_tutar_ekle_beyaz(request):
+    if request.method == 'POST':
+        random_barkod = random.randint(10000000000000, 999999999999999)
+        print(random_barkod)
+        Urun_Adi = "Manuel Eklenen Ürün"
+        tutar = request.POST.get('tutar')
+        tutar = tutar.replace(',', '.')
+        urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)
+        SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+        return redirect('urun-ara-beyaz')
 
 
 def sepeti_sifirla(request):
     SepetUrun.objects.filter(user=request.user).delete()
     return redirect('Arama')
+def sepeti_sifirla_beyaz(request):
+    SepetUrun.objects.filter(user=request.user).delete()
+    return redirect('urun-ara-beyaz')
 
 
 def musteri_ekle(request):

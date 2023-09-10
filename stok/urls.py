@@ -11,7 +11,9 @@ urlpatterns = [
     path("logout/", views.logout, name='cikis-yap'),
     path("panel/", views.konsol_home_detail, name='panel'),
     path("manuel-tutar/", views.manuel_tutar_ekle, name='manuel-tutar'),
+    path("manuel-tutar-beyaz/", views.manuel_tutar_ekle_beyaz, name='manuel-tutar-beyaz'),
     path("sepeti-sifirla/", views.sepeti_sifirla, name='sepeti-sifirla'),
+    path("sepeti-sifirla-beyaz/", views.sepeti_sifirla_beyaz, name='sepeti-sifirla-beyaz'),
     path("musteri-listesi/", views.Bayi_Listesi, name='musteri-listesi'),
     path("musteri-ekle/", views.musteri_ekle, name='musteri-ekle'),
 
@@ -28,6 +30,8 @@ urlpatterns = [
 
 
     path('sepete-ekle/', views.sepete_ekle, name='sepete-ekle'),
+    path('sepete-ekle-beyaz/', views.sepete_ekle_beyaz, name='sepete-ekle-beyaz'),
     path('sepet/urun-sil/<int:urun_id>/', views.sepet_urun_sil, name='sepet_urun_sil'),
+    path('sepet/urun-sil-beyaz/<int:urun_id>/', views.sepet_urun_sil_beyaz, name='sepet_urun_sil-beyaz'),
 
 ]

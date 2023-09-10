@@ -83,6 +83,25 @@
                                 </div>
                             </div>
                             <!-- End Main Header User -->
+                            <div class="main-header-btn ml-md-1" style="font-size: 12px;">
+                                <a href="{% url 'sepeti-sifirla' %}" class="btn">Sepeti Sıfırla ( F2 )</a>
+                            </div>
+
+                            <div class="main-header-btn ml-md-1" style="font-size: 12px;">
+                                <a href="{% url 'Arama' %}" class="btn">Ürün Ara ( F3 )</a>
+                            </div>
+
+                            <div class="main-header-btn ml-md-1" style="font-size: 12px;">
+                                <a href="{% url 'musteri-listesi' %}" class="btn">Müşteri Listesi ( F4 )</a>
+                            </div>
+
+                            <div class="main-header-btn ml-md-1" style="font-size: 12px;">
+                                <a href="{% url 'musteri-listesi' %}" class="btn">Müşteri Listesi ( F5 )</a>
+                            </div>
+
+                            <div class="main-header-btn ml-md-1" style="font-size: 12px;">
+                                <a href="{% url 'musteri-listesi' %}" class="btn">Müşteri Listesi ( F6 )</a>
+                            </div>
 
 
                         </div>
@@ -106,14 +125,6 @@
                                     </div>
                                     <!-- End Main Header Time -->
                                 </li>
-                                <li class="d-none d-lg-flex">
-                                    <!-- Main Header Button -->
-                                    <div class="main-header-btn ml-md-1">
-                                        <a href="#" class="btn">Pending Tasks</a>
-                                    </div>
-                                    <!-- End Main Header Button -->
-                                </li>
-
                             </ul>
                         </div>
                         <!-- End Header Right -->
@@ -207,15 +218,13 @@
 
                                         <td>{{ urun.urun.Tutar }}</td>
                                         <td>
-                                            <form action="{% url 'sepet_urun_sil' urun.id %}" method="POST">
+                                            <form action="{% url 'sepet_urun_sil-beyaz' urun.id %}" method="POST">
                                                 {% csrf_token %}
                                                 <!--<input type="submit" value="Sil"> -->
                                                 <button type="submit" class="status-btn un_paid">Sil</button>
                                             </form>
                                         </td>
                                     </tr>
-
-
                                 {% endfor %}
 
                                 </tbody>
@@ -276,7 +285,7 @@
                         <div class="row">
                             {% for Kategori in AnaKategoriler %}
                                 <div class="col-lg-1" style="margin-top: 5px;">
-                                    <form action="{% url 'sepete-ekle' %}" method="POST">
+                                    <form action="{% url 'sepete-ekle-beyaz' %}" method="POST">
                                         {% csrf_token %}
 
                                         <div class="media-body" style="margin-left: 10px;">
@@ -297,7 +306,7 @@
                             {% for favori in Favoriler %}
                                 <div class="col-md-2 favori" data-kategori="{{ favori.Liste_grup }}"
                                      style="margin-top: 5px; display: none;">
-                                    <form action="{% url 'sepete-ekle' %}" method="POST">
+                                    <form action="{% url 'sepete-ekle-beyaz' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
                                         <button type="submit" class="btn btn-sm"
@@ -319,7 +328,7 @@
                         </style>
 
                         <div class="row justify-content-center align-items-center" style="min-height: 5vh;">
-                            <form action="{% url 'manuel-tutar' %}" method="POST">
+                            <form action="{% url 'manuel-tutar-beyaz' %}" method="POST">
                                 {% csrf_token %}
                                 <div class="form-group mb-4 text-center" style="margin-top: 10px;">
                                     <label class="mb-2 font-14 bold">Manuel Tutar Gir</label>
@@ -332,8 +341,6 @@
                                 </div>
                             </form>
                         </div>
-
-
                     </div>
                     <!-- End Base Control -->
 
@@ -387,7 +394,7 @@
                                             </td>
                                             <td>{{ result.Tutar }}</td>
                                             <td>
-                                                <form method="POST" action="/sepete-ekle/">
+                                                <form method="POST" action="/sepete-ekle-beyaz/">
                                                     {% csrf_token %}
                                                     <input type="hidden" name="barkod" value="{{ result.Barkod }}">
 

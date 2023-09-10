@@ -231,7 +231,7 @@ def urun_ara_beyaz(request):
                'sepet_urunleri': sepet_urunleri,
                'Sayi': Sayi,
                }
-    return render(request, 'system/user/Nasipse-urun-arama-yeni.html',context)
+    return render(request, 'system/user/white.html',context)
 
 
 

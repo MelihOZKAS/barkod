@@ -48,7 +48,26 @@
 
         </div>
         <!-- End Logo -->
-
+    <script>
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'F2') {
+                // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/sepeti-sifirla/';
+            } else if (event.key === 'F3') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/urun-ara/';
+            } else if (event.key === 'F4') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/musteri-ekle/';
+            } else if (event.key === 'F5') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/urun-ara-beyaz/';
+            } else if (event.key === 'F6') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/sepeti-sifirla-beyaz/';
+            }
+        });
+    </script>
         <!-- Main Header -->
         <div class="main-header">
             <div class="container-fluid">
@@ -65,14 +84,14 @@
                                         <span></span>
                                     </div>
 
-                                <div class="user-profile d-xl-flex align-items-center d-none">
-                                    <!-- User Avatar -->
-                                    <!-- End User Avatar -->
-                                    <!-- User Info -->
-                                    <div class="user-info">
-                                        <h4 class="user-name">{{ name }}</h4>
-                                        <p class="user-email">{{ email }}</p>
-                                    </div>
+                                    <div class="user-profile d-xl-flex align-items-center d-none">
+                                        <!-- User Avatar -->
+                                        <!-- End User Avatar -->
+                                        <!-- User Info -->
+                                        <div class="user-info">
+                                            <h4 class="user-name">{{ name }}</h4>
+                                            <p class="user-email">{{ email }}</p>
+                                        </div>
                                         <!-- End User Info -->
                                     </div>
                                 </a>
@@ -95,18 +114,18 @@
                             </div>
 
                             <div class="main-header-btn ml-md-1" style="font-size: 12px;">
-                                <a href="{% url 'musteri-listesi' %}" class="btn">Müşteri Listesi ( F5 )</a>
+                                <a href="{% url 'urun-ara-beyaz' %}" class="btn">Ürün Beyaz ( F5 )</a>
                             </div>
 
                             <div class="main-header-btn ml-md-1" style="font-size: 12px;">
-                                <a href="{% url 'musteri-listesi' %}" class="btn">Müşteri Listesi ( F6 )</a>
+                                <a href="{% url 'sepeti-sifirla-beyaz' %}" class="btn">SepetSıfırla Beyaz ( F6 )</a>
                             </div>
 
 
                         </div>
                         <!-- End Header Left -->
                     </div>
-                    <div class="col-9 col-lg-11 col-xl-8">
+                    <div class="col-9 col-lg-11 col-xl-4">
                         <!-- Header Right -->
                         <div class="main-header-right d-flex justify-content-end">
                             <ul class="nav">
@@ -116,13 +135,17 @@
                                     <!-- Main Header Time -->
                                     <div class="main-header-date-time text-right">
                                         <h3 class="time">
-                                            <span id="hours">21</span>
+                                            <span id="hours"></span>
                                             <span id="point">:</span>
-                                            <span id="min">06</span>
+                                            <span id="min"></span>
                                         </h3>
-                                        <span class="date"><span id="date">Tue, 12 October 2019</span></span>
+                                        <span class="date"><span id="date">En Güzel Şiirler.</span></span>
                                     </div>
                                     <!-- End Main Header Time -->
+                                </li>
+
+
+                                <!-- End Main Header Notification -->
                                 </li>
                             </ul>
                         </div>

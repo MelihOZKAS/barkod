@@ -5,19 +5,23 @@
 {% block userContent %}
 
 
-        <script>
-        document.addEventListener('keydown', function(event) {
+    <script>
+        document.addEventListener('keydown', function (event) {
             if (event.key === 'F2') {
                 // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/sepeti-sifirla/';
-            }
-            else if (event.key === 'F3') {
+            } else if (event.key === 'F3') {
                 // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/urun-ara/';
-            }
-            else if (event.key === 'F4') {
+            } else if (event.key === 'F4') {
                 // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
                 window.location.href = '/musteri-ekle/';
+            } else if (event.key === 'F5') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/urun-ara-beyaz/';
+            } else if (event.key === 'F6') {
+                // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
+                window.location.href = '/sepeti-sifirla-beyaz/';
             }
         });
     </script>
@@ -50,8 +54,6 @@
                         </style>
 
 
-
-
                         <!-- End Form -->
 
                         <script>
@@ -67,42 +69,42 @@
                                 });
                             }
                         </script>
-<div class="row">
-    <div class="col-3">
-        <form action="{% url 'Arama' %}" method="POST">
-            {% csrf_token %}
-            <div class="form-container mb-4">
-                <input type="text" name="title" class="theme-input-style large" id="large1"
-       placeholder="Lütfen Aranacak Barkod / Ürün Adı Giriniz" autofocus
-       style="font-size: 12px; padding: 10px;">
+                        <div class="row">
+                            <div class="col-3">
+                                <form action="{% url 'Arama' %}" method="POST">
+                                    {% csrf_token %}
+                                    <div class="form-container mb-4">
+                                        <input type="text" name="title" class="theme-input-style large" id="large1"
+                                               placeholder="Lütfen Aranacak Barkod / Ürün Adı Giriniz" autofocus
+                                               style="font-size: 12px; padding: 10px;">
 
-                <button type="submit" class="btn long bg-warning" style="font-size: 12px; padding: 10px;">Ürünü Ara 🔍</button>
-            </div>
-        </form>
-    </div>
-    <div class="col-9">
-        <!-- AnaKategoriler -->
-        <div class="row">
-            {% for Kategori in AnaKategoriler %}
-                <div class="col">
-                    <form action="{% url 'sepete-ekle' %}" method="POST">
-                        {% csrf_token %}
+                                        <button type="submit" class="btn long bg-warning"
+                                                style="font-size: 12px; padding: 10px;">Ürünü Ara 🔍
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="col-9">
+                                <!-- AnaKategoriler -->
+                                <div class="row">
+                                    {% for Kategori in AnaKategoriler %}
+                                        <div class="col">
+                                            <form action="{% url 'sepete-ekle' %}" method="POST">
+                                                {% csrf_token %}
 
-                        <div class="media-body" style="margin-left: 10px;">
-                            <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
-                                    class="btn s_alert bg-success text-white mr-1 mr-sm-1 mb-1"
-                                    id="submit"
-                                    style="font-size: 12px; padding: 10px;">{{ Kategori.Grup_Adi }}</button>
+                                                <div class="media-body" style="margin-left: 10px;">
+                                                    <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
+                                                            class="btn s_alert bg-success text-white mr-1 mr-sm-1 mb-1"
+                                                            id="submit"
+                                                            style="font-size: 12px; padding: 10px;">{{ Kategori.Grup_Adi }}</button>
+                                                </div>
+
+                                            </form>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
-
-                    </form>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-
 
 
                         <!-- AltFavoriler -->
@@ -110,40 +112,41 @@
                             {% for favori in Favoriler %}
                                 <div class="col-md-2 favori" data-kategori="{{ favori.Liste_grup }}"
                                      style="margin-top: 5px;">
-                                   <form action="{% url 'sepete-ekle' %}" method="POST">
+                                    <form action="{% url 'sepete-ekle' %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
-                                        <button type="submit" class="btn btn-sm" style="padding: 13px; font-size: 15px;">{{ favori.Urun_Adi }}</button>
+                                        <button type="submit" class="btn btn-sm"
+                                                style="padding: 13px; font-size: 15px;">{{ favori.Urun_Adi }}</button>
                                     </form>
                                 </div>
                             {% endfor %}
                         </div>
 
 
-<style>
-    .form-control.pd {
-        font-size: 20px;
-    }
-    .btn.style--three {
-        font-size: 12px;
-    }
-</style>
+                        <style>
+                            .form-control.pd {
+                                font-size: 20px;
+                            }
 
-<div class="row justify-content-center align-items-center" style="min-height: 5vh;">
-    <form action="{% url 'manuel-tutar' %}" method="POST">
-        {% csrf_token %}
-        <div class="form-group mb-4 text-center" style="margin-top: 10px;">
-            <label class="mb-2 font-14 bold">Manuel Tutar Gir</label>
-            <div class="theme-input-group style--two">
-                <input type="text" class="form-control pd" name="tutar" placeholder="Tutar">
-                <div class="input-group-append">
-                    <button type="submit" class="btn style--three">Sepete Ekle</button>
-                </div>
-            </div>
-        </div>
-    </form>
-</div>
+                            .btn.style--three {
+                                font-size: 12px;
+                            }
+                        </style>
 
+                        <div class="row justify-content-center align-items-center" style="min-height: 5vh;">
+                            <form action="{% url 'manuel-tutar' %}" method="POST">
+                                {% csrf_token %}
+                                <div class="form-group mb-4 text-center" style="margin-top: 10px;">
+                                    <label class="mb-2 font-14 bold">Manuel Tutar Gir</label>
+                                    <div class="theme-input-group style--two">
+                                        <input type="text" class="form-control pd" name="tutar" placeholder="Tutar">
+                                        <div class="input-group-append">
+                                            <button type="submit" class="btn style--three">Sepete Ekle</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
 
 
                     </div>

@@ -224,6 +224,195 @@
                     </div>
                 </div>
             </div>
+                        <div class="col-lg-6">
+                    <!-- Base Control -->
+                    <div class="form-element base-control mb-30">
+                        <h2 class="font-20 mb-4 text-center">{{ Turu }}</h2>
+
+                        <style>
+                            .form-container {
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                            }
+
+                            .form-container input[name="title"] {
+                                width: 80%;
+                                margin-right: 10px; /* İki eleman arasına 10px boşluk ekler */
+                            }
+
+                            .form-container button {
+                                width: 20%;
+                            }
+                        </style>
+
+                        <form action="{% url 'Arama' %}" method="POST">
+                            {% csrf_token %}
+                            <div class="form-container mb-4">
+                                <input type="text" name="title" class="theme-input-style large" id="large1"
+                                       placeholder="Lütfen Aranacak Barkod / Ürün Adı Giriniz" autofocus>
+                                <button type="submit" class="btn long bg-warning">Ürünü Ara 🔍</button>
+                            </div>
+                        </form>
+
+
+                        <!-- End Form -->
+
+                        <script>
+                            function filtrele(kategori) {
+                                // Favoriler listesini filtrele
+                                var favoriler = document.querySelectorAll('.favori');
+                                favoriler.forEach(function (favori) {
+                                    if (favori.dataset.kategori === kategori) {
+                                        favori.style.display = 'block';
+                                    } else {
+                                        favori.style.display = 'none';
+                                    }
+                                });
+                            }
+                        </script>
+
+                        <!-- AnaKategoriler -->
+                        <div class="row">
+                            {% for Kategori in AnaKategoriler %}
+                                <div class="col-lg-1" style="margin-top: 5px;">
+                                    <form action="{% url 'sepete-ekle' %}" method="POST">
+                                        {% csrf_token %}
+
+                                        <div class="media-body" style="margin-left: 10px;">
+                                            <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')"
+                                                    class="btn s_alert bg-success text-white mr-1 mr-sm-1 mb-1"
+                                                    id="submit"
+                                                    style="font-size: 12px; padding: 10px;">{{ Kategori.Grup_Adi }}</button>
+                                        </div>
+
+
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- AltFavoriler -->
+                        <div class="row">
+                            {% for favori in Favoriler %}
+                                <div class="col-md-2 favori" data-kategori="{{ favori.Liste_grup }}"
+                                     style="margin-top: 5px; display: none;">
+                                    <form action="{% url 'sepete-ekle' %}" method="POST">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
+                                        <button type="submit" class="btn btn-sm" style="padding: 13px; font-size: 15px;">{{ favori.Urun_Adi }}</button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+
+                        <style>
+                            .form-control.pd {
+                                font-size: 20px;
+                            }
+
+                            .btn.style--three {
+                                font-size: 12px;
+                            }
+                        </style>
+
+                        <div class="row justify-content-center align-items-center" style="min-height: 5vh;">
+                            <form action="{% url 'manuel-tutar' %}" method="POST">
+                                {% csrf_token %}
+                                <div class="form-group mb-4 text-center" style="margin-top: 10px;">
+                                    <label class="mb-2 font-14 bold">Manuel Tutar Gir</label>
+                                    <div class="theme-input-group style--two">
+                                        <input type="text" class="form-control pd" name="tutar" placeholder="Tutar">
+                                        <div class="input-group-append">
+                                            <button type="submit" class="btn style--three">Sepete Ekle</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+
+                    </div>
+                    <!-- End Base Control -->
+
+
+                </div>
+
+
+
+                <div class="col-lg-12">
+                    <div class="bg-3rd text-white mb-30">
+                        <div class="card-body py-30 pb-0">
+                            <h4 class="font-20 ">Bulunan Ürünler</h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="style--four table-striped table-inverse text-nowrap">
+                                <thead>
+                                <tr>
+                                    <th>Ürün Adı</th>
+                                    <th>Barkod</th>
+                                    <th>Stok</th>
+                                    <th>Fiyatı</th>
+                                    <th>Sepete Ekle</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+
+
+                                <style>
+                                    .my-input {
+                                        width: 3px !important;
+                                        text-align: center;
+                                    }
+                                </style>
+
+                                {% if results %}
+
+
+                                    {% for result in results %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="country-name">{{ result.Urun_Adi }}</div>
+                                                </div>
+                                            </td>
+                                            <td>{{ result.Barkod }}</td>
+
+                                            <td>
+                                                {% if result.Stok_Durumu %}
+                                                    <button type="button" class="status-btn completed">Stokta</button>
+                                                {% else %}
+                                                    <button type="button" class="status-btn un_paid">Stokta Yok</button>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ result.Tutar }}</td>
+                                            <td>
+                                                <form method="POST" action="/sepete-ekle/">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="barkod" value="{{ result.Barkod }}">
+
+                                                    <!--<button type="submit">Sepete Ekle</button>-->
+                                                    <button type="submit" class="status-btn completed">Sepete Ekle
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="6">
+                                                Ürün Bulunamadı.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+
         </div>
     </div>
 </div>

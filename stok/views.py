@@ -85,7 +85,7 @@ def urun_ara(request):
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
-    Sayi = range(1, 101)
+    Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     print(total)
     if total != None:
@@ -139,7 +139,7 @@ def urun_ara_yeni(request):
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
-    Sayi = range(1, 101)
+    Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     print(total)
     if total != None:
@@ -192,7 +192,7 @@ def urun_ara_beyaz(request):
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
-    Sayi = range(1, 101)
+    Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     print(total)
     if total != None:
@@ -245,7 +245,7 @@ def urun_ara_yeni_iki(request):
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
-    Sayi = range(1, 101)
+    Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     print(total)
     if total != None:

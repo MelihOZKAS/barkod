@@ -61,7 +61,7 @@ class SepetUrun(models.Model):
 
 class Musteri(models.Model):
     isim_soyisim = models.CharField(max_length=255)
-    Cep_Telefonu = models.PositiveBigIntegerField()
+    Cep_Telefonu = models.PositiveBigIntegerField(null=True,blank=True)
     borc = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     aciklama = models.TextField(null=True,blank=True)
     Ekleme_Tarih = models.DateTimeField(auto_now_add=True)

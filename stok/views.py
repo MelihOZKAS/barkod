@@ -385,6 +385,9 @@ def musteri_ekle(request):
         Cep_Telefonu = request.POST.get('Cep_Telefonu')
         borc = request.POST.get('borc')
         aciklama = request.POST.get('aciklama')
+        if not Cep_Telefonu:
+            Cep_Telefonu = random.randint(1, 100000000)
+
         Musteri.objects.create(isim_soyisim=ad, Cep_Telefonu=Cep_Telefonu, borc=borc, aciklama=aciklama)
         print("ekledim")
         return redirect('musteri-listesi')   #Bu iki taraf düzeltilecek.

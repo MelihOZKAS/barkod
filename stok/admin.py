@@ -25,7 +25,7 @@ class StokAdmin(admin.ModelAdmin):
     search_fields = ("Urun_Adi","Barkod",)
 
     formfield_overrides = {
-        models.CharField: {'widget': forms.TextInput(attrs={'size':'20'})},
+        models.CharField: {'widget': forms.TextInput(attrs={'size':'90'})},
     }
 
 

@@ -224,6 +224,7 @@ def urun_ara_beyaz(request):
     Favoriler = Stok.objects.filter(Favori=True)
     AnaKategoriler = Liste_Grup.objects.all()
 
+
     context = {'name': f"{first_name} {last_name}",
                'email':email,
                'results':results,

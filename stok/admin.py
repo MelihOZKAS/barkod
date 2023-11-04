@@ -27,7 +27,6 @@ class StokAdmin(admin.ModelAdmin):
 
     form = admin.forms.ModelForm(
         model=Stok,
-        fields=['Urun_Adi', ...],
         widgets={'Urun_Adi': UrunAdiWidget()},
     )
 

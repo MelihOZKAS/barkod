@@ -162,6 +162,20 @@ def urun_ara_yeni(request):
     return render(request, 'system/user/Nasipse-urun-arama-yeni.html',context)
 
 
+@csrf_exempt
+def urun_miktar_guncelle(request, urun_id):
+    print("istek geldi")
+    if request.method == 'POST':
+        print("Posta girdim")
+        miktar = int(request.POST.get('miktar'))
+        print(miktar)
+        urun = SepetUrun.objects.get(id=urun_id)
+
+        urun.miktar = miktar
+        urun.save()
+    return JsonResponse({'success': True})
+
+    #return redirect('Arama')
 
 @login_required(login_url = 'giris-yap')
 def urun_ara_beyaz(request):
@@ -178,6 +192,8 @@ def urun_ara_beyaz(request):
                 try:
                     # Sepette zaten bu üründen varsa, hiçbir şey yapma
                     sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                    sepet_urun += 1
+                    sepet_urun.save()
 
                 except SepetUrun.DoesNotExist:
                     # Sepette bu üründen yoksa, yeni bir ürün ekle
@@ -220,6 +236,8 @@ def urun_ara_beyaz(request):
 
                }
     return render(request, 'system/user/white.html',context)
+
+
 
 
 
@@ -452,20 +470,6 @@ def bakiyeHareketi(request, musteri_id):
         return render(request, 'system/user/bakiye-hareketi.html', context)
 
 
-@csrf_exempt
-def urun_miktar_guncelle(request, urun_id):
-    print("istek geldi")
-    if request.method == 'POST':
-        print("Posta girdim")
-        miktar = int(request.POST.get('miktar'))
-        print(miktar)
-        urun = SepetUrun.objects.get(id=urun_id)
-
-        urun.miktar = miktar
-        urun.save()
-    return JsonResponse({'success': True})
-
-    #return redirect('Arama')
 
 
 @csrf_exempt

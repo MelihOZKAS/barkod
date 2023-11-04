@@ -165,6 +165,7 @@ def urun_ara_yeni(request):
 
 @login_required(login_url = 'giris-yap')
 def urun_ara_beyaz(request):
+    uyari = False
     if request.method == 'POST':
         query = request.POST.get('title')
         if query.isdigit():
@@ -173,7 +174,7 @@ def urun_ara_beyaz(request):
             try:
                 urun = Stok.objects.get(Barkod=urun_id)
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
-                uyari = False
+
                 try:
                     # Sepette zaten bu üründen varsa, hiçbir şey yapma
                     sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)

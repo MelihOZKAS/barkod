@@ -173,9 +173,11 @@ def urun_ara_beyaz(request):
             try:
                 urun = Stok.objects.get(Barkod=urun_id)
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
+                uyari = False
                 try:
                     # Sepette zaten bu üründen varsa, hiçbir şey yapma
                     sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+
                 except SepetUrun.DoesNotExist:
                     # Sepette bu üründen yoksa, yeni bir ürün ekle
                     SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
@@ -185,6 +187,7 @@ def urun_ara_beyaz(request):
                 print("patladım.")
         else:
             results = Stok.objects.filter(Urun_Genel__icontains=query)
+            uyari = True
     else:
         results = []
 
@@ -211,6 +214,8 @@ def urun_ara_beyaz(request):
                'AnaKategoriler':AnaKategoriler,
                'sepet_urunleri': sepet_urunleri,
                'Sayi': Sayi,
+               'uyari': uyari,
+
                }
     return render(request, 'system/user/white.html',context)
 

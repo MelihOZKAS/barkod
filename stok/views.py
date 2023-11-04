@@ -192,7 +192,7 @@ def urun_ara_beyaz(request):
                 try:
                     # Sepette zaten bu üründen varsa, hiçbir şey yapma
                     sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
-                    sepet_urun += 1
+                    sepet_urun.miktar += 1
                     sepet_urun.save()
 
                 except SepetUrun.DoesNotExist:

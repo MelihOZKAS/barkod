@@ -25,10 +25,6 @@ class StokAdmin(admin.ModelAdmin):
     list_editable = ("Favori","Tutar",)
     search_fields = ("Urun_Adi","Barkod",)
 
-    form = admin.forms.ModelForm(
-        model=Stok,
-        widgets={'Urun_Adi': UrunAdiWidget()},
-    )
 
 admin.site.register(Stok, StokAdmin)
 

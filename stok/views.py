@@ -184,10 +184,11 @@ def urun_ara_beyaz(request):
 
             except Stok.DoesNotExist:
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
+                uyari = True
                 print("patladım.")
         else:
             results = Stok.objects.filter(Urun_Genel__icontains=query)
-            uyari = True
+
     else:
         results = []
 
@@ -214,7 +215,7 @@ def urun_ara_beyaz(request):
                'AnaKategoriler':AnaKategoriler,
                'sepet_urunleri': sepet_urunleri,
                'Sayi': Sayi,
-               'uyari': True,
+               'uyari': uyari,
 
                }
     return render(request, 'system/user/white.html',context)

@@ -214,7 +214,7 @@ def urun_ara_beyaz(request):
                'AnaKategoriler':AnaKategoriler,
                'sepet_urunleri': sepet_urunleri,
                'Sayi': Sayi,
-               'uyari': uyari,
+               'uyari': True,
 
                }
     return render(request, 'system/user/white.html',context)

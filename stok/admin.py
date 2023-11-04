@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django import forms
+from django.db import models
 
 
 # Register your models here.
@@ -17,13 +18,15 @@ admin.site.register(Liste_Grup, ListFavoriAdmin)
 
 
 
-class UrunAdiWidget(forms.TextInput):
-    attrs = {'size': 90}
 class StokAdmin(admin.ModelAdmin):
     list_display = ("Urun_Adi","Barkod","Tutar","Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi",)
     list_filter = ("Grup","Stok_Durumu",)
     list_editable = ("Favori","Tutar",)
     search_fields = ("Urun_Adi","Barkod",)
+
+    formfield_overrides = {
+        models.CharField: {'widget': forms.TextInput(attrs={'size':'20'})},
+    }
 
 
 admin.site.register(Stok, StokAdmin)

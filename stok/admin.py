@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django import forms
 from django.db import models
+import math
+
 
 
 # Register your models here.
@@ -28,6 +30,57 @@ class StokAdmin(admin.ModelAdmin):
         models.CharField: {'widget': forms.TextInput(attrs={'size':'90'})},
     }
 
+
+
+
+    actions = ["Yuzde10ZamYap","Yuzde15ZamYap","Yuzde20ZamYap","Yuzde25ZamYap","Yuzde30ZamYap","Yuzde35ZamYap"]
+
+
+    def Yuzde10ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.10) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde10ZamYap.short_description = "Seçili ürünlere %10 zam uygula"
+    def Yuzde15ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.15) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde15ZamYap.short_description = "Seçili ürünlere %15 zam uygula"
+    def Yuzde15ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.15) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde15ZamYap.short_description = "Seçili ürünlere %15 zam uygula"
+
+    def Yuzde20ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.20) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde20ZamYap.short_description = "Seçili ürünlere %20 zam uygula"
+    def Yuzde25ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.25) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde25ZamYap.short_description = "Seçili ürünlere %25 zam uygula"
+
+    def Yuzde30ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.30) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde30ZamYap.short_description = "Seçili ürünlere %30 zam uygula"
+
+    def Yuzde35ZamYap(self, request, queryset):
+        for obj in queryset:
+            obj.Tutar = math.floor(obj.Tutar * 1.35) + 1  # %25 zam uygula, küsüratı sil ve 1 ekle
+            obj.save()
+
+    Yuzde30ZamYap.short_description = "Seçili ürünlere %35 zam uygula"
 
 admin.site.register(Stok, StokAdmin)
 

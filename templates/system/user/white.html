@@ -206,30 +206,30 @@
                                             </div>
 
                                             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    $(document).ready(function () {
-        $('select[name="miktar"]').on('change', function () {
-            // Seçilen miktarı yakala
-            var miktar = $(this).val();
+                                            <script>
+                                                $(document).ready(function () {
+                                                    $('select[name="miktar"]').on('change', function () {
+                                                        // Seçilen miktarı yakala
+                                                        var miktar = $(this).val();
 
-            // Ürün ID'sini yakala
-            var urun_id = $(this).data('urun-id');
+                                                        // Ürün ID'sini yakala
+                                                        var urun_id = $(this).data('urun-id');
 
-            // Sepeti güncelle
-            $.ajax({
-                url: '/urun_miktar_guncelle/' + urun_id + '/',
-                type: 'POST',
-                data: {
-                    miktar: miktar,
-                },
-                success: function (response) {
-                    // Sayfayı yenile
-                   // location.reload();
-                    window.location.href = '/urun-ara-beyaz/';
-                },
-            });
-        });
-    });
+                                                        // Sepeti güncelle
+                                                        $.ajax({
+                                                            url: '/urun_miktar_guncelle/' + urun_id + '/',
+                                                            type: 'POST',
+                                                            data: {
+                                                                miktar: miktar,
+                                                            },
+                                                            success: function (response) {
+                                                                // Sayfayı yenile
+                                                                // location.reload();
+                                                                window.location.href = '/urun-ara-beyaz/';
+                                                            },
+                                                        });
+                                                    });
+                                                });
 
                                             </script>
                                         </td>

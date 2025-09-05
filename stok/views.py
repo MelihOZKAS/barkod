@@ -209,7 +209,7 @@ def urun_ara_beyaz(request):
     else:
         results = []
 
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user)
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -267,7 +267,7 @@ def urun_ara_yeni_iki(request):
     else:
         results = []
 
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user)
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -379,7 +379,12 @@ def manuel_tutar_ekle(request):
     if request.method == 'POST':
         random_barkod = random.randint(10000000000000, 999999999999999)
         print(random_barkod)
-        Urun_Adi = "Manuel Eklenen Ürün"
+        # İsim boş gelirse varsayılan ismi kullan, dolu gelirse kullanıcının girdiğini kullan
+        urun_ismi = request.POST.get('urun_ismi', '').strip()
+        if not urun_ismi:
+            Urun_Adi = "Manuel Eklenen Ürün"
+        else:
+            Urun_Adi = urun_ismi
         tutar = request.POST.get('tutar')
         tutar = tutar.replace(',', '.')
         urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)
@@ -389,7 +394,12 @@ def manuel_tutar_ekle_beyaz(request):
     if request.method == 'POST':
         random_barkod = random.randint(10000000000000, 999999999999999)
         print(random_barkod)
-        Urun_Adi = "Manuel Eklenen Ürün"
+        # İsim boş gelirse varsayılan ismi kullan, dolu gelirse kullanıcının girdiğini kullan
+        urun_ismi = request.POST.get('urun_ismi', '').strip()
+        if not urun_ismi:
+            Urun_Adi = "Manuel Eklenen Ürün"
+        else:
+            Urun_Adi = urun_ismi
         tutar = request.POST.get('tutar')
         tutar = tutar.replace(',', '.')
         urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)

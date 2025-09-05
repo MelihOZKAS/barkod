@@ -367,8 +367,11 @@
                                 {% csrf_token %}
                                 <div class="form-group mb-4 text-center" style="margin-top: 10px;">
                                     <label class="mb-2 font-14 bold">Manuel Tutar Gir</label>
+                                    <div class="theme-input-group style--two mb-2">
+                                        <input type="text" class="form-control pd" name="urun_ismi" placeholder="Ürün İsmi (isteğe bağlı)">
+                                    </div>
                                     <div class="theme-input-group style--two">
-                                        <input type="text" class="form-control pd" name="tutar" placeholder="Tutar">
+                                        <input type="text" class="form-control pd" name="tutar" placeholder="Tutar" required>
                                         <div class="input-group-append">
                                             <button type="submit" class="btn style--three">Sepete Ekle</button>
                                         </div>

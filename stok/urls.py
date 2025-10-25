@@ -9,6 +9,14 @@ urlpatterns = [
     path("urun-ara-yeni-2/", views.urun_ara_yeni_iki, name='AramaYeni2'),
     path("urun-ara-beyaz/", views.urun_ara_beyaz, name='urun-ara-beyaz'),
     path("yeni-sayfa/", views.yeni_sayfa, name='yeni-sayfa'),
+
+    # Modern Sayfa URL'leri
+    path("modern-urun-ara/", views.modern_urun_ara, name='modern-urun-ara'),
+    path("modern-sepete-ekle/", views.modern_sepete_ekle, name='modern-sepete-ekle'),
+    path("modern-sepet-urun-sil/<int:urun_id>/", views.modern_sepet_urun_sil, name='modern-sepet-urun-sil'),
+    path("modern-manuel-tutar/", views.modern_manuel_tutar_ekle, name='modern-manuel-tutar'),
+    path("modern-sepeti-sifirla/", views.modern_sepeti_sifirla, name='modern-sepeti-sifirla'),
+
     path("logout/", views.logout, name='cikis-yap'),
     path("panel/", views.konsol_home_detail, name='panel'),
     path("manuel-tutar/", views.manuel_tutar_ekle, name='manuel-tutar'),

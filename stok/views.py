@@ -595,3 +595,106 @@ def yeni_sayfa(request):
         'uyari': uyari,
     }
     return render(request, 'system/user/yeni-sayfa.html', context)
+
+# ============================================
+# YENİ MODERN SAYFA VIEW FONKSİYONLARI
+# ============================================
+
+@login_required(login_url='giris-yap')
+def modern_urun_ara(request):
+    if request.method == 'POST':
+        query = request.POST.get('title')
+        if query.isdigit():
+            urun_id = int(query)
+            try:
+                urun = Stok.objects.get(Barkod=urun_id)
+                try:
+                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                    sepet_urun.miktar += 1
+                    sepet_urun.save()
+                except SepetUrun.DoesNotExist:
+                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+                return redirect('modern-urun-ara')
+            except Stok.DoesNotExist:
+                return redirect('modern-urun-ara')
+        else:
+            return redirect('modern-urun-ara')
+
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+    for urun in sepet_urunleri:
+        urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
+
+    Sayi = range(1, 1001)
+    total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+    if total != None:
+        total = '{:.2f}'.format(total)
+    
+    first_name = request.user.first_name
+    last_name = request.user.last_name
+    email = request.user.email
+    Favoriler = Stok.objects.filter(Favori=True)
+    AnaKategoriler = Liste_Grup.objects.all()
+
+    context = {
+        'name': f"{first_name} {last_name}",
+        'email': email,
+        'results': [],
+        'total': total,
+        'Favoriler': Favoriler,
+        'AnaKategoriler': AnaKategoriler,
+        'sepet_urunleri': sepet_urunleri,
+        'Sayi': Sayi,
+        'uyari': False,
+    }
+    return render(request, 'system/user/modern-urun-ara.html', context)
+
+
+@csrf_exempt
+def modern_sepete_ekle(request):
+    if request.method == 'POST':
+        barkod = request.POST.get('barkod')
+        try:
+            urun = Stok.objects.get(Barkod=barkod)
+        except Stok.DoesNotExist:
+            return redirect('modern-urun-ara')
+
+        sepet_urun, created = SepetUrun.objects.get_or_create(user=request.user, urun=urun)
+        if not created:
+            sepet_urun.miktar += 1
+        sepet_urun.save()
+
+        return redirect('modern-urun-ara')
+    else:
+        return redirect('modern-urun-ara')
+
+
+@csrf_exempt
+def modern_sepet_urun_sil(request, urun_id: int):
+    try:
+        urun = SepetUrun.objects.get(user=request.user, id=urun_id)
+        urun.delete()
+    except SepetUrun.DoesNotExist:
+        pass
+    return redirect('modern-urun-ara')
+
+
+@csrf_exempt
+def modern_manuel_tutar_ekle(request):
+    if request.method == 'POST':
+        random_barkod = random.randint(10000000000000, 999999999999999)
+        urun_ismi = request.POST.get('urun_ismi', '').strip()
+        if not urun_ismi:
+            Urun_Adi = "Manuel Eklenen Ürün"
+        else:
+            Urun_Adi = urun_ismi
+        tutar = request.POST.get('tutar')
+        tutar = tutar.replace(',', '.')
+        urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)
+        SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+    return redirect('modern-urun-ara')
+
+
+@csrf_exempt
+def modern_sepeti_sifirla(request):
+    SepetUrun.objects.filter(user=request.user).delete()
+    return redirect('modern-urun-ara')

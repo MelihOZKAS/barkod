@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Ürün Arama</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #065f46 100%);
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .scroll-table {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .scroll-table::-webkit-scrollbar {
+            width: 10px;
+        }
+        .scroll-table::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .scroll-table::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            border-radius: 10px;
+        }
+        .scroll-table::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+        }
+        .btn-premium {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            transition: all 0.3s;
+        }
+        .btn-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.4);
+        }
+        .btn-success-premium {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        .btn-success-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(5, 150, 105, 0.4);
+        }
+        .btn-danger-premium {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+        .btn-danger-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+        }
+    </style>
+</head>
+<body class="p-6">
+
+{% if uyari %}
+<script>
+    alert("Ürün Yok!");
+</script>
+{% endif %}
+
+<!-- Keyboard Shortcuts -->
+<script>
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'F2') {
+            window.location.href = '/modern-urun-ara/';
+        } else if (event.key === 'F3') {
+            window.location.href = '/modern-sepeti-sifirla/';
+        } else if (event.key === 'F4') {
+            window.location.href = '/musteri-listesi/';
+        }
+    });
+</script>
+
+<div class="max-w-[1600px] mx-auto">
+    <!-- Header -->
+    <div class="glass-effect rounded-3xl shadow-2xl p-8 mb-8">
+        <div class="flex justify-between items-center flex-wrap gap-6">
+            <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">
+                    {{ name }}
+                </h1>
+                <p class="text-gray-600 text-lg mt-1">{{ email }}</p>
+            </div>
+            <div class="flex gap-4 flex-wrap">
+                <a href="{% url 'modern-urun-ara' %}" class="btn-premium text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg">
+                    🔍 Ürün Ara (F2)
+                </a>
+                <a href="{% url 'modern-sepeti-sifirla' %}" class="btn-danger-premium text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition">
+                    🗑️ Sepeti Sıfırla (F3)
+                </a>
+                <a href="{% url 'musteri-listesi' %}" class="btn-success-premium text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition">
+                    👥 Müşteri Listesi (F4)
+                </a>
+                <a href="{% url 'cikis-yap' %}" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition">
+                    🚪 Çıkış
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <!-- Sepet Bölümü -->
+        <div class="glass-effect rounded-3xl shadow-2xl p-8">
+            <div class="mb-6">
+                {% if total %}
+                    <h2 class="text-3xl font-bold text-center text-gray-800">
+                        GENEL TOPLAM: <span class="text-emerald-600 text-4xl">{{ total }} TL</span>
+                    </h2>
+                {% else %}
+                    <h2 class="text-3xl font-bold text-center text-gray-500">Sepette Hiç Ürün Yok</h2>
+                {% endif %}
+            </div>
+
+            <div class="scroll-table">
+                <table class="w-full">
+                    <thead class="bg-gradient-to-r from-amber-600 to-amber-700 text-white sticky top-0">
+                        <tr>
+                            <th class="px-6 py-4 text-left rounded-tl-2xl text-base">Ürün Adı</th>
+                            <th class="px-6 py-4 text-center text-base">Sisteme Eklenme</th>
+                            <th class="px-6 py-4 text-center text-base">Adet</th>
+                            <th class="px-6 py-4 text-center text-base">Toplam</th>
+                            <th class="px-6 py-4 text-center text-base">Birim</th>
+                            <th class="px-6 py-4 text-center rounded-tr-2xl text-base">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for urun in sepet_urunleri %}
+                        <tr class="border-b hover:bg-amber-50 transition">
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-gray-800 text-base">{{ urun.urun.Urun_Adi }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <div class="text-gray-700 font-medium">{{ urun.urun.Ekleme_Tarih|date:"d/m/Y" }}</div>
+                                <div class="text-gray-500 text-sm">{{ urun.urun.Ekleme_Tarih|date:"H:i" }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <select name="miktar" class="border-2 border-amber-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none font-medium" data-urun-id="{{ urun.id }}">
+                                    {% for i in Sayi %}
+                                        {% if i == urun.miktar %}
+                                            <option value="{{ i }}" selected>{{ i }}</option>
+                                        {% else %}
+                                            <option value="{{ i }}">{{ i }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-6 py-4 text-center font-bold text-emerald-600 text-lg">{{ urun.toplam_fiyat }} TL</td>
+                            <td class="px-6 py-4 text-center text-gray-600 font-medium">{{ urun.urun.Tutar }} TL</td>
+                            <td class="px-6 py-4 text-center">
+                                <form action="{% url 'modern-sepet-urun-sil' urun.id %}" method="POST" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-5 py-2 rounded-lg transition font-semibold shadow-md">
+                                        Sil
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Arama ve Favoriler Bölümü -->
+        <div class="glass-effect rounded-3xl shadow-2xl p-8">
+            <!-- Arama Formu -->
+            <form action="{% url 'modern-urun-ara' %}" method="POST" class="mb-8">
+                {% csrf_token %}
+                <div class="flex gap-3">
+                    <input type="text" name="title" class="flex-1 border-2 border-amber-300 rounded-xl px-6 py-4 focus:border-amber-500 focus:outline-none text-lg font-medium" placeholder="Barkod / Ürün Adı Giriniz" autofocus>
+                    <button type="submit" class="btn-premium text-white px-8 py-4 rounded-xl font-bold text-lg whitespace-nowrap shadow-lg">
+                        🔍 Ara
+                    </button>
+                </div>
+            </form>
+
+            <!-- Kategoriler -->
+            <div class="mb-8">
+                <h3 class="text-xl font-bold mb-4 text-gray-800">📂 Kategoriler</h3>
+                <div class="flex flex-wrap gap-3">
+                    {% for Kategori in AnaKategoriler %}
+                    <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')" class="btn-success-premium text-white px-6 py-3 rounded-xl transition font-semibold shadow-md text-base">
+                        {{ Kategori.Grup_Adi }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Favoriler -->
+            <div class="mb-8">
+                <h3 class="text-xl font-bold mb-4 text-gray-800">⭐ Favoriler</h3>
+                <div class="flex flex-wrap gap-3">
+                    {% for favori in Favoriler %}
+                    <div class="favori" data-kategori="{{ favori.Liste_grup }}" style="display: none;">
+                        <form action="{% url 'modern-sepete-ekle' %}" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
+                            <button type="submit" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl transition font-semibold shadow-md">
+                                {{ favori.Urun_Adi }}
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Manuel Tutar -->
+            <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border-2 border-amber-200">
+                <h3 class="text-xl font-bold mb-4 text-gray-800 text-center">💰 Manuel Tutar Gir</h3>
+                <form action="{% url 'modern-manuel-tutar' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="space-y-3">
+                        <input type="text" class="w-full border-2 border-amber-300 rounded-xl px-5 py-3 focus:border-amber-500 focus:outline-none font-medium" name="urun_ismi" placeholder="Ürün İsmi (isteğe bağlı)">
+                        <div class="flex gap-3">
+                            <input type="text" class="flex-1 border-2 border-amber-300 rounded-xl px-5 py-3 focus:border-amber-500 focus:outline-none font-medium" name="tutar" placeholder="Tutar" required>
+                            <button type="submit" class="btn-premium text-white px-8 py-3 rounded-xl font-bold whitespace-nowrap shadow-lg">
+                                ➕ Ekle
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulunan Ürünler -->
+    <div class="glass-effect rounded-3xl shadow-2xl p-8 mt-8">
+        <h3 class="text-3xl font-bold mb-6 text-gray-800">🔎 Bulunan Ürünler</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gradient-to-r from-amber-600 to-amber-700 text-white">
+                    <tr>
+                        <th class="px-6 py-4 text-left rounded-tl-2xl text-base">Ürün Adı</th>
+                        <th class="px-6 py-4 text-center text-base">Barkod</th>
+                        <th class="px-6 py-4 text-center text-base">Stok</th>
+                        <th class="px-6 py-4 text-center text-base">Fiyat</th>
+                        <th class="px-6 py-4 text-center rounded-tr-2xl text-base">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if results %}
+                        {% for result in results %}
+                        <tr class="border-b hover:bg-amber-50 transition">
+                            <td class="px-6 py-4 font-semibold text-gray-800 text-base">{{ result.Urun_Adi }}</td>
+                            <td class="px-6 py-4 text-center text-gray-600 font-medium">{{ result.Barkod }}</td>
+                            <td class="px-6 py-4 text-center">
+                                {% if result.Stok_Durumu %}
+                                    <span class="bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md">✓ Stokta</span>
+                                {% else %}
+                                    <span class="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md">✗ Stokta Yok</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-center font-bold text-emerald-600 text-lg">{{ result.Tutar }} TL</td>
+                            <td class="px-6 py-4 text-center">
+                                <form method="POST" action="{% url 'modern-sepete-ekle' %}" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="barkod" value="{{ result.Barkod }}">
+                                    <button type="submit" class="btn-premium text-white px-6 py-3 rounded-xl transition font-bold shadow-lg">
+                                        🛒 Sepete Ekle
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-xl">
+                                Ürün Bulunamadı
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-xl">
+                                Arama yapmak için barkod veya ürün adı giriniz
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Favori filtreleme
+    function filtrele(kategori) {
+        var favoriler = document.querySelectorAll('.favori');
+        favoriler.forEach(function (favori) {
+            if (favori.dataset.kategori === kategori) {
+                favori.style.display = 'block';
+            } else {
+                favori.style.display = 'none';
+            }
+        });
+    }
+
+    // Miktar güncelleme
+    $(document).ready(function () {
+        $('select[name="miktar"]').on('change', function () {
+            var miktar = $(this).val();
+            var urun_id = $(this).data('urun-id');
+
+            $.ajax({
+                url: '/urun_miktar_guncelle/' + urun_id + '/',
+                type: 'POST',
+                data: {
+                    miktar: miktar,
+                },
+                success: function (response) {
+                    window.location.href = '/modern-urun-ara/';
+                },
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

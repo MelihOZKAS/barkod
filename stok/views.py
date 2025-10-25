@@ -627,6 +627,10 @@ def modern_urun_ara(request):
     # Son eklenen ürün
     son_eklenen_urun = sepet_urunleri.first() if sepet_urunleri.exists() else None
 
+    # Sepet istatistikleri
+    farkli_urun_sayisi = sepet_urunleri.count()
+    toplam_adet = sepet_urunleri.aggregate(toplam=Sum('miktar'))['toplam'] or 0
+
     Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     if total != None:
@@ -647,6 +651,8 @@ def modern_urun_ara(request):
         'AnaKategoriler': AnaKategoriler,
         'sepet_urunleri': sepet_urunleri,
         'son_eklenen_urun': son_eklenen_urun,
+        'farkli_urun_sayisi': farkli_urun_sayisi,
+        'toplam_adet': toplam_adet,
         'Sayi': Sayi,
         'uyari': False,
     }

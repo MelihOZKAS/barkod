@@ -17,8 +17,7 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
         .scroll-table {
-            max-height: 500px;
-            overflow-y: auto;
+            /* Scroll kaldırıldı - tablo ekledikçe uzasın */
         }
         .scroll-table::-webkit-scrollbar {
             width: 10px;
@@ -116,8 +115,8 @@
                 <span class="text-gray-800 font-bold text-xl">{{ son_eklenen_urun.urun.Urun_Adi }}</span>
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-gray-600 font-semibold text-lg">📅 Sisteme Eklenme:</span>
-                <span class="text-amber-600 font-bold text-xl">{{ son_eklenen_urun.urun.Ekleme_Tarih|date:"d/m/Y H:i" }}</span>
+                <span class="text-gray-600 font-semibold text-lg">📅 Son Güncelleme:</span>
+                <span class="text-amber-600 font-bold text-xl">{{ son_eklenen_urun.urun.guncelleme_tarihi|date:"d/m/Y H:i" }}</span>
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-gray-600 font-semibold text-lg">💰 Tutar:</span>

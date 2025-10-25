@@ -624,11 +624,14 @@ def modern_urun_ara(request):
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
+    # Son eklenen ürün
+    son_eklenen_urun = sepet_urunleri.first() if sepet_urunleri.exists() else None
+
     Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     if total != None:
         total = '{:.2f}'.format(total)
-    
+
     first_name = request.user.first_name
     last_name = request.user.last_name
     email = request.user.email
@@ -643,6 +646,7 @@ def modern_urun_ara(request):
         'Favoriler': Favoriler,
         'AnaKategoriler': AnaKategoriler,
         'sepet_urunleri': sepet_urunleri,
+        'son_eklenen_urun': son_eklenen_urun,
         'Sayi': Sayi,
         'uyari': False,
     }

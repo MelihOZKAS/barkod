@@ -163,7 +163,6 @@
                     <thead class="bg-gradient-to-r from-amber-600 to-amber-700 text-white sticky top-0">
                         <tr>
                             <th class="px-6 py-4 text-left rounded-tl-2xl text-base">Ürün Adı</th>
-                            <th class="px-6 py-4 text-center text-base">Sisteme Eklenme</th>
                             <th class="px-6 py-4 text-center text-base">Adet</th>
                             <th class="px-6 py-4 text-center text-base">Toplam</th>
                             <th class="px-6 py-4 text-center text-base">Birim</th>
@@ -175,10 +174,6 @@
                         <tr class="border-b hover:bg-amber-50 transition">
                             <td class="px-6 py-4">
                                 <div class="font-semibold text-gray-800 text-base">{{ urun.urun.Urun_Adi }}</div>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <div class="text-gray-700 font-medium">{{ urun.urun.Ekleme_Tarih|date:"d/m/Y" }}</div>
-                                <div class="text-gray-500 text-sm">{{ urun.urun.Ekleme_Tarih|date:"H:i" }}</div>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <select name="miktar" class="border-2 border-amber-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none font-medium" data-urun-id="{{ urun.id }}">

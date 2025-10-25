@@ -541,3 +541,57 @@ def barkodlari_gruba_ekle(request):
             print(f"Barkod numarası bulunamadı: {barkod}")
 
     return HttpResponse('Barkodlar başarıyla gruplara eklendi.')
+
+@login_required(login_url='giris-yap')
+def yeni_sayfa(request):
+    uyari = False
+    if request.method == 'POST':
+        query = request.POST.get('title')
+        if query.isdigit():
+            urun_id = int(query)
+            try:
+                urun = Stok.objects.get(Barkod=urun_id)
+                results = Stok.objects.filter(Urun_Genel__icontains=query)
+
+                try:
+                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                    sepet_urun.miktar += 1
+                    sepet_urun.save()
+                except SepetUrun.DoesNotExist:
+                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+
+            except Stok.DoesNotExist:
+                results = Stok.objects.filter(Urun_Genel__icontains=query)
+                uyari = True
+        else:
+            results = Stok.objects.filter(Urun_Genel__icontains=query)
+    else:
+        results = []
+
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+    for urun in sepet_urunleri:
+        urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
+
+    Sayi = range(1, 1001)
+    total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+    if total != None:
+        total = '{:.2f}'.format(total)
+    
+    first_name = request.user.first_name
+    last_name = request.user.last_name
+    email = request.user.email
+    Favoriler = Stok.objects.filter(Favori=True)
+    AnaKategoriler = Liste_Grup.objects.all()
+
+    context = {
+        'name': f"{first_name} {last_name}",
+        'email': email,
+        'results': results,
+        'total': total,
+        'Favoriler': Favoriler,
+        'AnaKategoriler': AnaKategoriler,
+        'sepet_urunleri': sepet_urunleri,
+        'Sayi': Sayi,
+        'uyari': uyari,
+    }
+    return render(request, 'system/user/yeni-sayfa.html', context)

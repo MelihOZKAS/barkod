@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Ürün Arama</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .scroll-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .scroll-table::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scroll-table::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scroll-table::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+        .scroll-table::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="p-4">
+
+{% if uyari %}
+<script>
+    alert("Ürün Yok!");
+</script>
+{% endif %}
+
+<!-- Keyboard Shortcuts -->
+<script>
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'F2') {
+            window.location.href = '/yeni-sayfa/';
+        } else if (event.key === 'F3') {
+            window.location.href = '/sepeti-sifirla-beyaz/';
+        } else if (event.key === 'F4') {
+            window.location.href = '/musteri-ekle/';
+        }
+    });
+</script>
+
+<div class="container mx-auto">
+    <!-- Header -->
+    <div class="glass-effect rounded-2xl shadow-2xl p-6 mb-6">
+        <div class="flex justify-between items-center flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">{{ name }}</h1>
+                <p class="text-gray-600">{{ email }}</p>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <a href="{% url 'yeni-sayfa' %}" class="btn-gradient text-white px-6 py-2 rounded-lg font-semibold">
+                    Ürün Ara (F2)
+                </a>
+                <a href="{% url 'sepeti-sifirla-beyaz' %}" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                    Sepeti Sıfırla (F3)
+                </a>
+                <a href="{% url 'musteri-listesi' %}" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                    Müşteri Listesi (F4)
+                </a>
+                <a href="{% url 'cikis-yap' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                    Çıkış
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sepet Bölümü -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6">
+            <div class="mb-4">
+                {% if total %}
+                    <h2 class="text-2xl font-bold text-center text-gray-800">
+                        GENEL TOPLAM: <span class="text-green-600">{{ total }} TL</span>
+                    </h2>
+                {% else %}
+                    <h2 class="text-2xl font-bold text-center text-gray-500">Sepette Hiç Ürün Yok</h2>
+                {% endif %}
+            </div>
+
+            <div class="scroll-table">
+                <table class="w-full">
+                    <thead class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3 text-left rounded-tl-lg">Ürün Adı</th>
+                            <th class="px-4 py-3 text-center">Sisteme Eklenme</th>
+                            <th class="px-4 py-3 text-center">Adet</th>
+                            <th class="px-4 py-3 text-center">Toplam Fiyat</th>
+                            <th class="px-4 py-3 text-center">Birim Fiyat</th>
+                            <th class="px-4 py-3 text-center rounded-tr-lg">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for urun in sepet_urunleri %}
+                        <tr class="border-b hover:bg-purple-50 transition">
+                            <td class="px-4 py-3">
+                                <div class="font-medium text-gray-800">{{ urun.urun.Urun_Adi }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-center text-sm">
+                                <div class="text-gray-700 font-medium">{{ urun.urun.Ekleme_Tarih|date:"d/m/Y" }}</div>
+                                <div class="text-gray-500 text-xs">{{ urun.urun.Ekleme_Tarih|date:"H:i" }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <select name="miktar" class="form-control border-2 border-purple-300 rounded-lg px-2 py-1 focus:border-purple-500 focus:outline-none" data-urun-id="{{ urun.id }}">
+                                    {% for i in Sayi %}
+                                        {% if i == urun.miktar %}
+                                            <option value="{{ i }}" selected>{{ i }}</option>
+                                        {% else %}
+                                            <option value="{{ i }}">{{ i }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-4 py-3 text-center font-semibold text-green-600">{{ urun.toplam_fiyat }} TL</td>
+                            <td class="px-4 py-3 text-center text-gray-600">{{ urun.urun.Tutar }} TL</td>
+                            <td class="px-4 py-3 text-center">
+                                <form action="{% url 'sepet_urun_sil-beyaz' urun.id %}" method="POST" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-lg transition font-semibold">
+                                        Sil
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Arama ve Favoriler Bölümü -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6">
+            <!-- Arama Formu -->
+            <form action="{% url 'yeni-sayfa' %}" method="POST" class="mb-6">
+                {% csrf_token %}
+                <div class="flex gap-2">
+                    <input type="text" name="title" class="flex-1 border-2 border-purple-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:outline-none text-lg" placeholder="Barkod / Ürün Adı Giriniz" autofocus>
+                    <button type="submit" class="btn-gradient text-white px-6 py-3 rounded-lg font-semibold whitespace-nowrap">
+                        🔍 Ara
+                    </button>
+                </div>
+            </form>
+
+            <!-- Kategoriler -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold mb-3 text-gray-800">Kategoriler</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for Kategori in AnaKategoriler %}
+                    <button type="button" onclick="filtrele('{{ Kategori.Grup_Adi }}')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        {{ Kategori.Grup_Adi }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Favoriler -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold mb-3 text-gray-800">Favoriler</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for favori in Favoriler %}
+                    <div class="favori" data-kategori="{{ favori.Liste_grup }}" style="display: none;">
+                        <form action="{% url 'sepete-ekle-beyaz' %}" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="barkod" value="{{ favori.Barkod }}">
+                            <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition font-semibold">
+                                {{ favori.Urun_Adi }}
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Manuel Tutar -->
+            <div class="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-xl p-4">
+                <h3 class="text-lg font-bold mb-3 text-gray-800 text-center">Manuel Tutar Gir</h3>
+                <form action="{% url 'manuel-tutar-beyaz' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="space-y-2">
+                        <input type="text" class="w-full border-2 border-purple-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none" name="urun_ismi" placeholder="Ürün İsmi (isteğe bağlı)">
+                        <div class="flex gap-2">
+                            <input type="text" class="flex-1 border-2 border-purple-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none" name="tutar" placeholder="Tutar" required>
+                            <button type="submit" class="btn-gradient text-white px-6 py-2 rounded-lg font-semibold whitespace-nowrap">
+                                Ekle
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulunan Ürünler -->
+    <div class="glass-effect rounded-2xl shadow-2xl p-6 mt-6">
+        <h3 class="text-2xl font-bold mb-4 text-gray-800">Bulunan Ürünler</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+                    <tr>
+                        <th class="px-4 py-3 text-left rounded-tl-lg">Ürün Adı</th>
+                        <th class="px-4 py-3 text-center">Barkod</th>
+                        <th class="px-4 py-3 text-center">Stok</th>
+                        <th class="px-4 py-3 text-center">Fiyat</th>
+                        <th class="px-4 py-3 text-center rounded-tr-lg">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if results %}
+                        {% for result in results %}
+                        <tr class="border-b hover:bg-purple-50 transition">
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ result.Urun_Adi }}</td>
+                            <td class="px-4 py-3 text-center text-gray-600">{{ result.Barkod }}</td>
+                            <td class="px-4 py-3 text-center">
+                                {% if result.Stok_Durumu %}
+                                    <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">Stokta</span>
+                                {% else %}
+                                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">Stokta Yok</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-center font-semibold text-green-600">{{ result.Tutar }} TL</td>
+                            <td class="px-4 py-3 text-center">
+                                <form method="POST" action="/sepete-ekle-beyaz/" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="barkod" value="{{ result.Barkod }}">
+                                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition font-semibold">
+                                        Sepete Ekle
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500 text-lg">
+                                Ürün Bulunamadı
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500 text-lg">
+                                Arama yapmak için barkod veya ürün adı giriniz
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Favori filtreleme
+    function filtrele(kategori) {
+        var favoriler = document.querySelectorAll('.favori');
+        favoriler.forEach(function (favori) {
+            if (favori.dataset.kategori === kategori) {
+                favori.style.display = 'block';
+            } else {
+                favori.style.display = 'none';
+            }
+        });
+    }
+
+    // Miktar güncelleme
+    $(document).ready(function () {
+        $('select[name="miktar"]').on('change', function () {
+            var miktar = $(this).val();
+            var urun_id = $(this).data('urun-id');
+
+            $.ajax({
+                url: '/urun_miktar_guncelle/' + urun_id + '/',
+                type: 'POST',
+                data: {
+                    miktar: miktar,
+                },
+                success: function (response) {
+                    window.location.href = '/yeni-sayfa/';
+                },
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -602,23 +602,29 @@ def yeni_sayfa(request):
 
 @login_required(login_url='giris-yap')
 def modern_urun_ara(request):
+    results = []
+
     if request.method == 'POST':
         query = request.POST.get('title')
-        if query.isdigit():
-            urun_id = int(query)
-            try:
-                urun = Stok.objects.get(Barkod=urun_id)
+        if query:
+            if query.isdigit():
+                # Barkod ile arama ve sepete ekleme
+                urun_id = int(query)
                 try:
-                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
-                    sepet_urun.miktar += 1
-                    sepet_urun.save()
-                except SepetUrun.DoesNotExist:
-                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
-                return redirect('modern-urun-ara')
-            except Stok.DoesNotExist:
-                return redirect('modern-urun-ara')
-        else:
-            return redirect('modern-urun-ara')
+                    urun = Stok.objects.get(Barkod=urun_id)
+                    try:
+                        sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
+                        sepet_urun.miktar += 1
+                        sepet_urun.save()
+                    except SepetUrun.DoesNotExist:
+                        SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
+                    return redirect('modern-urun-ara')
+                except Stok.DoesNotExist:
+                    # Barkod bulunamadı, yine de arama sonuçlarını göster
+                    results = Stok.objects.filter(Urun_Genel__icontains=query)
+            else:
+                # Text ile arama
+                results = Stok.objects.filter(Urun_Genel__icontains=query)
 
     sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
     for urun in sepet_urunleri:
@@ -645,7 +651,7 @@ def modern_urun_ara(request):
     context = {
         'name': f"{first_name} {last_name}",
         'email': email,
-        'results': [],
+        'results': results,
         'total': total,
         'Favoriler': Favoriler,
         'AnaKategoriler': AnaKategoriler,

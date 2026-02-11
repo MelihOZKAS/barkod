@@ -11,23 +11,8 @@
             height: 100vh;
             overflow: hidden;
             font-family: 'Arial', sans-serif;
-        }
-
-        /* Gizli barkod input alanı - barkod okuyucu için */
-        #barkod-input {
-            position: absolute;
-            left: -9999px;
-            opacity: 0;
-        }
-
-        /* Tam ekran fiyat gösterimi */
-        .fiyat-display {
-            display: none;
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        .fiyat-display.active {
-            display: flex;
+            cursor: none;
+            user-select: none;
         }
 
         @keyframes fadeIn {
@@ -44,7 +29,10 @@
             animation: pulse 2s infinite;
         }
 
-        /* Büyük fontlar - erişilebilirlik */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
         .mega-text {
             font-size: clamp(3rem, 10vw, 8rem);
             font-weight: 900;
@@ -57,31 +45,27 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
-        /* Bekleme durumu */
-        .waiting-state {
-            display: flex;
+        .fiyat-text {
+            font-size: clamp(4rem, 15vw, 12rem);
+            font-weight: 900;
+            line-height: 1.2;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.3);
         }
 
-        .waiting-state.hidden {
-            display: none;
-        }
+        .screen { display: none; }
+        .screen.active { display: flex; }
     </style>
 </head>
 <body>
-    <!-- Gizli Form - Barkod Okuyucu İçin -->
+
+    <!-- Gizli Form -->
     <form id="barkod-form" method="POST" action="{% url 'fiyat-monitor' %}">
         {% csrf_token %}
-        <input
-            type="text"
-            id="barkod-input"
-            name="barkod"
-            autocomplete="off"
-            autofocus
-        >
+        <input type="hidden" id="barkod-input" name="barkod" value="">
     </form>
 
-    <!-- Bekleme Durumu -->
-    <div id="waiting-screen" class="waiting-state w-full h-screen flex flex-col items-center justify-center text-white">
+    <!-- EKRAN 1: Bekleme -->
+    <div id="screen-bekle" class="screen active w-full h-screen flex flex-col items-center justify-center text-white">
         <div class="text-center px-8">
             <svg class="w-32 h-32 mx-auto mb-8 text-amber-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
@@ -91,27 +75,24 @@
         </div>
     </div>
 
-    <!-- Fiyat Gösterim Ekranı - SADECE ÜRÜN ADI VE FİYATI -->
+    <!-- EKRAN 2: Ürün Bulundu -->
     {% if urun %}
-    <div class="fiyat-display active w-full h-screen flex flex-col items-center justify-center text-white px-8">
+    <div id="screen-urun" class="screen active fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
         <div class="text-center w-full">
-            <!-- Ürün Adı - Çok Büyük -->
             <div class="mb-16">
                 <h2 class="mega-text text-white break-words leading-tight px-8">{{ urun.Urun_Adi }}</h2>
             </div>
-
-            <!-- Ayırıcı Çizgi -->
             <div class="border-t-8 border-emerald-400 border-opacity-50 my-12 max-w-4xl mx-auto"></div>
-
-            <!-- Fiyat - En Büyük -->
             <div class="pulse-animation">
-                <p class="mega-text text-emerald-400" style="font-size: clamp(4rem, 15vw, 12rem); line-height: 1.2;">{{ urun.Tutar }} TL</p>
+                <p class="fiyat-text text-emerald-400">{{ urun.Tutar }} TL</p>
             </div>
         </div>
     </div>
-    {% elif hata %}
-    <!-- Ürün Bulunamadı Ekranı - SADECE MESAJ -->
-    <div class="fiyat-display active w-full h-screen flex flex-col items-center justify-center text-white px-8">
+    {% endif %}
+
+    <!-- EKRAN 3: Ürün Bulunamadı -->
+    {% if hata %}
+    <div id="screen-hata" class="screen active fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
         <div class="text-center w-full">
             <svg class="w-48 h-48 mx-auto mb-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -122,83 +103,74 @@
     </div>
     {% endif %}
 
-    <!-- JavaScript: Otomatik Form Gönderme ve Timeout Yönetimi -->
     <script>
-        const barkodInput = document.getElementById('barkod-input');
-        const barkodForm = document.getElementById('barkod-form');
-        const waitingScreen = document.getElementById('waiting-screen');
-        let timeoutId = null;
-        let lastBarcodeTime = Date.now();
+        // ============================================
+        // BARKOD OKUYUCU: Document seviyesinde dinleme
+        // Input'a focus gerekmez - tüm tuşlar yakalanır
+        // ============================================
 
-        // Sayfa yüklendiğinde eğer fiyat gösteriliyorsa 5 saniye sonra sıfırla
+        var barcodeBuffer = '';
+        var barcodeTimeout = null;
+        var formSubmitting = false;
+
+        function submitBarcode(barcode) {
+            if (formSubmitting) return;
+            formSubmitting = true;
+
+            document.getElementById('barkod-input').value = barcode;
+            document.getElementById('barkod-form').submit();
+        }
+
+        // Tüm sayfada tuş dinle - barkod okuyucu klavye gibi çalışır
+        document.addEventListener('keydown', function(e) {
+
+            // Escape: Sıfırla
+            if (e.key === 'Escape') {
+                window.location.href = '{% url "fiyat-monitor" %}';
+                return;
+            }
+
+            // Enter: Buffer'daki barkodu gönder
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(barcodeTimeout);
+
+                if (barcodeBuffer.trim().length > 0) {
+                    submitBarcode(barcodeBuffer.trim());
+                    barcodeBuffer = '';
+                }
+                return;
+            }
+
+            // Tek karakter tuşları (sayılar, harfler) → buffer'a ekle
+            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                barcodeBuffer += e.key;
+
+                // Her tuşta timeout sıfırla
+                clearTimeout(barcodeTimeout);
+                barcodeTimeout = setTimeout(function() {
+                    // 300ms sessizlik sonrası otomatik gönder (8+ karakter)
+                    if (barcodeBuffer.trim().length >= 8) {
+                        submitBarcode(barcodeBuffer.trim());
+                        barcodeBuffer = '';
+                    }
+                }, 300);
+            }
+        });
+
+        // ============================================
+        // TIMEOUT: 5 saniye sonra bekleme ekranına dön
+        // ============================================
+
         {% if urun or hata %}
-        timeoutId = setTimeout(function() {
+        // Bekleme ekranını gizle
+        document.getElementById('screen-bekle').classList.remove('active');
+
+        // 5 saniye sonra bekleme ekranına dön
+        setTimeout(function() {
             window.location.href = '{% url "fiyat-monitor" %}';
         }, 5000);
         {% endif %}
-
-        // Barkod input'a her zaman focus
-        function keepFocus() {
-            if (document.activeElement !== barkodInput) {
-                barkodInput.focus();
-            }
-        }
-
-        // Her 100ms'de bir focus kontrol et
-        setInterval(keepFocus, 100);
-
-        // Sayfa yüklendiğinde focus
-        window.addEventListener('load', function() {
-            barkodInput.focus();
-        });
-
-        // Barkod okuyucu için Enter tuşu yakalama
-        barkodInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                console.log('Enter yakalandı, barkod:', barkodInput.value);
-
-                // Boş değilse formu gönder (preventDefault YAPMA - native submit)
-                if (barkodInput.value.trim() !== '') {
-                    console.log('Form gönderiliyor...');
-                    // Form otomatik submit olacak
-                } else {
-                    e.preventDefault(); // Sadece boşsa engelleyelim
-                    console.log('Barkod boş');
-                }
-            }
-        });
-
-        // Input değiştiğinde timeout başlat (Enter'sız otomatik gönderim)
-        let inputTimeout = null;
-
-        barkodInput.addEventListener('input', function() {
-            console.log('Input:', barkodInput.value);
-            clearTimeout(inputTimeout);
-
-            // 200ms boyunca yeni input gelmezse formu gönder
-            inputTimeout = setTimeout(function() {
-                if (barkodInput.value.trim() !== '' && barkodInput.value.length >= 8) {
-                    console.log('Timeout gönderimi, barkod:', barkodInput.value);
-                    barkodForm.submit();
-                }
-            }, 200);
-        });
-
-        // Klavye kısayolları
-        document.addEventListener('keydown', function(e) {
-            // Escape: Anasayfaya dön
-            if (e.key === 'Escape') {
-                window.location.href = '{% url "fiyat-monitor" %}';
-            }
-
-            // F5: Yenile (varsayılan davranış)
-            // Ctrl+R: Yenile (varsayılan davranış)
-        });
-
-        // Tıklama ile focus koru
-        document.body.addEventListener('click', function() {
-            barkodInput.focus();
-        });
     </script>
 </body>
 </html>

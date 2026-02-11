@@ -32,28 +32,6 @@
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
-
-        .mega-text {
-            font-size: clamp(3rem, 10vw, 8rem);
-            font-weight: 900;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.3);
-        }
-
-        .large-text {
-            font-size: clamp(2rem, 6vw, 5rem);
-            font-weight: 700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .fiyat-text {
-            font-size: clamp(4rem, 15vw, 12rem);
-            font-weight: 900;
-            line-height: 1.2;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.3);
-        }
-
-        .screen { display: none; }
-        .screen.active { display: flex; }
     </style>
 </head>
 <body>
@@ -64,41 +42,41 @@
         <input type="hidden" id="barkod-input" name="barkod" value="">
     </form>
 
-    <!-- EKRAN 1: Bekleme -->
-    <div id="screen-bekle" class="screen active w-full h-screen flex flex-col items-center justify-center text-white">
-        <div class="text-center px-8">
-            <svg class="w-32 h-32 mx-auto mb-8 text-amber-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
-            </svg>
-            <h1 class="large-text text-amber-400 mb-4">Barkod Okutunuz</h1>
-            <p class="text-3xl text-white opacity-80">Ürün fiyatını görmek için barkodu taratın</p>
-        </div>
-    </div>
-
-    <!-- EKRAN 2: Ürün Bulundu -->
     {% if urun %}
-    <div id="screen-urun" class="screen active fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
+    <!-- ============ ÜRÜN BULUNDU ============ -->
+    <div class="fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
         <div class="text-center w-full">
             <div class="mb-16">
-                <h2 class="mega-text text-white break-words leading-tight px-8">{{ urun.Urun_Adi }}</h2>
+                <h2 class="text-white break-words leading-tight px-8" style="font-size: clamp(3rem, 10vw, 8rem); font-weight: 900; text-shadow: 4px 4px 8px rgba(0,0,0,0.3);">{{ urun.Urun_Adi }}</h2>
             </div>
             <div class="border-t-8 border-emerald-400 border-opacity-50 my-12 max-w-4xl mx-auto"></div>
             <div class="pulse-animation">
-                <p class="fiyat-text text-emerald-400">{{ urun.Tutar }} TL</p>
+                <p class="text-emerald-400" style="font-size: clamp(4rem, 15vw, 12rem); font-weight: 900; line-height: 1.2; text-shadow: 4px 4px 8px rgba(0,0,0,0.3);">{{ urun.Tutar }} TL</p>
             </div>
         </div>
     </div>
-    {% endif %}
 
-    <!-- EKRAN 3: Ürün Bulunamadı -->
-    {% if hata %}
-    <div id="screen-hata" class="screen active fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
+    {% elif hata %}
+    <!-- ============ ÜRÜN BULUNAMADI ============ -->
+    <div class="fade-in w-full h-screen flex flex-col items-center justify-center text-white px-8">
         <div class="text-center w-full">
             <svg class="w-48 h-48 mx-auto mb-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
             </svg>
-            <h2 class="mega-text text-red-400 mb-16" style="font-size: clamp(3rem, 12vw, 10rem);">ÜRÜN BULUNAMADI</h2>
-            <p class="mega-text text-white" style="font-size: clamp(2.5rem, 10vw, 8rem);">Fiyatı Kasadan Öğrenin</p>
+            <h2 class="text-red-400 mb-16" style="font-size: clamp(3rem, 12vw, 10rem); font-weight: 900; text-shadow: 4px 4px 8px rgba(0,0,0,0.3);">ÜRÜN BULUNAMADI</h2>
+            <p class="text-white" style="font-size: clamp(2.5rem, 10vw, 8rem); font-weight: 900; text-shadow: 4px 4px 8px rgba(0,0,0,0.3);">Fiyatı Kasadan Öğrenin</p>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- ============ BEKLEME EKRANI ============ -->
+    <div class="w-full h-screen flex flex-col items-center justify-center text-white">
+        <div class="text-center px-8">
+            <svg class="w-32 h-32 mx-auto mb-8 text-amber-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+            </svg>
+            <h1 class="text-amber-400 mb-4" style="font-size: clamp(2rem, 6vw, 5rem); font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Barkod Okutunuz</h1>
+            <p class="text-3xl text-white opacity-80">Ürün fiyatını görmek için barkodu taratın</p>
         </div>
     </div>
     {% endif %}
@@ -106,7 +84,6 @@
     <script>
         // ============================================
         // BARKOD OKUYUCU: Document seviyesinde dinleme
-        // Input'a focus gerekmez - tüm tuşlar yakalanır
         // ============================================
 
         var barcodeBuffer = '';
@@ -116,14 +93,11 @@
         function submitBarcode(barcode) {
             if (formSubmitting) return;
             formSubmitting = true;
-
             document.getElementById('barkod-input').value = barcode;
             document.getElementById('barkod-form').submit();
         }
 
-        // Tüm sayfada tuş dinle - barkod okuyucu klavye gibi çalışır
         document.addEventListener('keydown', function(e) {
-
             // Escape: Sıfırla
             if (e.key === 'Escape') {
                 window.location.href = '{% url "fiyat-monitor" %}';
@@ -134,7 +108,6 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 clearTimeout(barcodeTimeout);
-
                 if (barcodeBuffer.trim().length > 0) {
                     submitBarcode(barcodeBuffer.trim());
                     barcodeBuffer = '';
@@ -142,14 +115,11 @@
                 return;
             }
 
-            // Tek karakter tuşları (sayılar, harfler) → buffer'a ekle
+            // Tek karakter tuşları → buffer'a ekle
             if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
                 barcodeBuffer += e.key;
-
-                // Her tuşta timeout sıfırla
                 clearTimeout(barcodeTimeout);
                 barcodeTimeout = setTimeout(function() {
-                    // 300ms sessizlik sonrası otomatik gönder (8+ karakter)
                     if (barcodeBuffer.trim().length >= 8) {
                         submitBarcode(barcodeBuffer.trim());
                         barcodeBuffer = '';
@@ -158,15 +128,8 @@
             }
         });
 
-        // ============================================
-        // TIMEOUT: 5 saniye sonra bekleme ekranına dön
-        // ============================================
-
-        {% if urun or hata %}
-        // Bekleme ekranını gizle
-        document.getElementById('screen-bekle').classList.remove('active');
-
         // 5 saniye sonra bekleme ekranına dön
+        {% if urun or hata %}
         setTimeout(function() {
             window.location.href = '{% url "fiyat-monitor" %}';
         }, 5000);

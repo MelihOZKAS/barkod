@@ -771,3 +771,77 @@ def fiyat_monitor(request):
     }
 
     return render(request, 'system/user/fiyat-monitor.html', context)
+
+
+@login_required(login_url='home')
+def musteri_listesi_json(request):
+    q = request.GET.get('q', '').strip()
+    musteriler = Musteri.objects.all().order_by('isim_soyisim')
+    if q:
+        musteriler = musteriler.filter(isim_soyisim__icontains=q)
+    data = []
+    for m in musteriler:
+        data.append({
+            'id': m.id,
+            'isim_soyisim': m.isim_soyisim,
+            'Cep_Telefonu': str(m.Cep_Telefonu) if m.Cep_Telefonu else '',
+            'borc': str(m.borc),
+        })
+    return JsonResponse({'musteriler': data})
+
+
+@csrf_exempt
+@login_required(login_url='home')
+def hizli_musteri_ekle(request):
+    if request.method == 'POST':
+        isim = request.POST.get('isim_soyisim', '').strip()
+        telefon = request.POST.get('Cep_Telefonu', '').strip()
+        if not isim:
+            return JsonResponse({'success': False, 'error': 'İsim zorunludur.'})
+        if not telefon:
+            telefon = random.randint(1, 100000000)
+        musteri = Musteri.objects.create(isim_soyisim=isim, Cep_Telefonu=telefon, borc=0)
+        return JsonResponse({
+            'success': True,
+            'musteri': {
+                'id': musteri.id,
+                'isim_soyisim': musteri.isim_soyisim,
+                'Cep_Telefonu': str(musteri.Cep_Telefonu),
+                'borc': str(musteri.borc),
+            }
+        })
+    return JsonResponse({'success': False, 'error': 'POST gerekli.'})
+
+
+@csrf_exempt
+@login_required(login_url='home')
+def modern_borca_aktar(request):
+    if request.method == 'POST':
+        musteri_id = request.POST.get('musteri_id')
+        tutar_str = request.POST.get('tutar', '0').replace(',', '.')
+        try:
+            tutar = Decimal(tutar_str)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'Geçersiz tutar.'})
+        if tutar <= 0:
+            return JsonResponse({'success': False, 'error': 'Tutar 0\'dan büyük olmalı.'})
+        try:
+            musteri = Musteri.objects.get(id=musteri_id)
+        except Musteri.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Müşteri bulunamadı.'})
+        onceki_borc = musteri.borc
+        musteri.borc += tutar
+        musteri.save()
+        BorcHareketi.objects.create(
+            musteri=musteri,
+            tutar=tutar,
+            aciklama=f'Sepetten borça aktarıldı',
+            onceki_borc=onceki_borc
+        )
+        SepetUrun.objects.filter(user=request.user).delete()
+        return JsonResponse({
+            'success': True,
+            'yeni_borc': str(musteri.borc),
+            'musteri_adi': musteri.isim_soyisim,
+        })
+    return JsonResponse({'success': False, 'error': 'POST gerekli.'})

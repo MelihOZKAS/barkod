@@ -17,6 +17,11 @@ urlpatterns = [
     path("modern-manuel-tutar/", views.modern_manuel_tutar_ekle, name='modern-manuel-tutar'),
     path("modern-sepeti-sifirla/", views.modern_sepeti_sifirla, name='modern-sepeti-sifirla'),
 
+    # Borça Aktar API'leri
+    path("api/musteri-listesi/", views.musteri_listesi_json, name='api-musteri-listesi'),
+    path("api/hizli-musteri-ekle/", views.hizli_musteri_ekle, name='api-hizli-musteri-ekle'),
+    path("api/borca-aktar/", views.modern_borca_aktar, name='api-borca-aktar'),
+
     # Müşteri Fiyat Monitörü (Public - Login Gerektirmez)
     path("fiyat-monitor/", views.fiyat_monitor, name='fiyat-monitor'),
 

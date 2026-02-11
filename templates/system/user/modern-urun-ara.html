@@ -6,6 +6,7 @@
     <title>Premium Ürün Arama</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             background: linear-gradient(135deg, #1e3a8a 0%, #065f46 100%);
@@ -61,7 +62,20 @@
 
 {% if uyari %}
 <script>
-    alert("Ürün Yok!");
+    document.addEventListener('DOMContentLoaded', function() {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Barkod Bulunamadı!',
+            html: '<p class="text-lg">Barkod <strong class="text-amber-600">{{ aranan_barkod }}</strong> sistemde kayıtlı değil.</p>',
+            confirmButtonText: 'Tamam',
+            confirmButtonColor: '#d97706',
+            timer: 3000,
+            timerProgressBar: true,
+            showClass: {
+                popup: 'animate__animated animate__shakeX animate__faster'
+            }
+        });
+    });
 </script>
 {% endif %}
 

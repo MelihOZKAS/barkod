@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiyat Monitörü</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #065f46 100%);
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* Gizli barkod input alanı - barkod okuyucu için */
+        #barkod-input {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        /* Tam ekran fiyat gösterimi */
+        .fiyat-display {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .fiyat-display.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        /* Büyük fontlar - erişilebilirlik */
+        .mega-text {
+            font-size: clamp(3rem, 10vw, 8rem);
+            font-weight: 900;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .large-text {
+            font-size: clamp(2rem, 6vw, 5rem);
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Bekleme durumu */
+        .waiting-state {
+            display: flex;
+        }
+
+        .waiting-state.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Gizli Form - Barkod Okuyucu İçin -->
+    <form id="barkod-form" method="POST" action="{% url 'fiyat-monitor' %}">
+        {% csrf_token %}
+        <input
+            type="text"
+            id="barkod-input"
+            name="barkod"
+            autocomplete="off"
+            autofocus
+        >
+    </form>
+
+    <!-- Bekleme Durumu -->
+    <div id="waiting-screen" class="waiting-state w-full h-screen flex flex-col items-center justify-center text-white">
+        <div class="text-center px-8">
+            <svg class="w-32 h-32 mx-auto mb-8 text-amber-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+            </svg>
+            <h1 class="large-text text-amber-400 mb-4">Barkod Okutunuz</h1>
+            <p class="text-3xl text-white opacity-80">Ürün fiyatını görmek için barkodu taratın</p>
+        </div>
+    </div>
+
+    <!-- Fiyat Gösterim Ekranı -->
+    {% if urun %}
+    <div class="fiyat-display active w-full h-screen flex flex-col items-center justify-center text-white px-8">
+        <div class="text-center max-w-6xl w-full bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-12 border-4 border-white border-opacity-30">
+            <div class="mb-8">
+                <p class="text-4xl text-amber-300 mb-4 font-semibold">ÜRÜN</p>
+                <h2 class="large-text text-white break-words leading-tight">{{ urun.Urun_Adi }}</h2>
+            </div>
+
+            <div class="border-t-4 border-white border-opacity-30 my-8"></div>
+
+            <div class="pulse-animation">
+                <p class="text-5xl text-emerald-400 mb-4 font-semibold">FİYAT</p>
+                <p class="mega-text text-emerald-400">{{ urun.Tutar }} TL</p>
+            </div>
+
+            {% if urun.Stok_Durumu %}
+            <div class="mt-12">
+                <span class="inline-block bg-green-500 text-white text-3xl px-12 py-4 rounded-full font-bold shadow-2xl">
+                    ✓ STOKTA VAR
+                </span>
+            </div>
+            {% else %}
+            <div class="mt-12">
+                <span class="inline-block bg-red-500 text-white text-3xl px-12 py-4 rounded-full font-bold shadow-2xl">
+                    ✗ STOKTA YOK
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% elif hata %}
+    <!-- Ürün Bulunamadı Ekranı -->
+    <div class="fiyat-display active w-full h-screen flex flex-col items-center justify-center text-white px-8">
+        <div class="text-center max-w-5xl w-full bg-red-500 bg-opacity-20 backdrop-blur-lg rounded-3xl p-12 border-4 border-red-500 border-opacity-50">
+            <svg class="w-40 h-40 mx-auto mb-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <h2 class="mega-text text-red-400 mb-8">ÜRÜN BULUNAMADI</h2>
+            <p class="text-5xl text-white font-bold">Fiyatı Kasadan Öğrenin</p>
+            {% if aranan_barkod %}
+            <p class="text-3xl text-red-300 mt-8 opacity-80">Barkod: {{ aranan_barkod }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- JavaScript: Otomatik Form Gönderme ve Timeout Yönetimi -->
+    <script>
+        const barkodInput = document.getElementById('barkod-input');
+        const barkodForm = document.getElementById('barkod-form');
+        const waitingScreen = document.getElementById('waiting-screen');
+        let timeoutId = null;
+        let lastBarcodeTime = Date.now();
+
+        // Sayfa yüklendiğinde eğer fiyat gösteriliyorsa 5 saniye sonra sıfırla
+        {% if urun or hata %}
+        timeoutId = setTimeout(function() {
+            window.location.href = '{% url "fiyat-monitor" %}';
+        }, 5000);
+        {% endif %}
+
+        // Barkod input'a her zaman focus
+        function keepFocus() {
+            if (document.activeElement !== barkodInput) {
+                barkodInput.focus();
+            }
+        }
+
+        // Her 100ms'de bir focus kontrol et
+        setInterval(keepFocus, 100);
+
+        // Sayfa yüklendiğinde focus
+        window.addEventListener('load', function() {
+            barkodInput.focus();
+        });
+
+        // Barkod okuyucu Enter tuşuna bastığında otomatik gönder
+        barkodInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+
+                // Boş değilse formu gönder
+                if (barkodInput.value.trim() !== '') {
+                    barkodForm.submit();
+                }
+            }
+        });
+
+        // Input değiştiğinde timeout başlat (opsiyonel: Enter'sız otomatik gönderim)
+        let inputTimeout = null;
+        barkodInput.addEventListener('input', function() {
+            clearTimeout(inputTimeout);
+
+            // 500ms boyunca yeni input gelmezse formu gönder
+            inputTimeout = setTimeout(function() {
+                if (barkodInput.value.trim() !== '' && barkodInput.value.length >= 8) {
+                    barkodForm.submit();
+                }
+            }, 500);
+        });
+
+        // Klavye kısayolları
+        document.addEventListener('keydown', function(e) {
+            // Escape: Anasayfaya dön
+            if (e.key === 'Escape') {
+                window.location.href = '{% url "fiyat-monitor" %}';
+            }
+
+            // F5: Yenile (varsayılan davranış)
+            // Ctrl+R: Yenile (varsayılan davranış)
+        });
+
+        // Tıklama ile focus koru
+        document.body.addEventListener('click', function() {
+            barkodInput.focus();
+        });
+    </script>
+</body>
+</html>

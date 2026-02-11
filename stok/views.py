@@ -620,8 +620,38 @@ def modern_urun_ara(request):
                         SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
                     return redirect('modern-urun-ara')
                 except Stok.DoesNotExist:
-                    # Barkod bulunamadı, yine de arama sonuçlarını göster
+                    # Barkod bulunamadı, popup uyarısı göster
                     results = Stok.objects.filter(Urun_Genel__icontains=query)
+                    context = {
+                        'name': f"{request.user.first_name} {request.user.last_name}",
+                        'email': request.user.email,
+                        'results': results,
+                        'uyari': True,
+                        'aranan_barkod': urun_id,
+                    }
+                    # Diğer context değişkenlerini de ekle
+                    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+                    for urun in sepet_urunleri:
+                        urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
+
+                    son_eklenen_urun = sepet_urunleri.first() if sepet_urunleri.exists() else None
+                    farkli_urun_sayisi = sepet_urunleri.count()
+                    toplam_adet = sepet_urunleri.aggregate(toplam=Sum('miktar'))['toplam'] or 0
+                    total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+                    if total != None:
+                        total = '{:.2f}'.format(total)
+
+                    context.update({
+                        'total': total,
+                        'Favoriler': Stok.objects.filter(Favori=True),
+                        'AnaKategoriler': Liste_Grup.objects.all(),
+                        'sepet_urunleri': sepet_urunleri,
+                        'son_eklenen_urun': son_eklenen_urun,
+                        'farkli_urun_sayisi': farkli_urun_sayisi,
+                        'toplam_adet': toplam_adet,
+                        'Sayi': range(1, 1001),
+                    })
+                    return render(request, 'system/user/modern-urun-ara.html', context)
             else:
                 # Text ile arama
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
@@ -660,7 +690,6 @@ def modern_urun_ara(request):
         'farkli_urun_sayisi': farkli_urun_sayisi,
         'toplam_adet': toplam_adet,
         'Sayi': Sayi,
-        'uyari': False,
     }
     return render(request, 'system/user/modern-urun-ara.html', context)
 
@@ -714,3 +743,31 @@ def modern_manuel_tutar_ekle(request):
 def modern_sepeti_sifirla(request):
     SepetUrun.objects.filter(user=request.user).delete()
     return redirect('modern-urun-ara')
+
+
+def fiyat_monitor(request):
+    """
+    Public müşteri fiyat monitörü - login gerektirmez.
+    Barkod okutulduğunda ürün fiyatını tam ekranda gösterir.
+    """
+    urun = None
+    hata = False
+    aranan_barkod = None
+
+    if request.method == 'POST':
+        barkod = request.POST.get('barkod', '').strip()
+
+        if barkod and barkod.isdigit():
+            aranan_barkod = int(barkod)
+            try:
+                urun = Stok.objects.get(Barkod=aranan_barkod)
+            except Stok.DoesNotExist:
+                hata = True
+
+    context = {
+        'urun': urun,
+        'hata': hata,
+        'aranan_barkod': aranan_barkod,
+    }
+
+    return render(request, 'system/user/fiyat-monitor.html', context)

@@ -17,6 +17,9 @@ urlpatterns = [
     path("modern-manuel-tutar/", views.modern_manuel_tutar_ekle, name='modern-manuel-tutar'),
     path("modern-sepeti-sifirla/", views.modern_sepeti_sifirla, name='modern-sepeti-sifirla'),
 
+    # Müşteri Fiyat Monitörü (Public - Login Gerektirmez)
+    path("fiyat-monitor/", views.fiyat_monitor, name='fiyat-monitor'),
+
     path("logout/", views.logout, name='cikis-yap'),
     path("panel/", views.konsol_home_detail, name='panel'),
     path("manuel-tutar/", views.manuel_tutar_ekle, name='manuel-tutar'),

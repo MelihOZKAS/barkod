@@ -90,6 +90,8 @@ admin.site.register(Stok, StokAdmin)
 
 
 class MusteriAdmin(admin.ModelAdmin):
-    list_display = ("isim_soyisim","Cep_Telefonu",)
+    list_display = ("isim_soyisim","Cep_Telefonu","borc",)
+    search_fields = ("isim_soyisim","Cep_Telefonu",)
+    list_filter = ("Ekleme_Tarih",)
 
 admin.site.register(Musteri, MusteriAdmin)

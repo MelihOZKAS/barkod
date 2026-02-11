@@ -88,6 +88,8 @@
             </svg>
             <h1 class="large-text text-amber-400 mb-4">Barkod Okutunuz</h1>
             <p class="text-3xl text-white opacity-80">Ürün fiyatını görmek için barkodu taratın</p>
+            <!-- Debug: Okunan barkodu göster -->
+            <div id="debug-info" class="mt-8 text-white opacity-60 text-xl"></div>
         </div>
     </div>
 
@@ -168,29 +170,54 @@
             barkodInput.focus();
         });
 
-        // Barkod okuyucu Enter tuşuna bastığında otomatik gönder
-        barkodInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+        // Barkod okuyucu için Enter tuşu yakalama (keydown daha güvenilir)
+        barkodInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
                 e.preventDefault();
+                console.log('Enter tuşu yakalandı, barkod:', barkodInput.value);
 
                 // Boş değilse formu gönder
                 if (barkodInput.value.trim() !== '') {
+                    console.log('Form gönderiliyor...');
                     barkodForm.submit();
+                } else {
+                    console.log('Barkod boş, form gönderilmedi');
                 }
             }
         });
 
-        // Input değiştiğinde timeout başlat (opsiyonel: Enter'sız otomatik gönderim)
+        // Alternatif: Form submit event'i direkt yakalama
+        barkodForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submit yakalandı, barkod:', barkodInput.value);
+
+            if (barkodInput.value.trim() !== '') {
+                console.log('Form manuel submit ediliyor...');
+                this.submit();
+            }
+        });
+
+        // Input değiştiğinde timeout başlat (Enter'sız otomatik gönderim)
         let inputTimeout = null;
+        const debugInfo = document.getElementById('debug-info');
+
         barkodInput.addEventListener('input', function() {
+            console.log('Input değişti:', barkodInput.value);
+
+            // Debug: Ekranda göster
+            if (debugInfo) {
+                debugInfo.textContent = 'Okunan: ' + barkodInput.value;
+            }
+
             clearTimeout(inputTimeout);
 
-            // 500ms boyunca yeni input gelmezse formu gönder
+            // 300ms boyunca yeni input gelmezse formu gönder (500ms'den 300ms'ye düşürdüm)
             inputTimeout = setTimeout(function() {
                 if (barkodInput.value.trim() !== '' && barkodInput.value.length >= 8) {
+                    console.log('Timeout sonrası otomatik gönderim, barkod:', barkodInput.value);
                     barkodForm.submit();
                 }
-            }, 500);
+            }, 300);
         });
 
         // Klavye kısayolları

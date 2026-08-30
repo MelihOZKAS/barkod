@@ -19,7 +19,9 @@ from django.utils import timezone
 from PIL import Image
 
 from . import sadakat
-from .models import HediyeKahve, Kahve, KahveAyar, KahveIcim, KahveMusteri, KahveSatis
+from .models import (
+    HediyeKahve, Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri, KahveSatis,
+)
 
 
 class SadakatKuraliTesti(TestCase):
@@ -846,3 +848,69 @@ class YedekAlmaTesti(TestCase):
         self.assertIn("kahve.kahvemusteri", icerik)
         self.assertIn("kahve.kahveicim", icerik)
         self.assertIn("Yedek Musterisi", icerik)
+
+
+class MenuYuklemeTesti(TestCase):
+    """Personel ekranindan tek tikla menu kurma."""
+
+    def setUp(self):
+        User.objects.create_superuser("kasa", "k@o.com", "gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasa", password="gizli-sifre-123")
+        self.adres = reverse("kahve:kasa-menu-yukle")
+
+    def test_personel_olmayan_giremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.get(self.adres).status_code, 302)
+
+    def test_get_onizleme_gosterir_kayit_acmaz(self):
+        cevap = self.client.get(self.adres)
+
+        self.assertEqual(cevap.status_code, 200)
+        self.assertEqual(Kahve.objects.count(), 0, "GET hicbir sey yazmamali")
+        self.assertContains(cevap, "Espresso")
+
+    def test_post_menuyu_kurar(self):
+        self.client.post(self.adres, {"damga": "1"})
+
+        self.assertEqual(Kahve.objects.count(), 29)
+        self.assertTrue(KahveKategori.objects.filter(ad="Sıcak İçecekler").exists())
+        self.assertTrue(KahveKategori.objects.filter(ad="Soğuk İçecekler").exists())
+        self.assertEqual(Kahve.objects.get(ad="Espresso").fiyat, 70)
+
+    def test_damga_secenegi_kahvelere_uygulanir(self):
+        self.client.post(self.adres, {"damga": "1"})
+
+        self.assertTrue(Kahve.objects.get(ad="Latte").damga_veriyor)
+        self.assertFalse(Kahve.objects.get(ad="Çay").damga_veriyor, "çay damga vermemeli")
+        self.assertFalse(Kahve.objects.get(ad="Şurup").damga_veriyor)
+
+    def test_damga_secilmezse_hepsi_kapali(self):
+        self.client.post(self.adres, {})
+
+        self.assertFalse(Kahve.objects.get(ad="Latte").damga_veriyor)
+
+    def test_tekrar_calistirinca_ayarlar_korunur(self):
+        """En onemli garanti: fiyat guncellenir, kullanicinin ayarlari bozulmaz."""
+        self.client.post(self.adres, {})
+        cay = Kahve.objects.get(ad="Çay")
+        cay.damga_veriyor = True
+        cay.aciklama = "Demlik çayı"
+        cay.save()
+
+        self.client.post(self.adres, {"damga": "1"})
+
+        cay.refresh_from_db()
+        self.assertTrue(cay.damga_veriyor, "işaretlenen +1 korunmalı")
+        self.assertEqual(cay.aciklama, "Demlik çayı", "açıklama korunmalı")
+        self.assertEqual(Kahve.objects.count(), 29, "kopya ürün oluşmamalı")
+
+    def test_komut_ve_sayfa_ayni_sonucu_verir(self):
+        call_command("kahve_menu_yukle", "--uygula", verbosity=0)
+        komuttan = Kahve.objects.count()
+        Kahve.objects.all().delete()
+
+        self.client.post(self.adres, {})
+
+        self.assertEqual(Kahve.objects.count(), komuttan)

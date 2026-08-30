@@ -23,6 +23,7 @@ urlpatterns = [
     path("kasa/musteri-cikar/", views.kasa_musteri_cikar, name="kasa-musteri-cikar"),
     path("kasa/musteri-ekle/", views.kasa_musteri_ekle, name="kasa-musteri-ekle"),
     path("kasa/satis-tamamla/", views.kasa_satis_tamamla, name="kasa-satis-tamamla"),
+    path("kasa/menu-yukle/", views.kasa_menu_yukle, name="kasa-menu-yukle"),
 
     # Gece cron'u
     path("cron/gunluk-temizlik/", views.cron_temizlik, name="cron-temizlik"),

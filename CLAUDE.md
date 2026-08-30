@@ -130,7 +130,7 @@ template'ler `templates/system/user/` altında.
 
 **Ortak footer:** `templates/parcali/site_footer.html` — hem Atlas hem kahve
 sayfalarında. İçinde SEO backlink'leri var (cocukmasallarioku, enguzelsiirler,
-erkekbebekisimleri, yuksekteknoloji, masaloku); eski footer'dan taşındı, silme.
+erkekbebekisimleri, yuksekteknoloji); eski footer'dan taşındı, silme.
 Uygulama ekranlarında (panel, giriş, kasa) `{% block alt_bilgi %}{% endblock %}`
 ile kapatılıyor.
 
@@ -227,7 +227,11 @@ kahve/static/kahve/kahve.css
 Admin'den yenisi eklenebilir; menü, kasa ekranı ve mobil uygulama kendiliğinden
 yeni bölümü gösterir. Kategorisi olmayan ürünler "Diğer" başlığı altında çıkar.
 
-Menüyü tek seferde kurmak için:
+Menüyü tek seferde kurmak için — **en kolayı personel ekranından**:
+`/kahve/kasa/menu-yukle/` (kasa üst barında "Menüyü yükle"). Önce ne olacağını
+gösterir, butona basınca uygular. SSH gerekmez.
+
+Komut satırından da yapılabilir (aynı kodu çalıştırır, `kahve/menu_verisi.py`):
 ```bash
 python manage.py kahve_menu_yukle                    # ne olacağını gösterir
 python manage.py kahve_menu_yukle --uygula           # ekler

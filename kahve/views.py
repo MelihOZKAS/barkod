@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from . import kasa as kasa_sepeti
+from . import menu_verisi
 from . import sadakat
 from .firebase import FirebaseHatasi, token_dogrula
 from .models import Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri
@@ -322,6 +323,27 @@ def kasa_satis_tamamla(request):
             "gun": kasa_sepeti.gunun_ozeti(),
         },
     )
+
+
+@staff_member_required
+def kasa_menu_yukle(request):
+    """Menuyu tek tikla kurar. GET onizleme gosterir, POST uygular.
+
+    Mutasyon POST ile: cikplak bir GET'i tarayici on-yuklemesi ya da bir
+    tarayici eklentisi de tetikleyebilir.
+    """
+    uygula = request.method == "POST"
+    sonuc = menu_verisi.yukle(
+        uygula=uygula,
+        kahvelere_damga=request.POST.get("damga") == "1",
+    )
+    return render(request, "kahve/menu_yukle.html", {
+        "ayar": KahveAyar.al(),
+        "sonuc": sonuc,
+        "uygulandi": uygula,
+        "yeni_sayisi": len(sonuc["yeni"]),
+        "guncel_sayisi": len(sonuc["guncel"]),
+    })
 
 
 # --------------------------------------------------------------------------

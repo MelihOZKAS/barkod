@@ -1,0 +1,92 @@
+{% extends "kahve/base.html" %}
+
+{% block baslik %}Menüyü yükle — {{ ayar.isletme_adi }}{% endblock %}
+{% block alt_bilgi %}{% endblock %}
+
+{% block ust_nav %}
+  <a href="{% url 'kahve:kasa' %}">Kahve kasası</a>
+  <a href="/admin/kahve/kahve/">Ürünler</a>
+{% endblock %}
+
+{% block ek_stil %}
+<style>
+  .my-bolum { margin-bottom: var(--b4); }
+  .my-liste { list-style:none; margin:0; padding:0; }
+  .my-liste li {
+    display:flex; align-items:center; gap:var(--b2);
+    padding:9px 0; border-bottom:1px solid rgba(242,241,238,.06); font-size:.9375rem;
+  }
+  .my-liste li:last-child { border-bottom:0; }
+  .my-liste__ad { flex:1; }
+  .my-liste__fiyat { font-family:var(--f-veri); color:var(--crema); }
+  .my-rozet {
+    font-family:var(--f-veri); font-size:.625rem; letter-spacing:.1em;
+    padding:2px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .my-rozet--yeni { background:rgba(46,107,120,.24); color:var(--cini-acik); }
+  .my-rozet--var { background:rgba(242,241,238,.06); color:rgba(242,241,238,.45); }
+  .my-secim { display:flex; align-items:center; gap:10px; margin-bottom:var(--b3); font-size:.9375rem; }
+</style>
+{% endblock %}
+
+{% block icerik %}
+<section class="kh-bolum--dar">
+  <div class="kh-kabuk kh-orta">
+
+    <p class="kh-etiket">Kahve</p>
+    <h1 class="kh-h1" style="margin-top:6px">Menüyü yükle</h1>
+
+    {% if uygulandi %}
+      <div class="kh-yuzey" style="padding:var(--b3);margin-top:var(--b3);border-color:rgba(89,160,172,.35)">
+        <h2 class="kh-h2" style="color:var(--cini-acik)">Menü yüklendi</h2>
+        <p class="kh-metin" style="margin-top:var(--b1)">
+          {{ yeni_sayisi }} ürün eklendi, {{ guncel_sayisi }} ürünün fiyatı güncellendi.
+        </p>
+        <p class="kh-metin" style="margin-top:var(--b2);font-size:.9375rem">
+          Sırada: <a href="/admin/kahve/kahve/" style="color:var(--crema)">Ürünler</a> ekranından
+          fotoğrafları yükle ve “Hediye sayacına +1” kutularını gözden geçir.
+        </p>
+        <a class="kh-btn kh-btn--ana" href="{% url 'kahve:kasa' %}" style="margin-top:var(--b3)">Kasaya dön</a>
+      </div>
+    {% else %}
+      <p class="kh-metin" style="margin-top:var(--b2);max-width:56ch">
+        Aşağıdaki liste yüklenecek. <strong>Var olan ürünlerin sadece fiyatı, sırası ve
+        kategorisi güncellenir</strong> — yüklediğin fotoğraflar, işaretlediğin “+1”
+        kutuları ve yazdığın açıklamalar korunur. İstediğin zaman tekrar çalıştırabilirsin.
+      </p>
+
+      <form method="POST" style="margin-top:var(--b3)">
+        {% csrf_token %}
+        <label class="my-secim">
+          <input type="checkbox" name="damga" value="1" checked>
+          Yeni eklenen kahvelerde “Hediye sayacına +1” açık gelsin
+          <span class="kh-kucuk">(çay, 3’ü 1 arada ve ekstralar hariç)</span>
+        </label>
+        <button class="kh-btn kh-btn--ana kh-btn--genis" type="submit">
+          {{ yeni_sayisi }} ürünü ekle, {{ guncel_sayisi }} ürünü güncelle
+        </button>
+      </form>
+    {% endif %}
+
+    <div style="margin-top:var(--b5)">
+      {% for bolum in sonuc.bolumler %}
+        <div class="my-bolum">
+          <p class="kh-etiket" style="margin-bottom:var(--b2)">{{ bolum.ad }}</p>
+          <ul class="my-liste kh-yuzey" style="padding:var(--b1) var(--b3)">
+            {% for u in bolum.urunler %}
+              <li>
+                <span class="my-liste__ad">{{ u.ad }}</span>
+                <span class="my-liste__fiyat">{{ u.fiyat }} ₺</span>
+                <span class="my-rozet {% if u.yeni %}my-rozet--yeni{% else %}my-rozet--var{% endif %}">
+                  {% if u.yeni %}YENİ{% else %}VAR{% endif %}
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</section>
+{% endblock %}

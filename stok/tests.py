@@ -227,3 +227,75 @@ class StokYedekTesti(TestCase):
 
         self.assertEqual(Stok.objects.count(), 2, "sadece geçerli satırlar yüklenmeli")
         self.assertFalse(Stok.objects.filter(Urun_Adi="Bozuk Urun").exists())
+
+
+class AdminCsvIndirmeTesti(TestCase):
+    """Admin'deki 'CSV olarak indir' eylemi."""
+
+    def setUp(self):
+        User.objects.create_superuser("yonetici", "y@o.com", "gizli-sifre-123")
+        self.client.login(username="yonetici", password="gizli-sifre-123")
+
+        self.grup = Liste_Grup.objects.create(Grup_Adi="Kırtasiye")
+        self.kagit = UrunGruplari.objects.create(Grup_Adi="Kağıt Ürünleri")
+        u = Stok.objects.create(
+            Urun_Adi="A4 Fotokopi Kağıdı", Barkod=8690000000001,
+            Tutar=185, Liste_grup=self.grup, Favori=True,
+        )
+        u.Grup.set([self.kagit])
+        Stok.objects.create(Urun_Adi="Silgi", Barkod=8690000000002, Tutar=12)
+
+    def _indir(self):
+        return self.client.post(
+            "/admin/stok/stok/",
+            {
+                "action": "csv_indir",
+                "_selected_action": list(Stok.objects.values_list("pk", flat=True)),
+            },
+        )
+
+    def test_csv_dosyasi_iner(self):
+        cevap = self._indir()
+
+        self.assertEqual(cevap.status_code, 200)
+        self.assertIn("text/csv", cevap["Content-Type"])
+        self.assertIn("attachment", cevap["Content-Disposition"])
+
+    def test_sadece_bir_bom_olur(self):
+        """charset=utf-8-sig verilirse Django her write()'ta BOM ekler ve
+        dosya geri yuklenemez hale gelir. Bir kere olmali."""
+        govde = self._indir().content.decode("utf-8")
+
+        self.assertEqual(govde.count("\ufeff"), 1)
+        self.assertTrue(govde.startswith("\ufeffbarkod,"))
+
+    def test_inen_dosya_geri_yuklenebilir(self):
+        icerik = self._indir().content.decode("utf-8")
+        klasor = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, klasor, True)
+        yol = Path(klasor) / "yedek.csv"
+        yol.write_text(icerik, encoding="utf-8")
+
+        Stok.objects.all().delete()
+        Liste_Grup.objects.all().delete()
+        UrunGruplari.objects.all().delete()
+
+        call_command("stok_ice_aktar", str(yol), "--uygula", verbosity=0)
+
+        self.assertEqual(Stok.objects.count(), 2)
+        u = Stok.objects.get(Barkod=8690000000001)
+        self.assertEqual(u.Tutar, 185)
+        self.assertEqual(u.Liste_grup.Grup_Adi, "Kırtasiye")
+        self.assertEqual({g.Grup_Adi for g in u.Grup.all()}, {"Kağıt Ürünleri"})
+        self.assertEqual(Stok.objects.filter(Urun_Genel__icontains="Fotokopi").count(), 1)
+
+    def test_gruplar_da_indirilebilir(self):
+        cevap = self.client.post(
+            "/admin/stok/liste_grup/",
+            {"action": "csv_indir", "_selected_action": [self.grup.pk]},
+        )
+
+        self.assertEqual(cevap.status_code, 200)
+        govde = cevap.content.decode("utf-8")
+        self.assertEqual(govde.count("\ufeff"), 1)
+        self.assertIn("Kırtasiye", govde)

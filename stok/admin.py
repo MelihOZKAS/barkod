@@ -1,8 +1,14 @@
-from django.contrib import admin
-from django import forms
-from django.db import models
+import csv
 import math
+from datetime import datetime
 from decimal import Decimal
+
+from django import forms
+from django.contrib import admin
+from django.db import models
+from django.http import HttpResponse
+
+from .disa_aktarma import hazir_sorgu, urunleri_yaz
 
 
 
@@ -11,11 +17,31 @@ from decimal import Decimal
 
 from .models import UrunGruplari,SepetUrun,Stok,Liste_Grup,Musteri
 
-class GruplarAdmin(admin.ModelAdmin):
+class GrupCsvKarisimi:
+    """Grup tablolari icin ortak CSV indirme eylemi."""
+
+    actions = ["csv_indir"]
+
+    @admin.action(description="Seçili grupları CSV olarak indir (yedek)")
+    def csv_indir(self, request, queryset):
+        cevap = HttpResponse(content_type="text/csv; charset=utf-8")
+        ad = self.model._meta.model_name
+        cevap["Content-Disposition"] = (
+            f'attachment; filename="{ad}-yedek-{datetime.now():%Y%m%d-%H%M}.csv"'
+        )
+        cevap.write("\ufeff")
+        yazici = csv.writer(cevap)
+        yazici.writerow(["grup_adi"])
+        for grup in queryset.order_by("Grup_Adi"):
+            yazici.writerow([grup.Grup_Adi])
+        return cevap
+
+
+class GruplarAdmin(GrupCsvKarisimi, admin.ModelAdmin):
     list_display = ("Grup_Adi",)
 
 admin.site.register(UrunGruplari, GruplarAdmin)
-class ListFavoriAdmin(admin.ModelAdmin):
+class ListFavoriAdmin(GrupCsvKarisimi, admin.ModelAdmin):
     list_display = ("Grup_Adi",)
 
 admin.site.register(Liste_Grup, ListFavoriAdmin)
@@ -35,7 +61,21 @@ class StokAdmin(admin.ModelAdmin):
 
 
 
-    actions = ["Yuzde10ZamYap","Yuzde15ZamYap","Yuzde20ZamYap","Yuzde25ZamYap","Yuzde30ZamYap","Yuzde35ZamYap"]
+    actions = ["csv_indir","Yuzde10ZamYap","Yuzde15ZamYap","Yuzde20ZamYap","Yuzde25ZamYap","Yuzde30ZamYap","Yuzde35ZamYap"]
+
+    @admin.action(description="Seçili ürünleri CSV olarak indir (yedek)")
+    def csv_indir(self, request, queryset):
+        """Indirilen dosya stok_ice_aktar ile geri yuklenebilir.
+
+        Tum katalogu almak icin ustteki kutuyu isaretleyip cikan
+        "Tumunu sec" baglantisina tiklayin.
+        """
+        cevap = HttpResponse(content_type="text/csv; charset=utf-8")
+        dosya_adi = f"stok-yedek-{datetime.now():%Y%m%d-%H%M}.csv"
+        cevap["Content-Disposition"] = f'attachment; filename="{dosya_adi}"'
+        cevap.write("\ufeff")  # Excel icin tek BOM; charset utf-8 olmali yoksa her satira eklenir
+        urunleri_yaz(cevap, hazir_sorgu(queryset.order_by("Urun_Adi")))
+        return cevap
 
 
     def Yuzde10ZamYap(self, request, queryset):

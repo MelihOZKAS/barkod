@@ -18,12 +18,8 @@ from django.conf import settings
 from django.core import serializers
 from django.core.management.base import BaseCommand
 
+from stok.disa_aktarma import hazir_sorgu, urunleri_yaz
 from stok.models import Liste_Grup, Stok, UrunGruplari
-
-BASLIKLAR = [
-    "barkod", "urun_adi", "tutar", "liste_grup", "gruplar",
-    "favori", "stok_durumu", "oto_sil",
-]
 
 
 class Command(BaseCommand):
@@ -61,28 +57,9 @@ class Command(BaseCommand):
         )
 
     def _urunleri_yaz(self, yol):
-        urunler = (
-            Stok.objects.select_related("Liste_grup")
-            .prefetch_related("Grup")
-            .order_by("Urun_Adi")
-        )
-        sayi = 0
+        urunler = hazir_sorgu(Stok.objects.order_by("Urun_Adi"))
         with yol.open("w", newline="", encoding="utf-8-sig") as dosya:
-            yazici = csv.DictWriter(dosya, fieldnames=BASLIKLAR)
-            yazici.writeheader()
-            for u in urunler.iterator(chunk_size=500):
-                yazici.writerow({
-                    "barkod": u.Barkod,
-                    "urun_adi": u.Urun_Adi,
-                    "tutar": u.Tutar if u.Tutar is not None else "",
-                    "liste_grup": u.Liste_grup.Grup_Adi if u.Liste_grup_id else "",
-                    "gruplar": " | ".join(g.Grup_Adi for g in u.Grup.all()),
-                    "favori": "evet" if u.Favori else "hayir",
-                    "stok_durumu": "evet" if u.Stok_Durumu else "hayir",
-                    "oto_sil": "evet" if u.Oto_Sil else "hayir",
-                })
-                sayi += 1
-        return sayi
+            return urunleri_yaz(dosya, urunler.iterator(chunk_size=500))
 
     def _gruplari_yaz(self, yol, model):
         adlar = list(model.objects.order_by("Grup_Adi").values_list("Grup_Adi", flat=True))

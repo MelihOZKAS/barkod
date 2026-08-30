@@ -111,6 +111,15 @@ kullanmayın.
 `yeni-sayfa` da kaldırılırsa bu 4 uç ve view'ları da silinebilir.
 
 #### Yedekleme / geri yükleme (asıl değerli veri burada)
+**En pratik yol — admin'den indir:** `/admin/stok/stok/` → üstteki kutuyu işaretle →
+"Tümünü seç" → Eylem: **"Seçili ürünleri CSV olarak indir (yedek)"**. Aynı eylem
+grup ekranlarında da var. İnen dosya `stok_ice_aktar` ile geri yüklenebilir.
+
+> **Tuzak:** `HttpResponse(content_type="...charset=utf-8-sig")` yazma. Django o
+> durumda **her `write()` çağrısında** BOM ekler, dosya geri yüklenemez hale gelir.
+> Charset `utf-8` olacak, BOM bir kere elle yazılacak. `stok/tests.py` bunu koruyor.
+
+Sunucuda komutla:
 ```bash
 python manage.py stok_disa_aktar                        # yedek/stok-<tarih>/ oluşturur
 python manage.py stok_ice_aktar yedek/.../urunler.csv            # kuru çalışma

@@ -20,19 +20,31 @@ from django.http import JsonResponse
 
 
 def anasayfa(request):
-    """Halka acik ana sayfa. Giris yok, herkese acik."""
+    """Halka acik ana sayfa.
+
+    Icerik veritabanindan gelir: urun gruplari ve kahve menusu. Boylece
+    yeni urun eklendikce sayfa kendiliginden zenginlesir.
+    """
     hediye_icin_kahve = 5
+    kahveler = []
     try:
-        from kahve.models import KahveAyar
+        from kahve.models import Kahve, KahveAyar
 
         hediye_icin_kahve = KahveAyar.al().hediye_icin_kahve
+        kahveler = list(Kahve.objects.filter(aktif=True)[:4])
     except Exception:
         # Kahve modulunde bir sorun olsa bile ana sayfa acilmali.
         pass
+
     return render(
         request,
         "system/user/anasayfa.html",
-        {"hediye_icin_kahve": hediye_icin_kahve},
+        {
+            "hediye_icin_kahve": hediye_icin_kahve,
+            "kahveler": kahveler,
+            "gruplar": UrunGruplari.objects.order_by("Grup_Adi")[:12],
+            "urun_sayisi": Stok.objects.filter(Stok_Durumu=True).count(),
+        },
     )
 
 

@@ -252,3 +252,53 @@
 @media (max-width: 760px) {
   .at-izgara--ust, .at-izgara--ikili { grid-template-columns: 1fr; }
 }
+
+/* --- alt bilgi (tum halka acik sayfalarda ortak) -------------------------- */
+.at-alt { border-top: 1px solid rgba(242, 241, 238, .08); margin-top: var(--b6); padding: var(--b5) 0 var(--b4); }
+.at-alt__ic { display: grid; grid-template-columns: 1.6fr 1fr; gap: var(--b4); }
+.at-alt__baglantilar { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.at-alt__baglantilar a {
+  color: rgba(242, 241, 238, .62); text-decoration: none; font-size: .9375rem;
+  transition: color var(--gecis);
+}
+.at-alt__baglantilar a:hover { color: var(--kagit); }
+.at-alt__telif {
+  display: flex; justify-content: space-between; gap: var(--b2); flex-wrap: wrap;
+  margin-top: var(--b5); padding-top: var(--b3);
+  border-top: 1px solid rgba(242, 241, 238, .06);
+  font-size: .8125rem; color: rgba(242, 241, 238, .38);
+}
+.at-alt__telif a { color: inherit; text-decoration: none; }
+.at-alt__telif a:hover { color: rgba(242, 241, 238, .7); }
+@media (max-width: 700px) { .at-alt__ic { grid-template-columns: 1fr; gap: var(--b3); } }
+
+/* --- ana sayfa: urun grubu etiketleri ve kahve onizlemesi ----------------- */
+.at-etiketler { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: var(--b2) 0 0; }
+.at-etiketler li {
+  font-size: .75rem; padding: 4px 10px; border-radius: var(--r-tam);
+  background: rgba(242, 241, 238, .06); color: rgba(242, 241, 238, .6);
+}
+
+/* align-items:start — kartlar icerigi kadar yer kaplasin, satira gerilmesin */
+.at-kahveler {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--b2); align-items: start;
+}
+.at-kahve {
+  background: var(--murekkep-2); border: 1px solid rgba(242, 241, 238, .08);
+  border-radius: var(--r-m); overflow: hidden;
+  transition: transform var(--gecis), border-color var(--gecis);
+}
+.at-kahve:hover { transform: translateY(-2px); border-color: rgba(214, 154, 76, .3); }
+/* Gorsel kutusu her zaman 4:3; icerideki fotograf mutlak konumlu ki
+   kaynak fotografin en-boy orani kutuyu buyutmesin. */
+.at-kahve__gorsel { position: relative; aspect-ratio: 1; background: var(--murekkep-3); overflow: hidden; }
+.at-kahve__gorsel img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.at-kahve__bos {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 2px solid rgba(214, 154, 76, .25);
+}
+.at-kahve__govde { display: flex; align-items: baseline; justify-content: space-between; gap: var(--b1); padding: 12px var(--b2) var(--b2); }
+.at-kahve__ad { font-weight: 600; font-size: .9375rem; }
+.at-kahve__fiyat { font-family: var(--f-veri); font-size: .8125rem; color: var(--amber); white-space: nowrap; }

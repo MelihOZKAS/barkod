@@ -106,75 +106,24 @@
       <div class="kh-yuzey kh-panel">
         <h2 class="kh-h2" style="margin-bottom:var(--b1)">Kahve seç</h2>
         <p class="kh-kucuk" style="margin-bottom:var(--b3)">Tıkladığın kahve sepete eklenir.</p>
-        {% if kahveler %}
-          <div class="kh-urunler" id="khUrunler">
-            {% for kahve in kahveler %}
-              <button type="button" class="kh-urun" data-kahve="{{ kahve.id }}">
-                <span class="kh-urun__ad">{{ kahve.ad }}</span>
-                <span class="kh-urun__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
-              </button>
-            {% endfor %}
+        {% for kategori_adi, kahveler in gruplar %}
+          <div style="margin-top:var(--b3)">
+            <p class="kh-etiket" style="margin-bottom:var(--b2)">{{ kategori_adi }}</p>
+            <div class="kh-sec">
+              {% for kahve in kahveler %}
+                <button type="button" data-kahve="{{ kahve.id }}">
+                  <span class="kh-sec__ad">{{ kahve.ad }}</span>
+                  <span class="kh-sec__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+                </button>
+              {% endfor %}
+            </div>
           </div>
-        {% else %}
-          <div class="kh-bos">
+        {% empty %}
+          <div class="kh-bos" style="margin-top:var(--b3)">
             <h3 class="kh-h2">Menü boş</h3>
-            <p class="kh-metin">Admin panelinden kahve ekleyin.</p>
+            <p class="kh-metin">Admin panelinden ürün ekleyin.</p>
           </div>
-        {% endif %}
-      </div>
-
-      <!-- SAG: sepet -->
-      <div class="kh-yuzey kh-panel">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b2)">
-          <h2 class="kh-h2">Sepet</h2>
-          <button class="kh-mini kh-mini--sil" id="khSifirla" type="button">KASAYI SIFIRLA</button>
-        </div>
-
-        <ul class="kh-satirlar" id="khSatirlar" style="margin-top:var(--b2)"></ul>
-        <p class="kh-kucuk" id="khBosSepet" style="padding:var(--b3) 0">Sepet boş. Soldan kahve seçin.</p>
-
-        <!-- musteri -->
-        <div style="margin-top:var(--b3);padding-top:var(--b3);border-top:1px solid rgba(242,241,238,.08)">
-          <label class="kh-etiket" for="khKod">Müşteri kartı (isteğe bağlı)</label>
-          <input class="kh-alan kh-alan--veri" id="khKod" style="margin-top:var(--b1)"
-                 placeholder="Barkod veya QR okutun" autocomplete="off" autofocus>
-          <div id="khMusteri" style="display:none;margin-top:var(--b2)"></div>
-        </div>
-
-        <!-- toplam -->
-        <div class="kh-toplam">
-          <span class="kh-etiket">Toplam</span>
-          <span class="kh-toplam__rakam"><span id="khToplam">0</span> ₺</span>
-        </div>
-
-        <button class="kh-btn kh-btn--ana kh-btn--genis" id="khOdemeAc" type="button" disabled>
-          Satışı tamamla
-        </button>
-
-        <!-- odeme paneli -->
-        <div id="khOdemePanel" style="display:none;margin-top:var(--b3);padding-top:var(--b3);border-top:1px solid rgba(242,241,238,.12)">
-          <p class="kh-etiket" style="margin-bottom:var(--b2)">Ödeme türü</p>
-          <div class="kh-odeme">
-            <button type="button" data-odeme="nakit" aria-pressed="true">Nakit</button>
-            <button type="button" data-odeme="kart" aria-pressed="false">Kredi kartı</button>
-            <button type="button" data-odeme="parcali" aria-pressed="false">Parçalı</button>
-          </div>
-
-          <div class="kh-parcali" id="khParcali" style="display:none">
-            <div>
-              <label class="kh-etiket" for="khNakit">Nakit</label>
-              <input class="kh-alan kh-alan--veri" id="khNakit" type="number" min="0" step="0.01" value="0" style="margin-top:6px">
-            </div>
-            <div>
-              <label class="kh-etiket" for="khKart">Kart</label>
-              <input class="kh-alan kh-alan--veri" id="khKart" type="number" min="0" step="0.01" value="0" style="margin-top:6px">
-            </div>
-          </div>
-          <p class="kh-kucuk" id="khParcaliNot" style="display:none;margin-bottom:var(--b2)"></p>
-
-          <button class="kh-btn kh-btn--cini kh-btn--genis" id="khOnayla" type="button">Onayla ve bitir</button>
-          <button class="kh-btn kh-btn--cizgi kh-btn--genis" id="khVazgec" type="button" style="margin-top:var(--b1)">Vazgeç</button>
-        </div>
+        {% endfor %}
       </div>
 
     </div>
@@ -341,9 +290,10 @@
   }
 
   // --- menuden sepete ekle ---
-  const urunler = $('khUrunler');
-  if (urunler) {
-    urunler.addEventListener('click', function (olay) {
+  // Kategoriler ayri ayri izgaralarda; dinleyiciyi kapsayiciya bagliyoruz.
+  const menuKutusu = document.querySelector('.kh-kasa .kh-yuzey');
+  if (menuKutusu) {
+    menuKutusu.addEventListener('click', function (olay) {
       const btn = olay.target.closest('button[data-kahve]');
       if (btn) gonder('{% url "kahve:kasa-sepete-ekle" %}', { kahve_id: btn.dataset.kahve });
     });

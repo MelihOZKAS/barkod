@@ -215,6 +215,25 @@ templates/kahve/   base, menu, kart (personel görünümü), kasa
 kahve/static/kahve/kahve.css
 ```
 
+#### Kategoriler
+`KahveKategori` — menü bölümü (Sıcak İçecekler, Soğuk İçecekler, Ekstralar...).
+Admin'den yenisi eklenebilir; menü, kasa ekranı ve mobil uygulama kendiliğinden
+yeni bölümü gösterir. Kategorisi olmayan ürünler "Diğer" başlığı altında çıkar.
+
+Menüyü tek seferde kurmak için:
+```bash
+python manage.py kahve_menu_yukle                    # ne olacağını gösterir
+python manage.py kahve_menu_yukle --uygula           # ekler
+python manage.py kahve_menu_yukle --uygula --kahvelere-damga   # kahvelerde +1 açık gelsin
+```
+Tekrar çalıştırılabilir: var olan ürünlerin **sadece** fiyatı, sırası ve kategorisi
+güncellenir. İşaretlenmiş "+1" kutusu, yüklenen görsel ve yazılan açıklama korunur.
+
+#### Görseller 1:1
+Menü, ana sayfa ve mobil uygulama görselleri **kare** gösteriyor. Yüklenen fotoğraf
+merkezden kare kırpılıp en fazla 1200px'e küçültülüyor (`Kahve._gorseli_kucult`),
+böylece kırpma bir kez yapılıyor ve her ekranda aynı kare görünüyor.
+
 #### Ürün bayrakları (`Kahve` modeli) — karıştırma, ikisi ayrı eksen
 | Alan | Admin etiketi | Varsayılan | Ne yapar |
 |---|---|---|---|
@@ -345,10 +364,16 @@ flutter run --dart-define=KAHVE_SUNUCU=https://site.com \
 ```
 Tanımlı değilse `demo_veri.dart` kullanılır, uygulama boş ekran göstermez.
 
+**Veri kaynağı:** menü ve ayarlar (hediye eşiği, işletme adı, geçerlilik günü)
+sunucudan gelir. Kart verisi Firebase bağlanana kadar demodur — ama eşiği
+sunucudaki gerçek kurala göre kurulur, yani damga sırası doğru sayıda çıkar.
+
 **Ekranlar**
 - `giris_ekrani` — tam ekran espresso fotoğrafı + tek buton
-- `ana_ekran` — alt navigasyon (Menü / Kartım). `Kart` durumu **burada** tutulur,
-  iki sekme de aynı veriyi görür.
+- `ana_ekran` — menü ve ayarları çeker, kategori filtresini tutar.
+  Alt bar **cam (buzlu)**: kaydırılabilir kategori çipleri + sağda Kartım.
+  `extendBody: true` olduğu için içerik barın altından akar — listelerin
+  alt boşluğu (`+92`) bu yüzden var, kaldırma.
 - `menu_sekmesi` — fotoğraflı kartlar + üstte ilerleme şeridi. Bekleyen hediye varsa
   uygun kahveler "HEDİYENLE ALABİLİRSİN" rozeti alır.
 - `profil_sekmesi` — sadakat kartı + "Kasada okut" + sayaçlar
@@ -421,6 +446,12 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
   eklentiler, kullanılmayan ikon fontları, tema demo görselleri. Silmeden önce
   şablon + CSS `url()` referansları tarandı; `icofont`, `apex`,
   `perfect-scrollbar`, `img/svg`, `img/png-icon` kullanıldığı için duruyor.
+- **Kategoriler** — `KahveKategori` eklendi, menü/kasa/mobil hepsi gruplu.
+  `kahve_menu_yukle` komutu 29 ürünlük gerçek menüyü tek seferde kuruyor.
+- **Görseller 1:1** — yüklemede merkezden kare kırpılıyor, her ekranda kare.
+- **Ortak footer** — `atlas_footer.html`, tüm halka açık Atlas sayfalarında.
+- **Mobil uygulama gerçek veriye bağlandı** — menü ve ayarlar sunucudan.
+  Alt navigasyon cam efektli ve kategorileri gösteriyor.
 - **Güvenlik** — kasa ekranındaki XSS (müşteri adı Firebase displayName'den
   geliyordu, `innerHTML` ile basılıyordu), `urun_miktar_guncelle`'de eksik
   `login_required` ve kullanıcı filtresi, müşteri barkodunda `random` → `secrets`.

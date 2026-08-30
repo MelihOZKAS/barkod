@@ -3,7 +3,9 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from . import sadakat
-from .models import HediyeKahve, Kahve, KahveAyar, KahveIcim, KahveMusteri, KahveSatis
+from .models import (
+    HediyeKahve, Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri, KahveSatis,
+)
 
 
 @admin.register(KahveAyar)
@@ -58,17 +60,28 @@ class KahveAyarAdmin(admin.ModelAdmin):
         )
 
 
+@admin.register(KahveKategori)
+class KahveKategoriAdmin(admin.ModelAdmin):
+    list_display = ("ad", "urun_sayisi", "sira", "aktif")
+    list_editable = ("sira", "aktif")
+    search_fields = ("ad",)
+
+    @admin.display(description="Ürün sayısı")
+    def urun_sayisi(self, obj):
+        return obj.urunler.count()
+
+
 @admin.register(Kahve)
 class KahveAdmin(admin.ModelAdmin):
-    list_display = ("onizleme", "ad", "fiyat", "aktif", "damga_veriyor", "hediye_gecerli", "sira")
+    list_display = ("onizleme", "ad", "kategori", "fiyat", "aktif", "damga_veriyor", "hediye_gecerli", "sira")
     list_display_links = ("onizleme", "ad")
-    list_editable = ("fiyat", "aktif", "damga_veriyor", "hediye_gecerli", "sira")
+    list_editable = ("kategori", "fiyat", "aktif", "damga_veriyor", "hediye_gecerli", "sira")
     search_fields = ("ad", "aciklama", "icindekiler")
-    list_filter = ("aktif", "damga_veriyor", "hediye_gecerli")
+    list_filter = ("kategori", "aktif", "damga_veriyor", "hediye_gecerli")
     save_on_top = True
 
     fieldsets = (
-        ("Ürün", {"fields": ("ad", "fiyat")}),
+        ("Ürün", {"fields": ("ad", "kategori", "fiyat")}),
         (
             "Görsel",
             {
@@ -104,7 +117,7 @@ class KahveAdmin(admin.ModelAdmin):
     def onizleme(self, obj):
         if obj.gorsel:
             return format_html(
-                '<img src="{}" style="width:120px;height:80px;object-fit:cover;'
+                '<img src="{}" style="width:110px;height:110px;object-fit:cover;'
                 'border-radius:10px;border:1px solid #ddd">',
                 obj.gorsel.url,
             )

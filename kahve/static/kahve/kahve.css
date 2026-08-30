@@ -317,7 +317,7 @@
   transition: transform var(--gecis), border-color var(--gecis), box-shadow var(--gecis);
 }
 .kh-kahve:hover { transform: translateY(-3px); border-color: rgba(214, 154, 76, .35); box-shadow: var(--golge-kart); }
-.kh-kahve__gorsel { aspect-ratio: 16 / 10; background: var(--espresso-3); overflow: hidden; }
+.kh-kahve__gorsel { aspect-ratio: 1; background: var(--espresso-3); overflow: hidden; }
 .kh-kahve__gorsel img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* gorseli olmayan kahve: menude de damga halkasi motifi surer */
 .kh-kahve__bos { width: 100%; height: 100%; display: grid; place-items: center; }

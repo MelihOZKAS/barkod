@@ -1,0 +1,33 @@
+{% comment %}
+  Tum halka acik Atlas sayfalarinin ortak alt bilgisi.
+  atlas_base.html icinden dahil ediliyor, ayrica eklemeye gerek yok.
+{% endcomment %}
+<footer class="at-alt">
+  <div class="at-kabuk">
+    <div class="at-alt__ic">
+
+      <div class="at-alt__marka">
+        <a class="at-marka" href="/">
+          <span class="at-marka__isaret">A</span>
+          <span class="at-marka__ad">Atlas Kırtasiye</span>
+        </a>
+        <p class="at-kucuk" style="margin:var(--b2) 0 0;max-width:34ch">
+          Okul ve ofis malzemeleri, taze demlenmiş kahve. Aynı kapıdan giriliyor.
+        </p>
+      </div>
+
+      <div class="at-alt__baglantilar">
+        <p class="at-etiket" style="margin-bottom:var(--b2)">Bağlantılar</p>
+        <a href="{% url 'kahve:menu' %}">Kahve menüsü</a>
+        <a href="{% url 'fiyat-monitor' %}">Fiyat sorgula</a>
+        <a href="{% url 'giris-yap' %}">Personel girişi</a>
+      </div>
+
+    </div>
+
+    <div class="at-alt__telif">
+      <span>© {% now "Y" %} Atlas Kırtasiye — Melih Özkaş</span>
+      <a href="https://www.atlaskirtasiyemsepet.net/">atlaskirtasiyemsepet.net</a>
+    </div>
+  </div>
+</footer>

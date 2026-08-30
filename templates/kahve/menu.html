@@ -44,43 +44,49 @@
         <p class="kh-etiket kh-etiket--cini">Menü</p>
         <h2 class="kh-h1" style="margin-top:var(--b1)">Bugün ne içiyoruz?</h2>
       </div>
-      <span class="kh-kucuk kh-veri">{{ kahveler|length }} kahve</span>
+      
     </div>
 
-    {% if kahveler %}
-      <div class="kh-izgara">
-        {% for kahve in kahveler %}
-          <article class="kh-kahve">
-            <div class="kh-kahve__gorsel">
-              {% if kahve.gorsel %}
-                <img src="{{ kahve.gorsel.url }}" alt="{{ kahve.ad }}" loading="lazy">
-              {% else %}
-                <div class="kh-kahve__bos" aria-hidden="true"><span></span></div>
-              {% endif %}
-            </div>
-            <div class="kh-kahve__govde">
-              <div class="kh-kahve__ust">
-                <h3 class="kh-h2">{{ kahve.ad }}</h3>
-                <span class="kh-kahve__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+    {% for kategori_adi, kahveler in gruplar %}
+      <div style="margin-bottom:var(--b5)">
+        <div style="display:flex;align-items:baseline;gap:var(--b2);margin-bottom:var(--b3)">
+          <h3 class="kh-h2">{{ kategori_adi }}</h3>
+          <span class="kh-kucuk kh-veri">{{ kahveler|length }}</span>
+        </div>
+        <div class="kh-izgara">
+          {% for kahve in kahveler %}
+            <article class="kh-kahve">
+              <div class="kh-kahve__gorsel">
+                {% if kahve.gorsel %}
+                  <img src="{{ kahve.gorsel.url }}" alt="{{ kahve.ad }}" loading="lazy">
+                {% else %}
+                  <div class="kh-kahve__bos" aria-hidden="true"><span></span></div>
+                {% endif %}
               </div>
-              {% if kahve.aciklama %}
-                <p class="kh-metin" style="font-size:.9375rem">{{ kahve.aciklama }}</p>
-              {% endif %}
-              {% if kahve.icindekiler_listesi %}
-                <ul class="kh-icindekiler" style="margin-top:auto;padding-top:var(--b1)">
-                  {% for madde in kahve.icindekiler_listesi %}<li>{{ madde }}</li>{% endfor %}
-                </ul>
-              {% endif %}
-            </div>
-          </article>
-        {% endfor %}
+              <div class="kh-kahve__govde">
+                <div class="kh-kahve__ust">
+                  <h4 class="kh-h2">{{ kahve.ad }}</h4>
+                  <span class="kh-kahve__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+                </div>
+                {% if kahve.aciklama %}
+                  <p class="kh-metin" style="font-size:.9375rem">{{ kahve.aciklama }}</p>
+                {% endif %}
+                {% if kahve.icindekiler_listesi %}
+                  <ul class="kh-icindekiler" style="margin-top:auto;padding-top:var(--b1)">
+                    {% for madde in kahve.icindekiler_listesi %}<li>{{ madde }}</li>{% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
       </div>
-    {% else %}
+    {% empty %}
       <div class="kh-bos">
         <h3 class="kh-h2">Menü henüz boş</h3>
-        <p class="kh-metin">Admin panelinden <strong>Kahveler</strong> bölümüne ilk kahveyi ekleyin.</p>
+        <p class="kh-metin">Admin panelinden <strong>Kahveler</strong> bölümüne ilk ürünü ekleyin.</p>
       </div>
-    {% endif %}
+    {% endfor %}
   </div>
 </section>
 

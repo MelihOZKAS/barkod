@@ -503,18 +503,31 @@ class GorselTesti(TestCase):
         self.addCleanup(self.kapsam.disable)
         self.addCleanup(shutil.rmtree, self.medya, True)
 
-    def test_buyuk_gorsel_kucultulur(self):
+    def test_buyuk_gorsel_kare_kirpilir_ve_kucultulur(self):
+        """Menu ve mobil uygulama 1:1 gosteriyor; kirpmayi yuklerken yapiyoruz."""
         kahve = Kahve.objects.create(ad="Buyuk", fiyat=50, gorsel=_gorsel_uret(2400, 1600))
 
         with Image.open(kahve.gorsel.path) as resim:
-            self.assertEqual(resim.width, 1400)
-            self.assertEqual(resim.height, 933)
+            self.assertEqual(resim.width, resim.height, "kare olmali")
+            self.assertEqual(resim.width, 1200, "en fazla 1200px")
 
-    def test_kucuk_gorsel_bozulmaz(self):
+    def test_dikey_gorsel_de_kare_olur(self):
+        kahve = Kahve.objects.create(ad="Dikey", fiyat=50, gorsel=_gorsel_uret(800, 1600))
+
+        with Image.open(kahve.gorsel.path) as resim:
+            self.assertEqual((resim.width, resim.height), (800, 800), "kisa kenara gore kare")
+
+    def test_kucuk_gorsel_kare_yapilir_ama_buyutulmez(self):
         kahve = Kahve.objects.create(ad="Kucuk", fiyat=50, gorsel=_gorsel_uret(600, 400))
 
         with Image.open(kahve.gorsel.path) as resim:
-            self.assertEqual(resim.width, 600)
+            self.assertEqual((resim.width, resim.height), (400, 400))
+
+    def test_zaten_kare_ve_kucukse_dokunulmaz(self):
+        kahve = Kahve.objects.create(ad="Kare", fiyat=50, gorsel=_gorsel_uret(500, 500))
+
+        with Image.open(kahve.gorsel.path) as resim:
+            self.assertEqual((resim.width, resim.height), (500, 500))
 
     def test_gorsel_degisince_eskisi_silinir(self):
         kahve = Kahve.objects.create(ad="Degisen", fiyat=50, gorsel=_gorsel_uret(ad="eski.jpg"))

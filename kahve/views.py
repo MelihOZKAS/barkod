@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from . import kasa as kasa_sepeti
 from . import sadakat
 from .firebase import FirebaseHatasi, token_dogrula
-from .models import Kahve, KahveAyar, KahveIcim, KahveMusteri
+from .models import Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri
 
 MOBIL_BASLIK = "HTTP_X_KAHVE_KEY"
 
@@ -63,6 +63,22 @@ def _musteri_ozet(musteri):
     }
 
 
+def _kategorilere_gore(kahveler):
+    """[(kategori_adi, [kahve, ...]), ...] doner. Kategorisi olmayanlar en sonda."""
+    gruplar, kategorisiz = [], []
+    for kahve in kahveler:
+        if kahve.kategori_id is None:
+            kategorisiz.append(kahve)
+            continue
+        if gruplar and gruplar[-1][0] == kahve.kategori.ad:
+            gruplar[-1][1].append(kahve)
+        else:
+            gruplar.append((kahve.kategori.ad, [kahve]))
+    if kategorisiz:
+        gruplar.append(("Diğer", kategorisiz))
+    return gruplar
+
+
 def _kahve_ozet(kahve, request=None):
     gorsel = ""
     if kahve.gorsel:
@@ -76,6 +92,7 @@ def _kahve_ozet(kahve, request=None):
         "gorsel": gorsel,
         "hediye_gecerli": kahve.hediye_gecerli,
         "damga_veriyor": kahve.damga_veriyor,
+        "kategori": kahve.kategori.ad if kahve.kategori_id else "",
     }
 
 
@@ -121,7 +138,9 @@ def menu(request):
         "kahve/menu.html",
         {
             "ayar": ayar,
-            "kahveler": Kahve.objects.filter(aktif=True),
+            "gruplar": _kategorilere_gore(
+                Kahve.objects.filter(aktif=True).select_related("kategori")
+            ),
             "ornek_damgalar": range(max(1, ayar.hediye_icin_kahve)),
         },
     )
@@ -150,7 +169,9 @@ def kasa(request):
         "kahve/kasa.html",
         {
             "ayar": KahveAyar.al(),
-            "kahveler": Kahve.objects.filter(aktif=True),
+            "gruplar": _kategorilere_gore(
+                Kahve.objects.filter(aktif=True).select_related("kategori")
+            ),
             "gun": kasa_sepeti.gunun_ozeti(),
         },
     )
@@ -353,7 +374,7 @@ def api_ayarlar(request):
 @csrf_exempt
 @mobil_anahtar_gerekli
 def api_menu(request):
-    kahveler = Kahve.objects.filter(aktif=True)
+    kahveler = Kahve.objects.filter(aktif=True).select_related("kategori")
     return JsonResponse({"ok": True, "kahveler": [_kahve_ozet(k, request) for k in kahveler]})
 
 

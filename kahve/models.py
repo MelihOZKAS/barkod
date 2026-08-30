@@ -99,7 +99,35 @@ class KahveAyar(models.Model):
         }
 
 
+class KahveKategori(models.Model):
+    """Menu bolumu: Sicak Icecekler, Soguk Icecekler, Atistirmalik...
+
+    Yenisini admin'den ekleyebilirsin; menu ve kasa ekrani kendiliginden
+    yeni bolumu gosterir.
+    """
+
+    ad = models.CharField(max_length=80, unique=True, verbose_name="Kategori adı")
+    sira = models.PositiveIntegerField(default=0, verbose_name="Sıralama")
+    aktif = models.BooleanField(default=True, verbose_name="Menüde görünsün")
+
+    class Meta:
+        ordering = ("sira", "ad")
+        verbose_name = "Kahve Kategorisi"
+        verbose_name_plural = "Kahve Kategorileri"
+
+    def __str__(self):
+        return self.ad
+
+
 class Kahve(models.Model):
+    kategori = models.ForeignKey(
+        KahveKategori,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="urunler",
+        verbose_name="Kategori",
+        help_text="Boş bırakılırsa menüde 'Diğer' başlığı altında görünür.",
+    )
     ad = models.CharField(max_length=120, verbose_name="Kahve adı")
     aciklama = models.TextField(blank=True, verbose_name="Açıklama")
     icindekiler = models.TextField(blank=True, verbose_name="İçindekiler", help_text="Her satıra bir malzeme yaz.")
@@ -121,7 +149,7 @@ class Kahve(models.Model):
     eklenme_tarihi = models.DateTimeField(auto_now_add=True, verbose_name="Eklenme tarihi")
 
     class Meta:
-        ordering = ("sira", "ad")
+        ordering = ("kategori__sira", "sira", "ad")
         verbose_name = "Kahve"
         verbose_name_plural = "Kahveler"
 
@@ -136,12 +164,12 @@ class Kahve(models.Model):
         super().save(*args, **kwargs)
         self._gorseli_kucult()
 
-    def _gorseli_kucult(self, en_fazla_genislik=1400):
-        """Yuklenen fotografi kucultur.
+    def _gorseli_kucult(self, en_fazla_genislik=1200):
+        """Yuklenen fotografi kare kirpar ve kucultur.
 
-        Gorseller Django uzerinden servis edildigi icin telefondan gelen
-        4000px'lik fotograflari oldugu gibi saklamak istemiyoruz. Hata olursa
-        sessizce vazgecer: admin kaydi asla bu yuzden basarisiz olmasin.
+        Menu ve mobil uygulama gorselleri 1:1 gosteriyor; kirpmayi burada bir
+        kez yaparsak her ekranda ayni kare gorunur. Kare kirpma merkezden.
+        Hata olursa sessizce vazgecer: admin kaydi asla bu yuzden basarisiz olmasin.
         """
         if not self.gorsel:
             return
@@ -159,14 +187,20 @@ class Kahve(models.Model):
             return  # bozuk ya da desteklenmeyen dosya
 
         try:
-            if resim.width <= en_fazla_genislik:
+            bicim = (resim.format or "JPEG").upper()
+            kenar = min(resim.width, resim.height)
+
+            zaten_kare = resim.width == resim.height
+            if zaten_kare and resim.width <= en_fazla_genislik:
                 return
 
-            bicim = (resim.format or "JPEG").upper()
-            oran = en_fazla_genislik / resim.width
-            kucuk = resim.resize(
-                (en_fazla_genislik, round(resim.height * oran)), Image.LANCZOS
-            )
+            # merkezden kare kirp
+            sol = (resim.width - kenar) // 2
+            ust = (resim.height - kenar) // 2
+            kare = resim.crop((sol, ust, sol + kenar, ust + kenar))
+
+            hedef = min(kenar, en_fazla_genislik)
+            kucuk = kare.resize((hedef, hedef), Image.LANCZOS)
 
             secenekler = {"optimize": True}
             if bicim in ("JPEG", "JPG"):

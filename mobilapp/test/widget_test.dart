@@ -24,11 +24,11 @@ void main() {
     expect(find.byType(AnaEkran), findsOneWidget);
   });
 
-  testWidgets('Alt navigasyon Menu ve Kartim sekmelerini gosterir', (tester) async {
+  testWidgets('Cam alt bar kategorileri ve Kartim dugmesini gosterir', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AnaEkran()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Menü'), findsOneWidget);
+    expect(find.text('Tümü'), findsOneWidget);
     expect(find.text('Kartım'), findsOneWidget);
     expect(find.text('Bugün ne içiyoruz?'), findsOneWidget);
 
@@ -54,6 +54,9 @@ void main() {
     await tester.tap(find.text('Kartım'));
     await tester.pumpAndSettle();
 
+    // Cam bar icerigin ustunde duruyor; dugmeyi once gorunur alana getir.
+    await tester.ensureVisible(find.text('Kasada okut'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Kasada okut'));
     await tester.pumpAndSettle();
 
@@ -85,7 +88,16 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: MenuSekmesi(kart: hediyeliKart, karta: () {}))),
+      MaterialApp(
+        home: Scaffold(
+          body: MenuSekmesi(
+            kart: hediyeliKart,
+            kahveler: DemoVeri.menu,
+            yukleniyor: false,
+            karta: () {},
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 

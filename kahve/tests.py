@@ -721,3 +721,115 @@ class MusteriWebeGiremezTesti(TestCase):
     def test_musterinin_django_kullanicisi_yok(self):
         self.assertFalse(User.objects.filter(username=self.musteri.ad_soyad).exists())
         self.assertEqual(User.objects.count(), 0)
+
+
+class YedekAlmaTesti(TestCase):
+    """Urunleri disa aktar, sil, geri yukle."""
+
+    def setUp(self):
+        self.medya = tempfile.mkdtemp()
+        self.kapsam = override_settings(MEDIA_ROOT=self.medya)
+        self.kapsam.enable()
+        self.addCleanup(self.kapsam.disable)
+        self.addCleanup(shutil.rmtree, self.medya, True)
+
+        self.yedek = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.yedek, True)
+
+        Kahve.objects.create(
+            ad="Latte", fiyat=90, aciklama="Ipeksi sut kopugu.",
+            icindekiler="Espresso\nSut", sira=1,
+            damga_veriyor=True, hediye_gecerli=True,
+            gorsel=_gorsel_uret(600, 400, "latte.jpg"),
+        )
+        Kahve.objects.create(
+            ad="Kurabiye", fiyat=45, sira=2,
+            damga_veriyor=False, hediye_gecerli=False,
+        )
+
+    def _disa_aktar(self):
+        call_command("kahve_disa_aktar", klasor=self.yedek, verbosity=0)
+        return Path(self.yedek)
+
+    def test_yedek_dosyalari_olusur(self):
+        klasor = self._disa_aktar()
+
+        self.assertTrue((klasor / "urunler.csv").is_file())
+        self.assertTrue((klasor / "tum-veri.json").is_file())
+        self.assertTrue((klasor / "gorseller" / "latte.jpg").is_file())
+
+    def test_silinen_urunler_geri_yuklenir(self):
+        klasor = self._disa_aktar()
+        Kahve.objects.all().delete()
+        self.assertEqual(Kahve.objects.count(), 0)
+
+        call_command("kahve_ice_aktar", str(klasor / "urunler.csv"), "--uygula", verbosity=0)
+
+        self.assertEqual(Kahve.objects.count(), 2)
+        latte = Kahve.objects.get(ad="Latte")
+        self.assertEqual(latte.fiyat, 90)
+        self.assertEqual(latte.icindekiler_listesi, ["Espresso", "Sut"])
+        self.assertTrue(latte.damga_veriyor)
+
+    def test_bayraklar_korunur(self):
+        klasor = self._disa_aktar()
+        Kahve.objects.all().delete()
+
+        call_command("kahve_ice_aktar", str(klasor / "urunler.csv"), "--uygula", verbosity=0)
+
+        kurabiye = Kahve.objects.get(ad="Kurabiye")
+        self.assertFalse(kurabiye.damga_veriyor, "kurabiye damga vermemeli")
+        self.assertFalse(kurabiye.hediye_gecerli)
+
+    def test_gorsel_de_geri_gelir(self):
+        klasor = self._disa_aktar()
+        Kahve.objects.all().delete()
+
+        call_command("kahve_ice_aktar", str(klasor / "urunler.csv"), "--uygula", verbosity=0)
+
+        self.assertTrue(Kahve.objects.get(ad="Latte").gorsel)
+
+    def test_kuru_calisma_veriyi_degistirmez(self):
+        klasor = self._disa_aktar()
+        Kahve.objects.all().delete()
+
+        call_command("kahve_ice_aktar", str(klasor / "urunler.csv"), verbosity=0)
+
+        self.assertEqual(Kahve.objects.count(), 0, "--uygula verilmeden kayit acilmamali")
+
+    def test_mevcut_urun_guncellenir_kopyalanmaz(self):
+        """Excel'de fiyat degistirip geri yuklemek en sik kullanim."""
+        klasor = self._disa_aktar()
+        csv_yolu = klasor / "urunler.csv"
+        csv_yolu.write_text(
+            csv_yolu.read_text(encoding="utf-8-sig").replace("Latte,90.00", "Latte,120.00"),
+            encoding="utf-8-sig",
+        )
+
+        call_command("kahve_ice_aktar", str(csv_yolu), "--uygula", verbosity=0)
+
+        self.assertEqual(Kahve.objects.filter(ad="Latte").count(), 1, "kopya urun olusmamali")
+        self.assertEqual(Kahve.objects.get(ad="Latte").fiyat, 120)
+
+    def test_bozuk_satir_atlanir_digerleri_yuklenir(self):
+        klasor = self._disa_aktar()
+        csv_yolu = klasor / "urunler.csv"
+        with csv_yolu.open("a", encoding="utf-8-sig") as dosya:
+            dosya.write("Bozuk Urun,fiyat-degil,,,0,evet,hayir,evet,\n")
+        Kahve.objects.all().delete()
+
+        call_command("kahve_ice_aktar", str(csv_yolu), "--uygula", verbosity=0)
+
+        self.assertEqual(Kahve.objects.count(), 2)
+        self.assertFalse(Kahve.objects.filter(ad="Bozuk Urun").exists())
+
+    def test_tam_veri_json_ile_her_sey_geri_gelir(self):
+        musteri = KahveMusteri.objects.create(ad_soyad="Yedek Musterisi")
+        sadakat.kahve_ekle(musteri, Kahve.objects.get(ad="Latte"))
+        klasor = self._disa_aktar()
+
+        icerik = (klasor / "tum-veri.json").read_text(encoding="utf-8")
+
+        self.assertIn("kahve.kahvemusteri", icerik)
+        self.assertIn("kahve.kahveicim", icerik)
+        self.assertIn("Yedek Musterisi", icerik)

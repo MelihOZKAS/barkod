@@ -110,6 +110,24 @@ kullanmayın.
 `sepet_urun_sil-beyaz`) sadece o sayfa tarafından kullanılıyor, o yüzden duruyorlar.
 `yeni-sayfa` da kaldırılırsa bu 4 uç ve view'ları da silinebilir.
 
+#### Yedekleme / geri yükleme (asıl değerli veri burada)
+```bash
+python manage.py stok_disa_aktar                        # yedek/stok-<tarih>/ oluşturur
+python manage.py stok_ice_aktar yedek/.../urunler.csv            # kuru çalışma
+python manage.py stok_ice_aktar yedek/.../urunler.csv --uygula   # gerçekten uygular
+python manage.py loaddata yedek/.../tum-veri.json                # birebir geri yükleme
+```
+
+Yedek klasörü: `urunler.csv` (Excel'de açılır — barkod, ad, fiyat, gruplar),
+`liste-gruplari.csv`, `urun-gruplari.csv`, `tum-veri.json`.
+
+- Ürünler **barkoda göre** eşleşir; aynı barkod varsa güncellenir, kopya üretmez.
+- Eksik gruplar otomatik açılır. Yan dosyalar da okunduğu için **hiç ürünü olmayan
+  gruplar da geri gelir**.
+- **`bulk_create` kullanma:** `Stok.save()` arama alanı `Urun_Genel`'i hesaplıyor,
+  toplu ekleme onu atlar ve ürün araması sessizce bozulur. `stok/tests.py` bunu koruyor.
+- Varsayılan kuru çalışma; `--uygula` vermeden hiçbir şey değişmez.
+
 **Bilinen, henüz yapılmamış iyileştirmeler:** sepet işlemleri hâlâ tam sayfa yenilemesi
 yapıyor; sayfa Tailwind'i CDN'den çekip tarayıcıda derliyor (konsol uyarı veriyor).
 
@@ -217,6 +235,19 @@ Admin'deki Firebase alanları da mobil uygulamaya servis edilir.
 python manage.py gorsel_temizle          # öksüz dosyaları listeler (güvenli)
 python manage.py gorsel_temizle --sil    # gerçekten siler
 ```
+
+#### Yedekleme / geri yükleme
+```bash
+python manage.py kahve_disa_aktar                       # yedek/kahve-<tarih>/ oluşturur
+python manage.py kahve_ice_aktar yedek/.../urunler.csv           # kuru çalışma
+python manage.py kahve_ice_aktar yedek/.../urunler.csv --uygula  # gerçekten uygular
+python manage.py loaddata yedek/.../tum-veri.json                # her şeyi geri yükler
+```
+
+Yedek klasörü: `urunler.csv` (Excel'de açılır, fiyat toplu düzenlenebilir),
+`tum-veri.json` (müşteriler/damgalar/satışlar dahil), `gorseller/`.
+İçe aktarma ürünleri **ada göre** eşler — aynı ad varsa günceller, yoksa oluşturur,
+yani kopya üretmez. Varsayılan kuru çalışma; `--uygula` vermeden hiçbir şey değişmez.
 
 > **Dikkat:** komut, dosyaları **hangi veritabanına bakıyorsa** onunla karşılaştırır.
 > Yanlış `DATABASE_URL` ile (ör. boş yerel db) çalıştırırsan bütün görseller öksüz

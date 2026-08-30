@@ -27,7 +27,7 @@ def _anahtar_uret():
 class KahveAyar(models.Model):
     """Tek satirlik ayar tablosu. Admin panelinden yonetilir."""
 
-    isletme_adi = models.CharField(max_length=120, default="Atlas Kahve", verbose_name="İşletme adı")
+    isletme_adi = models.CharField(max_length=120, default="Atlas Coffee", verbose_name="İşletme adı")
     slogan = models.CharField(
         max_length=200, blank=True, default="Beş kahve içenin altıncısı bizden", verbose_name="Slogan"
     )
@@ -311,6 +311,7 @@ class KahveSatis(models.Model):
         NAKIT = "nakit", "Nakit"
         KART = "kart", "Kredi kartı"
         PARCALI = "parcali", "Parçalı"
+        BORC = "borc", "Borca yazıldı"
 
     musteri = models.ForeignKey(
         KahveMusteri,
@@ -327,6 +328,18 @@ class KahveSatis(models.Model):
     odeme_turu = models.CharField(
         max_length=16, choices=Odeme.choices, default=Odeme.NAKIT, verbose_name="Ödeme türü"
     )
+    borc_musteri = models.ForeignKey(
+        "stok.Musteri",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="kahve_satislari",
+        verbose_name="Borç yazılan müşteri",
+        help_text="Ödeme türü 'Borca yazıldı' ise dolu olur. Kırtasiye tarafındaki müşteri listesi.",
+    )
+    # Satista ne verildiginin metin ozeti. KahveIcim sadece kart okutuldugunda
+    # yaziliyor; kartsiz satista ne satildigi baska hicbir yerde durmuyordu.
+    urunler = models.CharField(max_length=255, blank=True, verbose_name="Satılanlar")
     fincan_adedi = models.PositiveIntegerField(default=0, verbose_name="Kalem adedi")
     hediye_adedi = models.PositiveIntegerField(default=0, verbose_name="Hediye ile verilen")
     tarih = models.DateTimeField(default=timezone.now, verbose_name="Tarih")

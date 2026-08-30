@@ -4,9 +4,11 @@ Calistirmak icin:
     python manage.py test kahve
 """
 
+import json
 import shutil
 import tempfile
 from datetime import timedelta
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 
@@ -14,11 +16,14 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client, TestCase, override_settings
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from PIL import Image
 
-from . import sadakat
+from stok.models import BorcHareketi, Musteri
+
+from . import kasa as kasa_sepeti
+from . import menu_verisi, sadakat
 from .models import (
     HediyeKahve, Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri, KahveSatis,
 )
@@ -850,29 +855,187 @@ class YedekAlmaTesti(TestCase):
         self.assertIn("Yedek Musterisi", icerik)
 
 
-class MenuYuklemeTesti(TestCase):
-    """Personel ekranindan tek tikla menu kurma."""
+class KahveBorcaYazmaTesti(TestCase):
+    """Kahve satisi kirtasiye tarafindaki borc hanesine yazilir.
+
+    Iki tezgah ayni musteri kaydini kullanir: kahve borcu da ayni yere isler.
+    """
 
     def setUp(self):
-        User.objects.create_superuser("kasa", "k@o.com", "gizli-sifre-123")
+        User.objects.create_superuser("kasiyer", "k@o.com", "gizli-sifre-123")
         self.client = Client()
-        self.client.login(username="kasa", password="gizli-sifre-123")
-        self.adres = reverse("kahve:kasa-menu-yukle")
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.kahve = Kahve.objects.create(ad="Latte", fiyat=80, damga_veriyor=True)
+        self.musteri = Musteri.objects.create(
+            isim_soyisim="Borçlu Müşteri", Cep_Telefonu=5551112233, borc=Decimal("20.00")
+        )
 
-    def test_personel_olmayan_giremez(self):
-        anonim = Client()
+    def _sepete_ekle(self, adet=1):
+        for _ in range(adet):
+            self.client.post(
+                reverse("kahve:kasa-sepete-ekle"),
+                data=json.dumps({"kahve_id": self.kahve.id}),
+                content_type="application/json",
+            )
 
-        self.assertEqual(anonim.get(self.adres).status_code, 302)
+    def test_borca_yazinca_musterinin_borcu_artar(self):
+        self._sepete_ekle(2)
 
-    def test_get_onizleme_gosterir_kayit_acmaz(self):
-        cevap = self.client.get(self.adres)
+        cevap = self.client.post(
+            reverse("kahve:kasa-satis-tamamla"),
+            data=json.dumps({"odeme_turu": "borc", "borc_musteri_id": self.musteri.id}),
+            content_type="application/json",
+        )
 
         self.assertEqual(cevap.status_code, 200)
-        self.assertEqual(Kahve.objects.count(), 0, "GET hicbir sey yazmamali")
-        self.assertContains(cevap, "Espresso")
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("180.00"), "20 + 2x80")
 
-    def test_post_menuyu_kurar(self):
-        self.client.post(self.adres, {"damga": "1"})
+    def test_borc_hareketi_alinanlari_yazar(self):
+        self._sepete_ekle(2)
+
+        self.client.post(
+            reverse("kahve:kasa-satis-tamamla"),
+            data=json.dumps({
+                "odeme_turu": "borc",
+                "borc_musteri_id": self.musteri.id,
+                "not": "cumartesi ödeyecek",
+            }),
+            content_type="application/json",
+        )
+
+        hareket = BorcHareketi.objects.get(musteri=self.musteri)
+        self.assertEqual(hareket.tutar, Decimal("160.00"))
+        self.assertEqual(hareket.onceki_borc, Decimal("20.00"))
+        self.assertIn("2x Latte", hareket.aciklama)
+        self.assertIn("cumartesi ödeyecek", hareket.aciklama)
+
+    def test_musteri_secilmeden_borca_yazilamaz(self):
+        self._sepete_ekle(1)
+
+        cevap = self.client.post(
+            reverse("kahve:kasa-satis-tamamla"),
+            data=json.dumps({"odeme_turu": "borc"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(cevap.status_code, 400)
+        self.assertEqual(BorcHareketi.objects.count(), 0)
+        self.assertEqual(Musteri.objects.get(pk=self.musteri.pk).borc, Decimal("20.00"))
+
+    def test_borc_satisi_kasaya_para_yazmaz(self):
+        """Borca yazilan tutar ciroya girer ama nakit/kart hanesine girmez."""
+        self._sepete_ekle(1)
+
+        self.client.post(
+            reverse("kahve:kasa-satis-tamamla"),
+            data=json.dumps({"odeme_turu": "borc", "borc_musteri_id": self.musteri.id}),
+            content_type="application/json",
+        )
+
+        satis = KahveSatis.objects.get()
+        self.assertEqual(satis.nakit_tutar, Decimal("0.00"))
+        self.assertEqual(satis.kart_tutar, Decimal("0.00"))
+        self.assertEqual(satis.toplam, Decimal("80.00"))
+        gun = kasa_sepeti.gunun_ozeti()
+        self.assertEqual(gun["borc"], Decimal("80.00"))
+        self.assertEqual(gun["nakit"], Decimal("0.00"))
+
+    def test_damga_yine_islenir(self):
+        """Borca yazmak sadakati etkilemez: kahve icildi, damga hak edildi."""
+        kart_musterisi = KahveMusteri.objects.create(ad_soyad="Kart Sahibi", firebase_uid="fb-1")
+        self._sepete_ekle(1)
+        self.client.post(
+            reverse("kahve:kasa-musteri-bul"),
+            data=json.dumps({"kod": kart_musterisi.kod}),
+            content_type="application/json",
+        )
+
+        self.client.post(
+            reverse("kahve:kasa-satis-tamamla"),
+            data=json.dumps({"odeme_turu": "borc", "borc_musteri_id": self.musteri.id}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            KahveIcim.objects.filter(musteri=kart_musterisi, durum=KahveIcim.Durum.AKTIF).count(), 1
+        )
+
+    def test_musteri_arama_borcu_da_dondurur(self):
+        cevap = self.client.get(reverse("kahve:kasa-borc-musterileri"), {"q": "Borçlu"})
+
+        veri = cevap.json()
+        self.assertEqual(len(veri["musteriler"]), 1)
+        self.assertEqual(veri["musteriler"][0]["ad"], "Borçlu Müşteri")
+        self.assertEqual(veri["musteriler"][0]["borc"], 20.0)
+
+    def test_musteri_aramaya_personel_olmayan_giremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.get(reverse("kahve:kasa-borc-musterileri")).status_code, 302)
+
+
+class KasaSayfasiTesti(TestCase):
+    """Sayfanin KENDISI calisir mi.
+
+    Onceden sadece JSON uclari sinaniyordu; sepet/odeme panelinin HTML'i
+    sablondan dusmustu ve testler bunu goremedi. Kasa kullanilamaz haldeydi.
+    """
+
+    # kasa.html icindeki JS bu id'leri arar; biri eksikse ekran sessizce bozulur
+    GEREKLI_IDLER = [
+        "khKod", "khMusteri", "khSatirlar", "khBosSepet", "khToplam",
+        "khOdemeAc", "khSifirla", "khOdemePanel", "khVazgec", "khOnayla",
+        "khParcali", "khParcaliNot", "khNakit", "khKart",
+        "khGunSatis", "khGunCiro", "khGunNakit", "khGunKart", "khMenu",
+    ]
+
+    def setUp(self):
+        User.objects.create_superuser("kasiyer", "k@o.com", "gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        menu_verisi.yukle(uygula=True, kahvelere_damga=True)
+
+    def test_js_nin_aradigi_her_eleman_sayfada_var(self):
+        cevap = self.client.get(reverse("kahve:kasa"))
+        govde = cevap.content.decode()
+
+        for id_ in self.GEREKLI_IDLER:
+            with self.subTest(id=id_):
+                self.assertIn(f'id="{id_}"', govde)
+
+    def test_odeme_turlerinin_ucu_de_var(self):
+        govde = self.client.get(reverse("kahve:kasa")).content.decode()
+
+        for tur in ("nakit", "kart", "parcali"):
+            with self.subTest(tur=tur):
+                self.assertIn(f'data-odeme="{tur}"', govde)
+
+    def test_urunler_tiklanabilir_ve_stilli_cikar(self):
+        """Butonlar CSS'i olan sinifi kullanmali; yoksa duz beyaz etiket gorunur."""
+        govde = self.client.get(reverse("kahve:kasa")).content.decode()
+
+        self.assertIn('class="kh-urun"', govde)
+        self.assertIn("data-kahve=", govde)
+        self.assertIn(".kh-urun {", govde, "kh-urun icin stil tanimi da olmali")
+        self.assertNotIn("kh-sec__ad", govde, "CSS'i olmayan eski sinif kalmamali")
+
+    def test_gorseli_olmayan_urun_halka_motifine_duser(self):
+        govde = self.client.get(reverse("kahve:kasa")).content.decode()
+
+        self.assertIn("kh-urun__bos", govde)
+
+
+class MenuYuklemeTesti(TestCase):
+    """Menu verisini kuran komut. Web ekrani 2026-08-30'da kaldirildi."""
+
+    def test_kuru_calisma_kayit_acmaz(self):
+        menu_verisi.yukle(uygula=False)
+
+        self.assertEqual(Kahve.objects.count(), 0, "kuru calisma hicbir sey yazmamali")
+
+    def test_menuyu_kurar(self):
+        menu_verisi.yukle(uygula=True, kahvelere_damga=True)
 
         self.assertEqual(Kahve.objects.count(), 29)
         self.assertTrue(KahveKategori.objects.filter(ad="Sıcak İçecekler").exists())
@@ -880,37 +1043,39 @@ class MenuYuklemeTesti(TestCase):
         self.assertEqual(Kahve.objects.get(ad="Espresso").fiyat, 70)
 
     def test_damga_secenegi_kahvelere_uygulanir(self):
-        self.client.post(self.adres, {"damga": "1"})
+        menu_verisi.yukle(uygula=True, kahvelere_damga=True)
 
         self.assertTrue(Kahve.objects.get(ad="Latte").damga_veriyor)
         self.assertFalse(Kahve.objects.get(ad="Çay").damga_veriyor, "çay damga vermemeli")
         self.assertFalse(Kahve.objects.get(ad="Şurup").damga_veriyor)
 
     def test_damga_secilmezse_hepsi_kapali(self):
-        self.client.post(self.adres, {})
+        menu_verisi.yukle(uygula=True)
 
         self.assertFalse(Kahve.objects.get(ad="Latte").damga_veriyor)
 
     def test_tekrar_calistirinca_ayarlar_korunur(self):
         """En onemli garanti: fiyat guncellenir, kullanicinin ayarlari bozulmaz."""
-        self.client.post(self.adres, {})
+        menu_verisi.yukle(uygula=True)
         cay = Kahve.objects.get(ad="Çay")
         cay.damga_veriyor = True
         cay.aciklama = "Demlik çayı"
         cay.save()
 
-        self.client.post(self.adres, {"damga": "1"})
+        menu_verisi.yukle(uygula=True, kahvelere_damga=True)
 
         cay.refresh_from_db()
         self.assertTrue(cay.damga_veriyor, "işaretlenen +1 korunmalı")
         self.assertEqual(cay.aciklama, "Demlik çayı", "açıklama korunmalı")
         self.assertEqual(Kahve.objects.count(), 29, "kopya ürün oluşmamalı")
 
-    def test_komut_ve_sayfa_ayni_sonucu_verir(self):
+    def test_komut_da_ayni_sonucu_verir(self):
         call_command("kahve_menu_yukle", "--uygula", verbosity=0)
-        komuttan = Kahve.objects.count()
-        Kahve.objects.all().delete()
 
-        self.client.post(self.adres, {})
+        self.assertEqual(Kahve.objects.count(), 29)
 
-        self.assertEqual(Kahve.objects.count(), komuttan)
+    def test_menu_yukle_sayfasi_artik_yok(self):
+        """Kullanici istedi: menu bir kere yuklendi, ekran kaldirildi."""
+        with self.assertRaises(NoReverseMatch):
+            reverse("kahve:kasa-menu-yukle")
+

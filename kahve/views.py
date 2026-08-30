@@ -3,14 +3,16 @@ import json
 from functools import wraps
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from stok.models import Musteri
+
 from . import kasa as kasa_sepeti
-from . import menu_verisi
 from . import sadakat
 from .firebase import FirebaseHatasi, token_dogrula
 from .models import Kahve, KahveAyar, KahveIcim, KahveKategori, KahveMusteri
@@ -191,6 +193,34 @@ def kasa_durum(request):
 
 
 @staff_member_required
+def kasa_borc_musterileri(request):
+    """Kirtasiye tarafindaki musteri listesi - kahve kasasinda borca yazmak icin.
+
+    Ayni musteri kaydi iki tezgahta da kullanilir; kahve borcu da ayni
+    borc hanesine islenir.
+    """
+    aranan = (request.GET.get("q") or "").strip()
+    sorgu = Musteri.objects.all()
+    if aranan:
+        sorgu = sorgu.filter(
+            Q(isim_soyisim__icontains=aranan) | Q(Cep_Telefonu__icontains=aranan)
+        )
+    sorgu = sorgu.order_by("isim_soyisim")[:40]
+    return JsonResponse({
+        "ok": True,
+        "musteriler": [
+            {
+                "id": m.id,
+                "ad": m.isim_soyisim,
+                "telefon": str(m.Cep_Telefonu) if m.Cep_Telefonu else "",
+                "borc": float(m.borc),
+            }
+            for m in sorgu
+        ],
+    })
+
+
+@staff_member_required
 @require_POST
 def kasa_sepete_ekle(request):
     veri = _govde(request)
@@ -301,6 +331,8 @@ def kasa_satis_tamamla(request):
             nakit=veri.get("nakit"),
             kart=veri.get("kart"),
             kasiyer=request.user.get_username(),
+            borc_musteri_id=veri.get("borc_musteri_id"),
+            not_metni=(veri.get("not") or "").strip(),
         )
     except kasa_sepeti.SatisHatasi as hata:
         return JsonResponse({"ok": False, "hata": str(hata)}, status=400)
@@ -318,32 +350,13 @@ def kasa_satis_tamamla(request):
                 "odeme": satis.get_odeme_turu_display(),
                 "fincan": satis.fincan_adedi,
                 "hediye": satis.hediye_adedi,
+                "borc_musteri": satis.borc_musteri.isim_soyisim if satis.borc_musteri else None,
+                "yeni_borc": float(satis.borc_musteri.borc) if satis.borc_musteri else None,
             },
             "kazanilan_hediye": sonuc["kazanilan_hediye"],
             "gun": kasa_sepeti.gunun_ozeti(),
         },
     )
-
-
-@staff_member_required
-def kasa_menu_yukle(request):
-    """Menuyu tek tikla kurar. GET onizleme gosterir, POST uygular.
-
-    Mutasyon POST ile: cikplak bir GET'i tarayici on-yuklemesi ya da bir
-    tarayici eklentisi de tetikleyebilir.
-    """
-    uygula = request.method == "POST"
-    sonuc = menu_verisi.yukle(
-        uygula=uygula,
-        kahvelere_damga=request.POST.get("damga") == "1",
-    )
-    return render(request, "kahve/menu_yukle.html", {
-        "ayar": KahveAyar.al(),
-        "sonuc": sonuc,
-        "uygulandi": uygula,
-        "yeni_sayisi": len(sonuc["yeni"]),
-        "guncel_sayisi": len(sonuc["guncel"]),
-    })
 
 
 # --------------------------------------------------------------------------

@@ -7,29 +7,83 @@
 {% block ust_nav %}
   <a href="/modern-urun-ara/">Kırtasiye kasası<kbd class="kh-tus">F2</kbd></a>
   <a href="/musteri-listesi/">Müşteriler<kbd class="kh-tus">F4</kbd></a>
-  <a href="{% url 'kahve:kasa-menu-yukle' %}">Menüyü yükle</a>
-  <a href="/admin/kahve/kahvesatis/">Satış raporu</a>
+  <a href="/kasa-raporu/">Kasa raporu</a>
   <a href="/admin/">Yönetim</a>
 {% endblock %}
 
 {% block ek_stil %}
 <style>
-  .kh-kasa { display:grid; grid-template-columns: 1fr 420px; gap: var(--b3); align-items:start; }
+  /* Kasa ekrani icerik sayfasi degil: dar kapsayici yerine ekranin genisligini kullan. */
+  .kh-bolum--dar .kh-kabuk { max-width: 1520px; }
+  .kh-kasa { display:grid; grid-template-columns: minmax(0,1fr) 400px; gap: var(--b3); align-items:start; }
   .kh-panel { padding: var(--b3); }
 
   /* menu: tikla sepete ekle */
-  .kh-urunler { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: var(--b2); }
+  .kh-urunler { display:grid; grid-template-columns: repeat(auto-fill, minmax(148px,1fr)); gap: var(--b2); }
   .kh-urun {
-    display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left;
-    padding: var(--b2); border-radius: var(--r-m); cursor:pointer;
+    display:flex; flex-direction:column; align-items:stretch; gap:0; text-align:left;
+    border-radius: var(--r-m); cursor:pointer; overflow:hidden; padding:0;
     background: var(--espresso-2); border:1px solid rgba(242,241,238,.1); color:var(--porselen);
     font-family: var(--f-metin);
     transition: transform var(--gecis), border-color var(--gecis), background var(--gecis);
   }
   .kh-urun:hover { border-color: var(--crema); background: var(--espresso-3); }
   .kh-urun:active { transform: scale(.96); }
-  .kh-urun__ad { font-weight:600; font-size:.9375rem; }
+
+  /* Gorsel 1:1 - fotograf yoksa halka motifi */
+  .kh-urun__gorsel { position:relative; aspect-ratio:1/1; background:var(--espresso-3); overflow:hidden; }
+  .kh-urun__gorsel img { width:100%; height:100%; object-fit:cover; display:block; }
+  .kh-urun__bos { position:absolute; inset:0; display:grid; place-items:center; }
+  .kh-urun__bos span {
+    width:44%; aspect-ratio:1/1; border-radius:50%;
+    border:1.5px solid rgba(214,154,76,.32);
+  }
+  .kh-urun__govde { padding:10px var(--b2) 12px; display:flex; flex-direction:column; gap:3px; }
+  .kh-urun__ad { font-weight:600; font-size:.875rem; line-height:1.25; }
   .kh-urun__fiyat { font-family: var(--f-veri); font-size:.8125rem; color: var(--crema); }
+  .kh-urun__rozet {
+    position:absolute; top:8px; left:8px; padding:3px 7px; border-radius:999px;
+    font-family:var(--f-veri); font-size:.625rem; letter-spacing:.06em;
+    background:rgba(28,20,17,.78); color:var(--crema); backdrop-filter:blur(6px);
+  }
+
+  /* sag sutun ekranda kalsin: 29 urun kaydirilirken sepet gozden kaybolmasin */
+  .kh-sag { position:sticky; top:var(--b3); display:flex; flex-direction:column; gap:var(--b3); }
+
+  .kh-okut label { display:block; font-size:.75rem; color:rgba(242,241,238,.5); margin-bottom:6px; }
+  .kh-okut input {
+    width:100%; padding:13px var(--b2); border-radius:var(--r-s);
+    background:var(--espresso); border:1px solid rgba(242,241,238,.16);
+    color:var(--porselen); font-family:var(--f-veri); font-size:.9375rem;
+  }
+  .kh-okut input:focus { outline:none; border-color:var(--crema); }
+
+  .kh-musteri {
+    margin-top:var(--b2); padding:var(--b2);
+    border-radius:var(--r-s); background:rgba(46,107,120,.14);
+    border:1px solid rgba(89,160,172,.3);
+  }
+
+  .kh-borc-liste {
+    margin-top:var(--b1); max-height:168px; overflow-y:auto;
+    border:1px solid rgba(242,241,238,.12); border-radius:var(--r-s);
+  }
+  .kh-borc-liste:empty { display:none; }
+  .kh-borc-satir {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    width:100%; padding:10px var(--b2); cursor:pointer; text-align:left;
+    background:transparent; border:0; border-bottom:1px solid rgba(242,241,238,.07);
+    color:var(--porselen); font-family:var(--f-metin);
+  }
+  .kh-borc-satir:last-child { border-bottom:0; }
+  .kh-borc-satir:hover { background:rgba(242,241,238,.06); }
+  .kh-borc-satir__borc { font-family:var(--f-veri); font-size:.75rem; color:#E8A48F; }
+  .kh-borc-secili {
+    margin-top:var(--b1); padding:var(--b2); border-radius:var(--r-s);
+    background:rgba(214,154,76,.14); border:1px solid rgba(214,154,76,.35);
+  }
+
+  .kh-bos-sepet { padding:var(--b4) 0; text-align:center; color:rgba(242,241,238,.4); font-size:.875rem; }
 
   /* sepet */
   .kh-satirlar { list-style:none; margin:0; padding:0; }
@@ -70,7 +124,7 @@
   .kh-toplam__rakam { font-family:var(--f-baslik); font-size:2.5rem; letter-spacing:-.03em; color:var(--crema); }
 
   /* odeme */
-  .kh-odeme { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--b1); margin-bottom:var(--b2); }
+  .kh-odeme { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--b1); margin-bottom:var(--b2); }
   .kh-odeme button {
     padding:14px 8px; border-radius:var(--r-s); cursor:pointer; font-weight:600; font-size:.875rem;
     background:rgba(242,241,238,.05); border:1px solid rgba(242,241,238,.14); color:var(--porselen);
@@ -100,23 +154,34 @@
         <span>Ciro <strong id="khGunCiro">{{ gun.ciro|floatformat:0 }}</strong> ₺</span>
         <span>Nakit <strong id="khGunNakit">{{ gun.nakit|floatformat:0 }}</strong> ₺</span>
         <span>Kart <strong id="khGunKart">{{ gun.kart|floatformat:0 }}</strong> ₺</span>
+        <span>Borç <strong id="khGunBorc">{{ gun.borc|floatformat:0 }}</strong> ₺</span>
       </div>
     </div>
 
     <div class="kh-kasa">
 
       <!-- SOL: menu -->
-      <div class="kh-yuzey kh-panel">
+      <div class="kh-yuzey kh-panel" id="khMenu">
         <h2 class="kh-h2" style="margin-bottom:var(--b1)">Kahve seç</h2>
         <p class="kh-kucuk" style="margin-bottom:var(--b3)">Tıkladığın kahve sepete eklenir.</p>
         {% for kategori_adi, kahveler in gruplar %}
           <div style="margin-top:var(--b3)">
             <p class="kh-etiket" style="margin-bottom:var(--b2)">{{ kategori_adi }}</p>
-            <div class="kh-sec">
+            <div class="kh-urunler">
               {% for kahve in kahveler %}
-                <button type="button" data-kahve="{{ kahve.id }}">
-                  <span class="kh-sec__ad">{{ kahve.ad }}</span>
-                  <span class="kh-sec__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+                <button type="button" class="kh-urun" data-kahve="{{ kahve.id }}">
+                  <span class="kh-urun__gorsel">
+                    {% if kahve.gorsel %}
+                      <img src="{{ kahve.gorsel.url }}" alt="" loading="lazy">
+                    {% else %}
+                      <span class="kh-urun__bos" aria-hidden="true"><span></span></span>
+                    {% endif %}
+                    {% if kahve.damga_veriyor %}<span class="kh-urun__rozet">+1</span>{% endif %}
+                  </span>
+                  <span class="kh-urun__govde">
+                    <span class="kh-urun__ad">{{ kahve.ad }}</span>
+                    <span class="kh-urun__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+                  </span>
                 </button>
               {% endfor %}
             </div>
@@ -127,6 +192,80 @@
             <p class="kh-metin">Admin panelinden ürün ekleyin.</p>
           </div>
         {% endfor %}
+      </div>
+
+      <!-- SAG: musteri karti, sepet, odeme -->
+      <div class="kh-sag">
+
+        <div class="kh-yuzey kh-panel kh-okut">
+          <label for="khKod">Müşteri kartı — barkod veya QR okut</label>
+          <input id="khKod" type="text" autocomplete="off" autofocus
+                 placeholder="Okutun ya da kodu yazıp Enter'a basın">
+          <p class="kh-kucuk" style="margin-top:8px">Kartsız satış da yapılabilir.</p>
+          <div class="kh-musteri" id="khMusteri" style="display:none"></div>
+        </div>
+
+        <div class="kh-yuzey kh-panel">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+            <h2 class="kh-h2">Sepet</h2>
+            <button type="button" class="kh-mini kh-mini--sil" id="khSifirla">
+              SIFIRLA<kbd class="kh-tus">F3</kbd>
+            </button>
+          </div>
+
+          <ul class="kh-satirlar" id="khSatirlar" style="margin-top:var(--b2)"></ul>
+          <p class="kh-bos-sepet" id="khBosSepet">Soldan kahve seçin.</p>
+
+          <div class="kh-toplam">
+            <span class="kh-etiket">Toplam</span>
+            <span><span class="kh-toplam__rakam" id="khToplam">0,00</span>
+              <span style="color:var(--crema)"> ₺</span></span>
+          </div>
+
+          <button type="button" class="kh-btn kh-btn--ana kh-btn--genis" id="khOdemeAc"
+                  style="width:100%" disabled>Satışı tamamla</button>
+
+          <div id="khOdemePanel" style="display:none;margin-top:var(--b3)">
+            <p class="kh-etiket" style="margin-bottom:var(--b2)">Ödeme türü</p>
+            <div class="kh-odeme">
+              <button type="button" data-odeme="nakit" aria-pressed="true">Nakit</button>
+              <button type="button" data-odeme="kart" aria-pressed="false">Kredi kartı</button>
+              <button type="button" data-odeme="parcali" aria-pressed="false">Parçalı</button>
+              <button type="button" data-odeme="borc" aria-pressed="false">Borca yaz</button>
+            </div>
+
+            <!-- Borc: kirtasiye tarafindaki musteri listesi burada da kullanilir -->
+            <div id="khBorcPanel" style="display:none;margin-bottom:var(--b2)">
+              <input id="khBorcAra" type="text" autocomplete="off"
+                     placeholder="Borç müşterisi ara — isim veya telefon"
+                     style="width:100%;padding:11px var(--b2);border-radius:var(--r-s);background:var(--espresso);border:1px solid rgba(242,241,238,.16);color:var(--porselen);font-family:var(--f-metin)">
+              <div id="khBorcListe" class="kh-borc-liste"></div>
+              <div id="khBorcSecili" class="kh-borc-secili" style="display:none"></div>
+              <textarea id="khBorcNot" rows="2" placeholder="Not (isteğe bağlı) — ör. cumartesi ödeyecek"
+                        style="width:100%;margin-top:var(--b1);padding:10px var(--b2);border-radius:var(--r-s);background:var(--espresso);border:1px solid rgba(242,241,238,.16);color:var(--porselen);font-family:var(--f-metin);resize:vertical"></textarea>
+            </div>
+
+            <div class="kh-parcali" id="khParcali" style="display:none">
+              <div>
+                <label for="khNakit" class="kh-kucuk">Nakit ₺</label>
+                <input id="khNakit" type="number" step="0.01" min="0" value="0"
+                       style="width:100%;padding:11px var(--b2);border-radius:var(--r-s);background:var(--espresso);border:1px solid rgba(242,241,238,.16);color:var(--porselen);font-family:var(--f-veri)">
+              </div>
+              <div>
+                <label for="khKart" class="kh-kucuk">Kart ₺</label>
+                <input id="khKart" type="number" step="0.01" min="0" value="0"
+                       style="width:100%;padding:11px var(--b2);border-radius:var(--r-s);background:var(--espresso);border:1px solid rgba(242,241,238,.16);color:var(--porselen);font-family:var(--f-veri)">
+              </div>
+            </div>
+            <p class="kh-kucuk kh-veri" id="khParcaliNot" style="display:none;margin-bottom:var(--b2)"></p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--b1)">
+              <button type="button" class="kh-btn kh-btn--cizgi" id="khVazgec">Vazgeç</button>
+              <button type="button" class="kh-btn kh-btn--ana" id="khOnayla">Onayla</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -294,7 +433,7 @@
 
   // --- menuden sepete ekle ---
   // Kategoriler ayri ayri izgaralarda; dinleyiciyi kapsayiciya bagliyoruz.
-  const menuKutusu = document.querySelector('.kh-kasa .kh-yuzey');
+  const menuKutusu = document.getElementById('khMenu');
   if (menuKutusu) {
     menuKutusu.addEventListener('click', function (olay) {
       const btn = olay.target.closest('button[data-kahve]');
@@ -344,8 +483,98 @@
         $('khNakit').value = sepet.toplam.toFixed(2);
         $('khKart').value = '0';
       }
+
+      const borc = odemeTuru === 'borc';
+      $('khBorcPanel').style.display = borc ? 'block' : 'none';
+      if (borc) { borcMusterileriAra(''); $('khBorcAra').focus(); }
       parcaliNotu();
     });
+  });
+
+  // --- borca yaz: kirtasiye musteri listesi ---
+  let borcMusteri = null;   // {id, ad, telefon, borc}
+  let borcZamanlayici = null;
+
+  async function borcMusterileriAra(sorgu) {
+    const adres = '{% url "kahve:kasa-borc-musterileri" %}?q=' + encodeURIComponent(sorgu);
+    const cevap = await fetch(adres, { headers: { 'X-Requested-With': 'fetch' } });
+    const veri = await cevap.json();
+    const liste = $('khBorcListe');
+    liste.replaceChildren();
+    if (!veri.musteriler.length) {
+      const bos = document.createElement('div');
+      bos.className = 'kh-kucuk';
+      bos.style.padding = '12px';
+      bos.textContent = sorgu ? 'Müşteri bulunamadı.' : 'Aramak için yazın.';
+      liste.append(bos);
+      return;
+    }
+    veri.musteriler.forEach(function (m) {
+      const satir = document.createElement('button');
+      satir.type = 'button';
+      satir.className = 'kh-borc-satir';
+
+      const sol = document.createElement('span');
+      const ad = document.createElement('div');
+      ad.textContent = m.ad;                    // musteri adi: kullanici girdisi
+      ad.style.fontSize = '.875rem';
+      sol.append(ad);
+      if (m.telefon) {
+        const tel = document.createElement('div');
+        tel.className = 'kh-kucuk kh-veri';
+        tel.textContent = m.telefon;
+        sol.append(tel);
+      }
+
+      const borcEt = document.createElement('span');
+      borcEt.className = 'kh-borc-satir__borc';
+      borcEt.textContent = m.borc.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺ borç';
+
+      satir.append(sol, borcEt);
+      satir.onclick = () => borcMusteriSec(m);
+      liste.append(satir);
+    });
+  }
+
+  function borcMusteriSec(m) {
+    borcMusteri = m;
+    $('khBorcListe').replaceChildren();
+    $('khBorcAra').value = '';
+
+    const kutu = $('khBorcSecili');
+    kutu.replaceChildren();
+    kutu.style.display = 'block';
+
+    const satir = document.createElement('div');
+    satir.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px';
+    const sol = document.createElement('div');
+    const isim = document.createElement('strong');
+    isim.textContent = m.ad;
+    sol.append(isim);
+    const mevcut = document.createElement('div');
+    mevcut.className = 'kh-kucuk kh-veri';
+    mevcut.textContent = 'mevcut borç ' + m.borc.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
+    sol.append(mevcut);
+
+    const degis = document.createElement('button');
+    degis.type = 'button';
+    degis.className = 'kh-mini';
+    degis.textContent = 'DEĞİŞTİR';
+    degis.onclick = function () {
+      borcMusteri = null;
+      kutu.style.display = 'none';
+      borcMusterileriAra('');
+      $('khBorcAra').focus();
+    };
+
+    satir.append(sol, degis);
+    kutu.append(satir);
+  }
+
+  $('khBorcAra').addEventListener('input', function () {
+    clearTimeout(borcZamanlayici);
+    const sorgu = this.value;
+    borcZamanlayici = setTimeout(() => borcMusterileriAra(sorgu), 180);
   });
 
   function parcaliNotu() {
@@ -373,12 +602,18 @@
   $('khKart').addEventListener('input', parcaliNotu);
 
   async function satisiBitir() {
+    if (odemeTuru === 'borc' && !borcMusteri) {
+      window.khBildir('Borç yazılacak müşteriyi seçin.', true);
+      return;
+    }
     $('khOnayla').disabled = true;
     $('khOdemeAc').disabled = true;
     const { veri } = await istek('{% url "kahve:kasa-satis-tamamla" %}', {
       odeme_turu: odemeTuru,
       nakit: $('khNakit').value,
       kart: $('khKart').value,
+      borc_musteri_id: borcMusteri ? borcMusteri.id : null,
+      not: $('khBorcNot').value,
     });
     $('khOnayla').disabled = false;
     $('khOdemeAc').disabled = false;
@@ -393,13 +628,22 @@
     });
     $('khParcali').style.display = 'none';
     $('khParcaliNot').style.display = 'none';
+    $('khBorcPanel').style.display = 'none';
+    $('khBorcSecili').style.display = 'none';
+    $('khBorcNot').value = '';
+    borcMusteri = null;
 
     $('khGunSatis').textContent = veri.gun.satis;
     $('khGunCiro').textContent = Math.round(veri.gun.ciro);
     $('khGunNakit').textContent = Math.round(veri.gun.nakit);
     $('khGunKart').textContent = Math.round(veri.gun.kart);
+    $('khGunBorc').textContent = Math.round(veri.gun.borc);
 
     let mesaj = para(veri.satis.toplam) + ' ₺ ' + veri.satis.odeme + ' — satış tamam.';
+    if (veri.satis.borc_musteri) {
+      mesaj = para(veri.satis.toplam) + ' ₺ ' + veri.satis.borc_musteri
+            + ' hesabına yazıldı. Yeni borç: ' + para(veri.satis.yeni_borc) + ' ₺.';
+    }
     if (veri.kazanilan_hediye) mesaj += ' Müşteri hediye kahve kazandı!';
     window.khBildir(mesaj);
     $('khKod').focus();

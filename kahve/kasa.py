@@ -11,6 +11,8 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from stok.models import BorcHareketi, Musteri
+
 from . import sadakat
 from .models import Kahve, KahveAyar, KahveMusteri, KahveSatis
 
@@ -211,7 +213,21 @@ class SatisHatasi(Exception):
 
 
 @transaction.atomic
-def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer=""):
+def satis_ozeti(satirlar, en_fazla=8):
+    """Satisi "2x Latte, 1x Espresso" gibi tek satira dokur.
+
+    Borc hareketinin aciklamasina giriyor: musteri "ne almistim?" diye
+    sordugunda cevap kayitta dursun.
+    """
+    parcalar = [f"{s['adet']}x {s['ad']}" for s in satirlar[:en_fazla]]
+    kalan = len(satirlar) - en_fazla
+    if kalan > 0:
+        parcalar.append(f"+{kalan} ürün daha")
+    return ", ".join(parcalar)
+
+
+def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer="",
+                   borc_musteri_id=None, not_metni=""):
     veri = ozet(request)
     if not veri["satirlar"]:
         raise SatisHatasi("Sepet boş.")
@@ -221,10 +237,21 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer=""):
     if odeme_turu not in gecerli:
         raise SatisHatasi("Ödeme türü geçersiz.")
 
+    borc_musteri = None
+    if odeme_turu == KahveSatis.Odeme.BORC:
+        if toplam <= 0:
+            raise SatisHatasi("Tutar 0 olan satış borca yazılmaz.")
+        borc_musteri = Musteri.objects.filter(pk=borc_musteri_id).first()
+        if borc_musteri is None:
+            raise SatisHatasi("Borç yazılacak müşteriyi seçin.")
+
     if odeme_turu == KahveSatis.Odeme.NAKIT:
         nakit_tutar, kart_tutar = toplam, Decimal("0.00")
     elif odeme_turu == KahveSatis.Odeme.KART:
         nakit_tutar, kart_tutar = Decimal("0.00"), toplam
+    elif odeme_turu == KahveSatis.Odeme.BORC:
+        # Kasaya para girmedi; tutar musterinin borcuna yazildi.
+        nakit_tutar, kart_tutar = Decimal("0.00"), Decimal("0.00")
     else:
         try:
             nakit_tutar = Decimal(str(nakit or 0)).quantize(Decimal("0.01"))
@@ -244,14 +271,33 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer=""):
 
     satis = KahveSatis.objects.create(
         musteri=musteri,
+        borc_musteri=borc_musteri,
         toplam=toplam,
         nakit_tutar=nakit_tutar,
         kart_tutar=kart_tutar,
         odeme_turu=odeme_turu,
+        urunler=satis_ozeti(veri["satirlar"])[:255],
         fincan_adedi=veri["fincan_adedi"],
         hediye_adedi=veri["hediye_adedi"] if musteri else 0,
         kasiyer=kasiyer,
     )
+
+    if borc_musteri is not None:
+        satirlar_metni = ["Kahve satışı borça aktarıldı."]
+        alinanlar = satis_ozeti(veri["satirlar"])
+        if alinanlar:
+            satirlar_metni.append(f"Alınanlar: {alinanlar}")
+        if not_metni:
+            satirlar_metni.append(f"Not: {not_metni}")
+        onceki_borc = borc_musteri.borc
+        borc_musteri.borc += toplam
+        borc_musteri.save(update_fields=["borc"])
+        BorcHareketi.objects.create(
+            musteri=borc_musteri,
+            tutar=toplam,
+            aciklama="\n".join(satirlar_metni),
+            onceki_borc=onceki_borc,
+        )
 
     kazanilan = 0
     if musteri:
@@ -270,13 +316,15 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer=""):
 
 def gunun_ozeti(kasiyer=None):
     """Kasa ekraninin altinda gosterilen gunluk toplam."""
-    from django.db.models import Count, Sum
+    from django.db.models import Count, Q, Sum
     from django.utils import timezone
 
     bugun = timezone.localtime().date()
     qs = KahveSatis.objects.filter(tarih__date=bugun)
     toplamlar = qs.aggregate(
         ciro=Sum("toplam"), nakit=Sum("nakit_tutar"), kart=Sum("kart_tutar"),
+        # Borca yazilan tutar kasaya girmedi; ayri gosterilmeli.
+        borc=Sum("toplam", filter=Q(odeme_turu=KahveSatis.Odeme.BORC)),
         fincan=Sum("fincan_adedi"), satis=Count("id"),
     )
     return {anahtar: (deger or 0) for anahtar, deger in toplamlar.items()}

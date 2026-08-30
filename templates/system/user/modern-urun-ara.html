@@ -370,6 +370,28 @@
       girdi:  'width:100%;padding:10px 13px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;',
     };
 
+    // Bu sayfadan giden butun POST'lara CSRF basligini ekle.
+    // /api/satis-tamamla/ ve /api/borca-aktar/ para hareketi yaziyor; token
+    // olmadan calisirlarsa kotu niyetli bir sayfa, giris yapmis personelin
+    // tarayicisindan satis kapatabilir ya da musteriye borc yazabilirdi.
+    (function () {
+        function token() {
+            var alan = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (alan) return alan.value;
+            // Sepet bosken form basilmamis olabilir; cerez her durumda duruyor.
+            var eslesme = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+            return eslesme ? decodeURIComponent(eslesme[1]) : '';
+        }
+        $.ajaxSetup({
+            crossDomain: false,
+            beforeSend: function (istek, ayar) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(ayar.type)) {
+                    istek.setRequestHeader('X-CSRFToken', token());
+                }
+            }
+        });
+    })();
+
     // ============ SATIŞI TAMAMLA ============
     // Onceden sepet sadece siliniyordu; ne kadar nakit ne kadar kart girdigi
     // hicbir yere yazilmiyordu. Kasa raporu bu kayda dayaniyor.

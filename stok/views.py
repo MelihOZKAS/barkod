@@ -876,7 +876,6 @@ def sepet_ozeti(satirlar, en_fazla=8):
     return ", ".join(parcalar)
 
 
-@csrf_exempt
 @login_required(login_url='giris-yap')
 def modern_borca_aktar(request):
     """Sepeti musterinin borcuna yazar.
@@ -909,7 +908,6 @@ def modern_borca_aktar(request):
 # Satisi tamamlama + kasa raporu
 # --------------------------------------------------------------------------
 
-@csrf_exempt
 @login_required(login_url='giris-yap')
 def modern_satis_tamamla(request):
     """Sepeti satisa cevirir: kayit acar, stogu duser, gerekirse borca yazar."""

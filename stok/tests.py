@@ -526,3 +526,60 @@ class KasaRaporuTesti(TestCase):
         adlar = [u.Urun_Adi for u in rapor.kritik_stok()]
 
         self.assertEqual(adlar, ["Azalan"])
+
+
+class ParaUclariCsrfTesti(TestCase):
+    """Para hareketi yazan uclar CSRF token'i olmadan calismamali.
+
+    Bu iki uc satis kapatiyor, stok dusuyor ve musteriye borc yaziyor.
+    Muafiyet birakilsaydi kotu niyetli bir sayfa, giris yapmis personelin
+    tarayicisindan sessizce satis kapatabilirdi.
+    """
+
+    UCLAR = ("api-satis-tamamla", "api-borca-aktar")
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.urun = Stok.objects.create(Urun_Adi="Defter", Barkod=4001, Tutar=Decimal("50.00"))
+        self.musteri = Musteri.objects.create(isim_soyisim="Veresiye",
+                                              Cep_Telefonu=5551112233, borc=Decimal("0.00"))
+
+    def test_tokensiz_istek_reddedilir(self):
+        istemci = Client(enforce_csrf_checks=True)
+        istemci.force_login(self.kullanici)
+        SepetUrun.objects.create(user=self.kullanici, urun=self.urun, miktar=1)
+
+        for uc in self.UCLAR:
+            with self.subTest(uc=uc):
+                cevap = istemci.post(reverse(uc),
+                                     {"odeme_turu": "nakit", "musteri_id": self.musteri.id,
+                                      "tutar": "50"})
+
+                self.assertEqual(cevap.status_code, 403)
+
+        self.assertEqual(Satis.objects.count(), 0, "hicbir satis yazilmamali")
+        self.assertEqual(Musteri.objects.get(pk=self.musteri.pk).borc, Decimal("0.00"))
+
+    def test_tokenli_istek_calisir(self):
+        istemci = Client(enforce_csrf_checks=True)
+        istemci.force_login(self.kullanici)
+        istemci.get(reverse("modern-urun-ara"))          # csrftoken cerezi bu istekte kurulur
+        token = istemci.cookies["csrftoken"].value
+        SepetUrun.objects.create(user=self.kullanici, urun=self.urun, miktar=1)
+
+        cevap = istemci.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"},
+                             HTTP_X_CSRFTOKEN=token)
+
+        self.assertEqual(cevap.status_code, 200)
+        self.assertTrue(cevap.json()["success"])
+        self.assertEqual(Satis.objects.count(), 1)
+
+    def test_sayfa_token_i_js_e_veriyor(self):
+        """Muafiyet kalkti; sayfanin token'i gonderebiliyor olmasi sart."""
+        istemci = Client()
+        istemci.force_login(self.kullanici)
+
+        govde = istemci.get(reverse("modern-urun-ara")).content.decode()
+
+        self.assertIn("csrfmiddlewaretoken", govde)
+        self.assertIn("X-CSRFToken", govde)

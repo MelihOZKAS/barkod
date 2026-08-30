@@ -7,32 +7,66 @@
 ## ⚠️ ÖNCE BUNU OKU: Proje CANLIDA çalışıyor
 
 Atlas Kırtasiye'nin gerçek kasası. Yanlış bir değişiklik dükkânı durdurur.
+Sunucudaki repo: `/home/barkod`
 
-**Kurallar**
-- Mevcut migration dosyalarını **asla** düzenleme veya silme. Sadece yeni migration ekle.
-- Yıkıcı migration (`RemoveField`, `DeleteModel`, alan daraltma) önce kullanıcıya sorulur.
-- `ali/settings.py` ve `ali/urls.py` değişiklikleri küçük ve geri alınabilir olsun.
-- `makemigrations`'ı **app adı vererek** çalıştır (aşağıdaki drift notuna bak).
+### Deploy — sadece bu üç komut
 
-**Canlı deploy komutları**
 ```bash
-docker compose run app_barkod python manage.py makemigrations kahve   # app adını ver!
-docker compose run app_barkod python manage.py migrate
-docker compose run app_barkod python manage.py collectstatic --noinput
+cd /home/barkod
+git pull
 docker compose up -d --build
+docker compose run app_barkod python manage.py collectstatic --noinput
 ```
+
+Bu kadar. Sırasıyla:
+1. `git pull` — kodu getirir. `docker-compose.yml` çalışma dizinini konteynere
+   bağladığı için (`.:/srv/app_barkod`) kod anında içeride olur.
+2. `docker compose up -d --build` — konteyner yeniden başlar. `entrypoint.sh`
+   açılışta **`migrate --noinput`** çalıştırır, bekleyen migration'ları kendisi uygular.
+   Sadece `git pull` yetmez: çalışan gunicorn eski kodu hafızasında tutar.
+3. `collectstatic` — `entrypoint.sh` bunu çalıştırmaz, elle gerekir (aşağıya bak).
+
+### ❌ `makemigrations` ÇALIŞTIRMA
+
+Migration dosyaları repoda; `migrate` onları zaten uyguluyor. `makemigrations`
+yazarsan Django `stok/0009_alter_musteri_cep_telefonu.py` üretir — canlı müşteri
+tablosuna dokunan, planlamadığın bir değişiklik.
+
+**Sebebi:** `stok/models.py` `Cep_Telefonu` alanını `null=True` diyor ama migration
+`0008` NOT NULL bırakmış. Yıllardır duran bir uyumsuzluk, bizim açtığımız değil.
+Değişikliğin kendisi zararsız (PostgreSQL'de `DROP NOT NULL`, anlık, veri kaybı yok)
+ama bilerek ve ayrı bir zamanda yapılmalı.
+
+Yeni bir model alanı eklersen migration'ı **burada** üret (`makemigrations kahve`),
+commit'le, sunucu sadece `migrate` etsin.
 
 ### `collectstatic` neden şart
 `entrypoint.sh` sadece `migrate` çalıştırıyor. `kahve` sayfaları CSS'ini
 `{% static 'kahve/kahve.css' %}` ile yüklüyor; dosya `STATIC_ROOT`'a ancak
 `collectstatic` ile kopyalanır. Çalıştırılmazsa `/kahve/` sayfaları **stilsiz** açılır.
-Kullanıcı bunu biliyor, DEBUG'ı kapattığında yapacak.
 
-### Bilinen drift (önceden var olan, bizim açmadığımız)
-`stok/models.py` içindeki `Musteri.Cep_Telefonu` alanı `null=True` diyor ama son
-migration (`0008`) NOT NULL bırakmış. Çıplak `makemigrations` `stok/0009...` üretir.
-Teknik olarak güvenli (NOT NULL → NULL) ama plansız bir şema değişikliğidir.
-Bilinçli yapılana kadar **`makemigrations kahve`** kullan.
+### Deploy sonrası ilk iki iş
+1. **Admin → Kahve Ayarları** → "Günlük cron adresi"ni kopyala, PHP sitendeki
+   gece 02:00 cron'una koy. Süresi dolan damgaları o düşürür.
+2. **Admin → Kahveler** → ürünleri gir. Kahvelerde **"Hediye sayacına +1"**
+   kutusunu işaretle — varsayılan kapalı gelir, işaretlenmezse damga vermez.
+
+### Ters giderse
+```bash
+git revert <commit>          # ya da: git reset --hard <eski-commit>
+docker compose up -d --build
+```
+`kahve` tabloları yeni ve `stok` onlara hiç dokunmuyor; kalsalar da zarar vermezler.
+Veri kaybı riski yok.
+
+### Yedek almadan büyük değişiklik yapma
+`/admin/stok/stok/` → tümünü seç → **"Seçili ürünleri CSV olarak indir (yedek)"**.
+Detay: aşağıdaki "Yedekleme / geri yükleme" bölümü.
+
+### Kod kuralları
+- Mevcut migration dosyalarını **asla** düzenleme veya silme. Sadece yeni ekle.
+- Yıkıcı migration (`RemoveField`, `DeleteModel`, alan daraltma) önce kullanıcıya sorulur.
+- `ali/settings.py` ve `ali/urls.py` değişiklikleri küçük ve geri alınabilir olsun.
 
 ---
 

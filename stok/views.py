@@ -36,7 +36,7 @@ def logout(request):
     auth.logout(request)
     return redirect("home")
 
-@login_required(login_url = 'giris-yap')
+@login_required(login_url = 'home')
 def konsol_home_detail(request):
     first_name = request.user.first_name
     last_name = request.user.last_name
@@ -56,7 +56,7 @@ def konsol_home_detail(request):
 
 
 
-@login_required(login_url = 'giris-yap')
+@login_required(login_url = 'home')
 def urun_ara(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -110,7 +110,7 @@ def urun_ara(request):
 
 
 
-@login_required(login_url = 'giris-yap')
+@login_required(login_url = 'home')
 def urun_ara_yeni(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -163,86 +163,27 @@ def urun_ara_yeni(request):
 
 
 @csrf_exempt
+@login_required(login_url = 'home')
 def urun_miktar_guncelle(request, urun_id):
-    print("istek geldi")
-    if request.method == 'POST':
-        print("Posta girdim")
-        miktar = int(request.POST.get('miktar'))
-        print(miktar)
-        urun = SepetUrun.objects.get(id=urun_id)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST bekleniyor.'}, status=405)
 
-        urun.miktar = miktar
-        urun.save()
-    return JsonResponse({'success': True})
+    try:
+        miktar = int(request.POST.get('miktar', ''))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Miktar sayı olmalı.'}, status=400)
 
-    #return redirect('Arama')
+    if miktar < 1:
+        return JsonResponse({'success': False, 'error': 'Miktar en az 1 olmalı.'}, status=400)
 
-@login_required(login_url = 'giris-yap')
-def urun_ara_beyaz(request):
-    uyari = False
-    if request.method == 'POST':
-        query = request.POST.get('title')
-        if query.isdigit():
-            urun_id = int(query)
-            print("girdim")
-            try:
-                urun = Stok.objects.get(Barkod=urun_id)
-                results = Stok.objects.filter(Urun_Genel__icontains=query)
+    # Kullanıcıya göre filtrele: kimse başkasının sepetini değiştiremesin.
+    guncellenen = SepetUrun.objects.filter(id=urun_id, user=request.user).update(miktar=miktar)
+    if not guncellenen:
+        return JsonResponse({'success': False, 'error': 'Sepette böyle bir ürün yok.'}, status=404)
 
-                try:
-                    # Sepette zaten bu üründen varsa, hiçbir şey yapma
-                    sepet_urun = SepetUrun.objects.get(user=request.user, urun=urun)
-                    sepet_urun.miktar += 1
-                    sepet_urun.save()
+    return JsonResponse({'success': True, 'miktar': miktar})
 
-                except SepetUrun.DoesNotExist:
-                    # Sepette bu üründen yoksa, yeni bir ürün ekle
-                    SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
-
-            except Stok.DoesNotExist:
-                results = Stok.objects.filter(Urun_Genel__icontains=query)
-                uyari = True
-                print("patladım.")
-        else:
-            results = Stok.objects.filter(Urun_Genel__icontains=query)
-
-    else:
-        results = []
-
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
-    for urun in sepet_urunleri:
-        urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
-
-    Sayi = range(1, 1001)
-    total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
-    print(total)
-    if total != None:
-        total = '{:.2f}'.format(total)
-    first_name = request.user.first_name
-    last_name = request.user.last_name
-    email = request.user.email
-    Favoriler = Stok.objects.filter(Favori=True)
-    AnaKategoriler = Liste_Grup.objects.all()
-
-
-    context = {'name': f"{first_name} {last_name}",
-               'email':email,
-               'results':results,
-               'total':total,
-               'Favoriler':Favoriler,
-               'AnaKategoriler':AnaKategoriler,
-               'sepet_urunleri': sepet_urunleri,
-               'Sayi': Sayi,
-               'uyari': uyari,
-
-               }
-    return render(request, 'system/user/white.html',context)
-
-
-
-
-
-@login_required(login_url = 'giris-yap')
+@login_required(login_url = 'home')
 def urun_ara_yeni_iki(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -267,7 +208,7 @@ def urun_ara_yeni_iki(request):
     else:
         results = []
 
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).select_related('urun').order_by('-id')
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -295,7 +236,7 @@ def urun_ara_yeni_iki(request):
 
 
 
-@login_required(login_url = 'giris-yap')
+@login_required(login_url = 'home')
 def Bayi_Listesi(request):
     Musteri_Listesi = Musteri.objects.all()
     first_name = request.user.first_name
@@ -348,7 +289,7 @@ def sepete_ekle_beyaz(request):
             sepet_urun.miktar += 1
         sepet_urun.save()
 
-        return redirect('urun-ara-beyaz')  # Sepet detay sayfasına yönlendir
+        return redirect('yeni-sayfa')  # Sepet detay sayfasına yönlendir
     else:
         return HttpResponse("Hata geçersiz istek ?")
 
@@ -371,7 +312,7 @@ def sepet_urun_sil_beyaz(request,urun_id: int):
     except SepetUrun.DoesNotExist:
         print(f"Ürün bulunamadı: user={request.user}, id={urun_id}")
 
-    return redirect('urun-ara-beyaz')
+    return redirect('yeni-sayfa')
 
 
 
@@ -404,7 +345,7 @@ def manuel_tutar_ekle_beyaz(request):
         tutar = tutar.replace(',', '.')
         urun = Stok.objects.create(Urun_Adi=Urun_Adi, Barkod=random_barkod, Tutar=tutar, Oto_Sil=True)
         SepetUrun.objects.create(user=request.user, urun=urun, miktar=1)
-        return redirect('urun-ara-beyaz')
+        return redirect('yeni-sayfa')
 
 
 def sepeti_sifirla(request):
@@ -412,7 +353,7 @@ def sepeti_sifirla(request):
     return redirect('Arama')
 def sepeti_sifirla_beyaz(request):
     SepetUrun.objects.filter(user=request.user).delete()
-    return redirect('urun-ara-beyaz')
+    return redirect('yeni-sayfa')
 
 
 def musteri_ekle(request):
@@ -542,7 +483,7 @@ def barkodlari_gruba_ekle(request):
 
     return HttpResponse('Barkodlar başarıyla gruplara eklendi.')
 
-@login_required(login_url='giris-yap')
+@login_required(login_url='home')
 def yeni_sayfa(request):
     uyari = False
     if request.method == 'POST':
@@ -568,7 +509,7 @@ def yeni_sayfa(request):
     else:
         results = []
 
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).select_related('urun').order_by('-id')
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -600,7 +541,7 @@ def yeni_sayfa(request):
 # YENİ MODERN SAYFA VIEW FONKSİYONLARI
 # ============================================
 
-@login_required(login_url='giris-yap')
+@login_required(login_url='home')
 def modern_urun_ara(request):
     results = []
 
@@ -630,7 +571,7 @@ def modern_urun_ara(request):
                         'aranan_barkod': urun_id,
                     }
                     # Diğer context değişkenlerini de ekle
-                    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+                    sepet_urunleri = SepetUrun.objects.filter(user=request.user).select_related('urun').order_by('-id')
                     for urun in sepet_urunleri:
                         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -649,14 +590,13 @@ def modern_urun_ara(request):
                         'son_eklenen_urun': son_eklenen_urun,
                         'farkli_urun_sayisi': farkli_urun_sayisi,
                         'toplam_adet': toplam_adet,
-                        'Sayi': range(1, 1001),
                     })
                     return render(request, 'system/user/modern-urun-ara.html', context)
             else:
                 # Text ile arama
                 results = Stok.objects.filter(Urun_Genel__icontains=query)
 
-    sepet_urunleri = SepetUrun.objects.filter(user=request.user).order_by('-id')
+    sepet_urunleri = SepetUrun.objects.filter(user=request.user).select_related('urun').order_by('-id')
     for urun in sepet_urunleri:
         urun.toplam_fiyat = urun.miktar * urun.urun.Tutar
 
@@ -667,7 +607,6 @@ def modern_urun_ara(request):
     farkli_urun_sayisi = sepet_urunleri.count()
     toplam_adet = sepet_urunleri.aggregate(toplam=Sum('miktar'))['toplam'] or 0
 
-    Sayi = range(1, 1001)
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
     if total != None:
         total = '{:.2f}'.format(total)
@@ -689,7 +628,6 @@ def modern_urun_ara(request):
         'son_eklenen_urun': son_eklenen_urun,
         'farkli_urun_sayisi': farkli_urun_sayisi,
         'toplam_adet': toplam_adet,
-        'Sayi': Sayi,
     }
     return render(request, 'system/user/modern-urun-ara.html', context)
 

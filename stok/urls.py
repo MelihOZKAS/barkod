@@ -7,7 +7,6 @@ urlpatterns = [
     path("urun-ara/", views.urun_ara, name='Arama'),
     path("urun-ara-yeni/", views.urun_ara_yeni, name='AramaYeni'),
     path("urun-ara-yeni-2/", views.urun_ara_yeni_iki, name='AramaYeni2'),
-    path("urun-ara-beyaz/", views.urun_ara_beyaz, name='urun-ara-beyaz'),
     path("yeni-sayfa/", views.yeni_sayfa, name='yeni-sayfa'),
 
     # Modern Sayfa URL'leri

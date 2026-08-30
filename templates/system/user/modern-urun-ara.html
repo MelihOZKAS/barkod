@@ -88,6 +88,9 @@
             window.location.href = '/modern-sepeti-sifirla/';
         } else if (event.key === 'F4') {
             window.location.href = '/musteri-listesi/';
+        } else if (event.key === 'F8') {
+            event.preventDefault();
+            window.location.href = '/kahve/kasa/';
         }
     });
 </script>
@@ -194,15 +197,12 @@
                                 <div class="font-semibold text-gray-800 text-base">{{ urun.urun.Urun_Adi }}</div>
                             </td>
                             <td class="px-6 py-4 text-center">
-                                <select name="miktar" class="border-2 border-amber-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none font-medium" data-urun-id="{{ urun.id }}">
-                                    {% for i in Sayi %}
-                                        {% if i == urun.miktar %}
-                                            <option value="{{ i }}" selected>{{ i }}</option>
-                                        {% else %}
-                                            <option value="{{ i }}">{{ i }}</option>
-                                        {% endif %}
-                                    {% endfor %}
-                                </select>
+                                <input type="number" name="miktar" inputmode="numeric"
+                                       min="1" max="9999" step="1"
+                                       value="{{ urun.miktar }}"
+                                       data-urun-id="{{ urun.id }}"
+                                       data-onceki="{{ urun.miktar }}"
+                                       class="w-24 text-center border-2 border-amber-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none font-medium">
                             </td>
                             <td class="px-6 py-4 text-center font-bold text-emerald-600 text-lg">{{ urun.toplam_fiyat }} TL</td>
                             <td class="px-6 py-4 text-center text-gray-600 font-medium">{{ urun.urun.Tutar }} TL</td>
@@ -640,18 +640,28 @@
 
     // Miktar güncelleme
     $(document).ready(function () {
-        $('select[name="miktar"]').on('change', function () {
-            var miktar = $(this).val();
-            var urun_id = $(this).data('urun-id');
+        $(document).on('change', 'input[name="miktar"]', function () {
+            var alan = $(this);
+            var miktar = parseInt(alan.val(), 10);
 
+            // Boş bırakılırsa ya da geçersizse eski değere dön, sunucuya gitme.
+            if (isNaN(miktar) || miktar < 1) {
+                alan.val(alan.data('onceki'));
+                return;
+            }
+
+            alan.prop('disabled', true);
             $.ajax({
-                url: '/urun_miktar_guncelle/' + urun_id + '/',
+                url: '/urun_miktar_guncelle/' + alan.data('urun-id') + '/',
                 type: 'POST',
-                data: {
-                    miktar: miktar,
-                },
-                success: function (response) {
+                data: { miktar: miktar },
+                success: function () {
                     window.location.href = '/modern-urun-ara/';
+                },
+                error: function (xhr) {
+                    alan.prop('disabled', false).val(alan.data('onceki'));
+                    var mesaj = (xhr.responseJSON && xhr.responseJSON.error) || 'Miktar güncellenemedi.';
+                    Swal.fire({ icon: 'error', title: 'Hata!', text: mesaj, confirmButtonColor: '#dc2626' });
                 },
             });
         });

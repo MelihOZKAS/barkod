@@ -1,4 +1,4 @@
-# ali — Atlas Kahve / Stok Yönetim Sistemi
+# ali — Atlas Coffee / Stok Yönetim Sistemi
 
 > Claude Code'un her oturumda okuduğu proje hafızası.
 >
@@ -49,11 +49,13 @@ commit'le, sunucu sadece `migrate` etsin.
 `{% static 'kahve/kahve.css' %}` ile yüklüyor; dosya `STATIC_ROOT`'a ancak
 `collectstatic` ile kopyalanır. Çalıştırılmazsa `/kahve/` sayfaları **stilsiz** açılır.
 
-### Deploy sonrası ilk iki iş
+### Deploy sonrası ilk işler
 1. **Admin → Kahve Ayarları** → "Günlük cron adresi"ni kopyala, PHP sitendeki
    gece 02:00 cron'una koy. Süresi dolan damgaları o düşürür.
-2. **Admin → Kahveler** → ürünleri gir. Kahvelerde **"Hediye sayacına +1"**
+2. **Admin → Kahveler** → ürünlere fotoğraf yükle ve **"Hediye sayacına +1"**
    kutusunu işaretle — varsayılan kapalı gelir, işaretlenmezse damga vermez.
+3. **Stok takibi isteğe bağlı:** Admin → Stok ürünleri → takip etmek istediğin
+   ürünün **Stok adedi** alanını doldur. Boş bırakılanlar eskisi gibi çalışır.
 
 ### Ters giderse
 ```bash
@@ -104,7 +106,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 88 test (12 stok + 76 kahve)
+python3 manage.py test stok kahve     # 144 test (40 stok + 104 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -173,6 +175,39 @@ kullanmayın.
 `sepet_urun_sil-beyaz`) sadece o sayfa tarafından kullanılıyor, o yüzden duruyorlar.
 `yeni-sayfa` da kaldırılırsa bu 4 uç ve view'ları da silinebilir.
 
+#### Satış kaydı, stok adedi ve kasa raporu (2026-08-30'da eklendi)
+
+Kırtasiye tarafında **hiç satış kaydı yoktu** — sepet sadece siliniyordu, ne kadar
+nakit ne kadar kart girdiği hiçbir yerde yazmıyordu. Üç yeni model bunu kapatıyor:
+
+| Model | Ne tutuyor |
+|---|---|
+| `Satis` | Tamamlanan satış: toplam, nakit, kart, **borç tutarı**, ödeme türü, kasiyer |
+| `SatisSatiri` | Satırdaki ürün + **o anki fiyat** (sonra zam yapılsa da geçmiş bozulmaz) |
+| `StokHareketi` | Adedi değiştiren her olay: satış, mal girişi, sayım düzeltmesi, iade |
+
+**Stok adedi isteğe bağlı.** `Stok.stok_adedi` **boş bırakılırsa o ürün takip
+edilmez** — binlerce ürünün sayımı bir günde yapılamaz. Sadece takip etmek
+istediğin ürüne adet gir; gerisi eskisi gibi çalışır. Adet doluysa satışta düşer
+ve `StokHareketi` yazılır.
+
+Kasada iki buton var (`/modern-urun-ara/`):
+- **Satışı Tamamla** → nakit / kredi kartı / parçalı. Parçalıda nakit+kart toplamı
+  tutara eşit olmak zorunda, **sunucu da doğruluyor**.
+- **Borça Aktar** → tümü ya da parçalı. Parçalıda kalan kasaya nakit yazılır.
+  Açıklamaya o gün alınanlar ve varsa personelin yazdığı not düşer.
+
+**Kasa raporu `/kasa-raporu/`** (`stok/rapor.py`): gün / ay / yıl, iki tezgâhı
+birleştirir. Borca yazılan tutar **ciroya dahil ama kasaya girmez** — o yüzden
+"nakit + kart" ile ciro birbirini tutmaz, ikisi ayrı gösterilir. Sayfada ayrıca
+gün gün ciro grafiği, satış hareketleri, stok hareketleri ve azalan ürünler var.
+
+> **Tuzak:** `makemigrations stok` çalıştırırsan Django yanına
+> `Musteri.Cep_Telefonu` için planlanmamış bir `AlterField` daha üretir. Üretilen
+> dosyadan **o operasyonu elle sil** — `0009` ve `0010`'da böyle yapıldı, ikisinin
+> de docstring'inde yazıyor. `makemigrations kahve` bile `stok.Musteri`'ye FK
+> eklendiği için aynı şeyi üretebiliyor.
+
 #### Yedekleme / geri yükleme (asıl değerli veri burada)
 **En pratik yol — admin'den indir:** `/admin/stok/stok/` → üstteki kutuyu işaretle →
 "Tümünü seç" → Eylem: **"Seçili ürünleri CSV olarak indir (yedek)"**. Aynı eylem
@@ -227,11 +262,7 @@ kahve/static/kahve/kahve.css
 Admin'den yenisi eklenebilir; menü, kasa ekranı ve mobil uygulama kendiliğinden
 yeni bölümü gösterir. Kategorisi olmayan ürünler "Diğer" başlığı altında çıkar.
 
-Menüyü tek seferde kurmak için — **en kolayı personel ekranından**:
-`/kahve/kasa/menu-yukle/` (kasa üst barında "Menüyü yükle"). Önce ne olacağını
-gösterir, butona basınca uygular. SSH gerekmez.
-
-Komut satırından da yapılabilir (aynı kodu çalıştırır, `kahve/menu_verisi.py`):
+Menüyü tek seferde kurmak için (`kahve/menu_verisi.py`):
 ```bash
 python manage.py kahve_menu_yukle                    # ne olacağını gösterir
 python manage.py kahve_menu_yukle --uygula           # ekler
@@ -239,6 +270,10 @@ python manage.py kahve_menu_yukle --uygula --kahvelere-damga   # kahvelerde +1 a
 ```
 Tekrar çalıştırılabilir: var olan ürünlerin **sadece** fiyatı, sırası ve kategorisi
 güncellenir. İşaretlenmiş "+1" kutusu, yüklenen görsel ve yazılan açıklama korunur.
+
+> Personel ekranındaki "Menüyü yükle" sayfası **2026-08-30'da kaldırıldı** —
+> menü bir kere yüklendi, tekrar gerekmiyor. `MenuYuklemeTesti` geri gelmemesini
+> kilitliyor.
 
 #### Görseller 1:1
 Menü, ana sayfa ve mobil uygulama görselleri **kare** gösteriyor. Yüklenen fotoğraf
@@ -275,7 +310,10 @@ geçmişte görünür, sayaca girmez.
 2. Müşteri kartı barkod/QR ile okutulur — **isteğe bağlı**, kartsız satış da olur.
 3. Bekleyen hediyesi varsa satırda "Hediye kullan" çıkar, tutardan düşer.
    `hediye_gecerli=False` olan kahveler hediye olarak verilemez.
-4. Ödeme: **nakit / kredi kartı / parçalı**. Parçalıda nakit+kart toplamı tutara eşit
+4. Ödeme: **nakit / kredi kartı / parçalı / borca yaz**. "Borca yaz" kırtasiye
+   tarafındaki müşteri listesini açar (`/kahve/kasa/borc-musterileri/`); seçilen
+   müşterinin **aynı borç hanesine** işler, `BorcHareketi` açıklamasına alınan
+   kahveler ve varsa not yazılır. İki tezgâh tek müşteri kaydını paylaşıyor. Parçalıda nakit+kart toplamı tutara eşit
    olmak zorunda — **sunucu da doğruluyor**, sadece JS değil.
    Tutar 0 ise (müşteri sadece hediyesini alıyor) ödeme türü sorulmaz; buton
    "Hediyeyi ver ve bitir"e döner ve satış doğrudan kapanır.
@@ -374,6 +412,14 @@ flutter run --dart-define=KAHVE_SUNUCU=https://site.com \
             --dart-define=KAHVE_ANAHTAR=<mobil api anahtarı>
 ```
 Tanımlı değilse `demo_veri.dart` kullanılır, uygulama boş ekran göstermez.
+Sunucuya **ulaşılamazsa** yine demo gösterilir ama ekranda sarı bir uyarı şeridi
+çıkar ("Sunucuya ulaşılamadı") — sessizce demo göstermek gerçek arızayı gizliyordu.
+
+`AndroidManifest.xml` (main) içinde `INTERNET` izni **elle eklendi**; Flutter şablonu
+onu sadece debug/profile manifest'lerine koyuyor, release derlemesi internete
+çıkamıyordu. Silme. Debug manifest'inde ayrıca `usesCleartextTraffic` var —
+`adb reverse tcp:8899 tcp:8899` ile bilgisayardaki yerel sunucuya bağlanıp test etmek
+için; release'e sızmaz.
 
 **Veri kaynağı:** menü ve ayarlar (hediye eşiği, işletme adı, geçerlilik günü)
 sunucudan gelir. Kart verisi Firebase bağlanana kadar demodur — ama eşiği
@@ -382,11 +428,14 @@ sunucudaki gerçek kurala göre kurulur, yani damga sırası doğru sayıda çı
 **Ekranlar**
 - `giris_ekrani` — tam ekran espresso fotoğrafı + tek buton
 - `ana_ekran` — menü ve ayarları çeker, kategori filtresini tutar.
-  Alt bar **cam (buzlu)**: kaydırılabilir kategori çipleri + sağda Kartım.
+  Alt bar **cam (buzlu)** ama **sadece iki sekme**: Menü / Kartım.
   `extendBody: true` olduğu için içerik barın altından akar — listelerin
   alt boşluğu (`+92`) bu yüzden var, kaldırma.
-- `menu_sekmesi` — fotoğraflı kartlar + üstte ilerleme şeridi. Bekleyen hediye varsa
-  uygun kahveler "HEDİYENLE ALABİLİRSİN" rozeti alır.
+- `menu_sekmesi` — üstte başlık, hemen altında **yatay kayan kategori şeridi**
+  (`KategoriSeridi`, `parcalar/cam_bar.dart`), sonra ilerleme şeridi ve fotoğraflı
+  kartlar. Bekleyen hediye varsa uygun kahveler "HEDİYENLE ALABİLİRSİN" rozeti alır.
+  Kategoriler alt bara **konmaz** — navigasyon ile filtre ayrı şeyler, karıştırıldığında
+  kullanıcı "alttaki navigasyon daha kötü oldu" diye geri bildirim verdi.
 - `profil_sekmesi` — sadakat kartı + "Kasada okut" + sayaçlar
 - `okut_sayfasi` — tam ekran beyaz QR/barkod. Akışın içine büyük beyaz panel koyma.
 
@@ -435,6 +484,33 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
 
+### 2026-08-30 (ikinci oturum)
+- **Kasa ekranı bozuktu, düzeltildi** — `templates/kahve/kasa.html` içinde
+  sepet/müşteri/ödeme panelinin HTML'i **hiç yazılmamıştı**; JS `khSatirlar`,
+  `khToplam`, `khOdemeAc` gibi olmayan elemanları arıyordu. Ürün butonları da
+  CSS'i olmayan `.kh-sec` sınıflarını kullanıyordu (o yüzden düz beyaz etiket
+  görünüyorlardı). Testler sadece JSON uçlarını sınadığı için görmemişti;
+  `KasaSayfasiTesti` artık JS'in aradığı **her id'yi** sayfada arıyor.
+- **Kasa ekranına kare ürün fotoğrafları** ve sağda yapışkan sepet paneli.
+  Ekran artık dar kapsayıcı yerine 1520px kullanıyor.
+- **Kırtasiye satışları kaydediliyor** — `Satis`, `SatisSatiri`, `StokHareketi`.
+  Öncesinde sepet sadece siliniyordu, hiçbir yerde satış kaydı yoktu.
+- **Stok adedi** (`Stok.stok_adedi`) — boş bırakılan ürün takip edilmez.
+- **Kasa raporu `/kasa-raporu/`** — gün/ay/yıl, nakit/kart/borç kırılımı,
+  iki tezgâh birlikte, gün gün ciro grafiği, satış ve stok hareketleri.
+- **Kahve kasasına "Borca yaz"** — kırtasiye müşteri listesi kahve tarafında da
+  kullanılıyor, aynı borç hanesine işliyor.
+- **Borça Aktar penceresi yeniden tasarlandı** — sepet özeti, borç rozetli müşteri
+  listesi, segment butonlu tip seçimi, **not alanı**. Açıklamaya o gün alınanlar
+  yazılıyor (`BorcHareketi.aciklama` artık `TextField`).
+- **Menüyü yükle ekranı kaldırıldı** — menü bir kere yüklendi, tekrar gerekmiyor.
+- **Ana sayfa** — kahraman alan tam boy oldu (önce ince bir şerit gibiydi),
+  iki katmanlı perde, CTA butonları, iki tezgâh kartı simetrik, damga kartını
+  anlatan yeni şerit.
+- **`.gitignore` düzeltildi** — 17. satırdaki `lib/` (Python paketleri için)
+  `mobilapp/lib/` ile de eşleşiyordu; **Flutter kaynak kodunun tamamı repoda
+  değildi**. `/lib/` yapıldı.
+
 ### 2026-08-30
 - **`kahve` modülü eklendi** — kahve satışı, damga kartı, hediye kahve. Kasa
   ekranı (sepet → müşteri kartı → nakit/kart/parçalı ödeme → kasa sıfırlanır),
@@ -462,7 +538,12 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 - **Görseller 1:1** — yüklemede merkezden kare kırpılıyor, her ekranda kare.
 - **Ortak footer** — `atlas_footer.html`, tüm halka açık Atlas sayfalarında.
 - **Mobil uygulama gerçek veriye bağlandı** — menü ve ayarlar sunucudan.
-  Alt navigasyon cam efektli ve kategorileri gösteriyor.
+  Release APK'da `INTERNET` izni yoktu, uygulama sessizce demo veriye düşüyordu;
+  izin eklendi, sunucuya ulaşılamadığında artık ekranda uyarı çıkıyor.
+- **Alt navigasyon 2 sekmeye döndü** (Menü / Kartım, cam efekt kalıyor),
+  kategoriler ürün ekranının üstüne taşındı.
+- **Marka adı "Atlas Coffee"** — `kahve/0006` veri migration'ı kayıtlı isim hâlâ
+  "Atlas Kahve" ise yenisine çeviriyor; kullanıcı kendi isim yazdıysa dokunmuyor.
 - **Güvenlik** — kasa ekranındaki XSS (müşteri adı Firebase displayName'den
   geliyordu, `innerHTML` ile basılıyordu), `urun_miktar_guncelle`'de eksik
   `login_required` ve kullanıcı filtresi, müşteri barkodunda `random` → `secrets`.

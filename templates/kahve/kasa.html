@@ -1,0 +1,481 @@
+{% extends "kahve/base.html" %}
+
+{% block baslik %}Kasa — {{ ayar.isletme_adi }}{% endblock %}
+
+{% block ust_nav %}
+  <a href="/modern-urun-ara/">Kırtasiye kasası<kbd class="kh-tus">F2</kbd></a>
+  <a href="/musteri-listesi/">Müşteriler<kbd class="kh-tus">F4</kbd></a>
+  <a href="/admin/kahve/kahvesatis/">Satış raporu</a>
+  <a href="/admin/">Yönetim</a>
+{% endblock %}
+
+{% block ek_stil %}
+<style>
+  .kh-kasa { display:grid; grid-template-columns: 1fr 420px; gap: var(--b3); align-items:start; }
+  .kh-panel { padding: var(--b3); }
+
+  /* menu: tikla sepete ekle */
+  .kh-urunler { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: var(--b2); }
+  .kh-urun {
+    display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left;
+    padding: var(--b2); border-radius: var(--r-m); cursor:pointer;
+    background: var(--espresso-2); border:1px solid rgba(242,241,238,.1); color:var(--porselen);
+    font-family: var(--f-metin);
+    transition: transform var(--gecis), border-color var(--gecis), background var(--gecis);
+  }
+  .kh-urun:hover { border-color: var(--crema); background: var(--espresso-3); }
+  .kh-urun:active { transform: scale(.96); }
+  .kh-urun__ad { font-weight:600; font-size:.9375rem; }
+  .kh-urun__fiyat { font-family: var(--f-veri); font-size:.8125rem; color: var(--crema); }
+
+  /* sepet */
+  .kh-satirlar { list-style:none; margin:0; padding:0; }
+  .kh-satir {
+    display:grid; grid-template-columns: 1fr auto auto; gap: var(--b2); align-items:center;
+    padding: 12px 0; border-bottom:1px solid rgba(242,241,238,.08);
+  }
+  .kh-satir:last-child { border-bottom:0; }
+  .kh-satir__ad { font-weight:600; font-size:.9375rem; }
+  .kh-satir__alt { font-size:.75rem; color:rgba(242,241,238,.45); margin-top:2px; }
+  .kh-adet { display:flex; align-items:center; gap:6px; }
+  .kh-adet button {
+    width:28px; height:28px; border-radius:8px; cursor:pointer; line-height:1;
+    background:rgba(242,241,238,.07); border:1px solid rgba(242,241,238,.14);
+    color:var(--porselen); font-size:1rem; transition: background var(--gecis);
+  }
+  .kh-adet button:hover { background:rgba(242,241,238,.14); }
+  .kh-adet__sayi { min-width:22px; text-align:center; font-family:var(--f-veri); }
+  .kh-satir__tutar { font-family:var(--f-veri); min-width:74px; text-align:right; }
+  .kh-satir--hediyeli .kh-satir__tutar { color: var(--cini-acik); }
+
+  .kh-mini {
+    padding:4px 9px; border-radius:999px; cursor:pointer; font-size:.6875rem;
+    font-family:var(--f-veri); letter-spacing:.05em; border:1px solid transparent;
+    background:rgba(242,241,238,.07); color:rgba(242,241,238,.6);
+    transition: background var(--gecis), color var(--gecis);
+  }
+  .kh-mini:hover { background:rgba(242,241,238,.14); color:var(--porselen); }
+  .kh-mini--hediye { background:rgba(46,107,120,.24); color:var(--cini-acik); border-color:rgba(89,160,172,.35); }
+  .kh-mini--sil:hover { background:rgba(201,86,59,.24); color:#E8A48F; }
+
+  /* toplam */
+  .kh-toplam {
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding: var(--b3) 0 var(--b2);
+    border-top:1px solid rgba(242,241,238,.12); margin-top: var(--b2);
+  }
+  .kh-toplam__rakam { font-family:var(--f-baslik); font-size:2.5rem; letter-spacing:-.03em; color:var(--crema); }
+
+  /* odeme */
+  .kh-odeme { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--b1); margin-bottom:var(--b2); }
+  .kh-odeme button {
+    padding:14px 8px; border-radius:var(--r-s); cursor:pointer; font-weight:600; font-size:.875rem;
+    background:rgba(242,241,238,.05); border:1px solid rgba(242,241,238,.14); color:var(--porselen);
+    transition: border-color var(--gecis), background var(--gecis);
+  }
+  .kh-odeme button:hover { border-color:var(--crema); }
+  .kh-odeme button[aria-pressed="true"] { background:var(--crema); color:#2A1B0C; border-color:var(--crema); }
+  .kh-parcali { display:grid; grid-template-columns:1fr 1fr; gap:var(--b1); margin-bottom:var(--b2); }
+
+  .kh-gun { display:flex; gap:var(--b3); flex-wrap:wrap; font-family:var(--f-veri); font-size:.75rem; color:rgba(242,241,238,.5); }
+
+  @media (max-width: 1080px) { .kh-kasa { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block icerik %}
+<section class="kh-bolum--dar">
+  <div class="kh-kabuk">
+
+    <div class="kh-bolum__baslik">
+      <div>
+        <p class="kh-etiket">Kasa</p>
+        <h1 class="kh-h1" style="margin-top:var(--b1)">Kahve satışı</h1>
+      </div>
+      <div class="kh-gun" id="khGun">
+        <span>Bugün <strong id="khGunSatis">{{ gun.satis }}</strong> satış</span>
+        <span>Ciro <strong id="khGunCiro">{{ gun.ciro|floatformat:0 }}</strong> ₺</span>
+        <span>Nakit <strong id="khGunNakit">{{ gun.nakit|floatformat:0 }}</strong> ₺</span>
+        <span>Kart <strong id="khGunKart">{{ gun.kart|floatformat:0 }}</strong> ₺</span>
+      </div>
+    </div>
+
+    <div class="kh-kasa">
+
+      <!-- SOL: menu -->
+      <div class="kh-yuzey kh-panel">
+        <h2 class="kh-h2" style="margin-bottom:var(--b1)">Kahve seç</h2>
+        <p class="kh-kucuk" style="margin-bottom:var(--b3)">Tıkladığın kahve sepete eklenir.</p>
+        {% if kahveler %}
+          <div class="kh-urunler" id="khUrunler">
+            {% for kahve in kahveler %}
+              <button type="button" class="kh-urun" data-kahve="{{ kahve.id }}">
+                <span class="kh-urun__ad">{{ kahve.ad }}</span>
+                <span class="kh-urun__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+              </button>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="kh-bos">
+            <h3 class="kh-h2">Menü boş</h3>
+            <p class="kh-metin">Admin panelinden kahve ekleyin.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- SAG: sepet -->
+      <div class="kh-yuzey kh-panel">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b2)">
+          <h2 class="kh-h2">Sepet</h2>
+          <button class="kh-mini kh-mini--sil" id="khSifirla" type="button">KASAYI SIFIRLA</button>
+        </div>
+
+        <ul class="kh-satirlar" id="khSatirlar" style="margin-top:var(--b2)"></ul>
+        <p class="kh-kucuk" id="khBosSepet" style="padding:var(--b3) 0">Sepet boş. Soldan kahve seçin.</p>
+
+        <!-- musteri -->
+        <div style="margin-top:var(--b3);padding-top:var(--b3);border-top:1px solid rgba(242,241,238,.08)">
+          <label class="kh-etiket" for="khKod">Müşteri kartı (isteğe bağlı)</label>
+          <input class="kh-alan kh-alan--veri" id="khKod" style="margin-top:var(--b1)"
+                 placeholder="Barkod veya QR okutun" autocomplete="off" autofocus>
+          <div id="khMusteri" style="display:none;margin-top:var(--b2)"></div>
+        </div>
+
+        <!-- toplam -->
+        <div class="kh-toplam">
+          <span class="kh-etiket">Toplam</span>
+          <span class="kh-toplam__rakam"><span id="khToplam">0</span> ₺</span>
+        </div>
+
+        <button class="kh-btn kh-btn--ana kh-btn--genis" id="khOdemeAc" type="button" disabled>
+          Satışı tamamla
+        </button>
+
+        <!-- odeme paneli -->
+        <div id="khOdemePanel" style="display:none;margin-top:var(--b3);padding-top:var(--b3);border-top:1px solid rgba(242,241,238,.12)">
+          <p class="kh-etiket" style="margin-bottom:var(--b2)">Ödeme türü</p>
+          <div class="kh-odeme">
+            <button type="button" data-odeme="nakit" aria-pressed="true">Nakit</button>
+            <button type="button" data-odeme="kart" aria-pressed="false">Kredi kartı</button>
+            <button type="button" data-odeme="parcali" aria-pressed="false">Parçalı</button>
+          </div>
+
+          <div class="kh-parcali" id="khParcali" style="display:none">
+            <div>
+              <label class="kh-etiket" for="khNakit">Nakit</label>
+              <input class="kh-alan kh-alan--veri" id="khNakit" type="number" min="0" step="0.01" value="0" style="margin-top:6px">
+            </div>
+            <div>
+              <label class="kh-etiket" for="khKart">Kart</label>
+              <input class="kh-alan kh-alan--veri" id="khKart" type="number" min="0" step="0.01" value="0" style="margin-top:6px">
+            </div>
+          </div>
+          <p class="kh-kucuk" id="khParcaliNot" style="display:none;margin-bottom:var(--b2)"></p>
+
+          <button class="kh-btn kh-btn--cini kh-btn--genis" id="khOnayla" type="button">Onayla ve bitir</button>
+          <button class="kh-btn kh-btn--cizgi kh-btn--genis" id="khVazgec" type="button" style="margin-top:var(--b1)">Vazgeç</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block ek_script %}
+<script>
+(function () {
+  const csrf = "{{ csrf_token }}";
+  const $ = (id) => document.getElementById(id);
+  let sepet = null;
+  let odemeTuru = 'nakit';
+
+  async function istek(adres, govde) {
+    const cevap = await fetch(adres, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify(govde || {})
+    });
+    return { kod: cevap.status, veri: await cevap.json() };
+  }
+
+  function para(sayi) {
+    return sayi.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function ciz(veri) {
+    sepet = veri;
+    const liste = $('khSatirlar');
+    liste.innerHTML = '';
+
+    veri.satirlar.forEach(function (s) {
+      const li = document.createElement('li');
+      li.className = 'kh-satir' + (s.hediye_adet ? ' kh-satir--hediyeli' : '');
+
+      const sol = document.createElement('div');
+      const ad = document.createElement('div');
+      ad.className = 'kh-satir__ad';
+      ad.textContent = s.ad;
+      sol.append(ad);
+
+      const alt = document.createElement('div');
+      alt.className = 'kh-satir__alt';
+      const notlar = [para(s.fiyat) + ' ₺ / adet'];
+      if (s.hediye_adet) notlar.push(s.hediye_adet + ' hediye');
+      if (!s.damga_veriyor) notlar.push('damga vermez');
+      alt.textContent = notlar.join(' · ');
+      sol.append(alt);
+
+      // hediye dugmesi: sadece musteri varsa ve hediyesi kaldiysa
+      const m = veri.musteri;
+      if (m && s.hediye_gecerli && (m.kullanilabilir_hediye > 0 || s.hediye_adet > 0)) {
+        const hd = document.createElement('button');
+        hd.className = 'kh-mini' + (s.hediye_adet ? ' kh-mini--hediye' : '');
+        hd.type = 'button';
+        hd.textContent = s.hediye_adet ? 'HEDİYEYİ KALDIR' : 'HEDİYE KULLAN';
+        hd.style.marginTop = '6px';
+        hd.onclick = () => gonder('{% url "kahve:kasa-hediye" %}', {
+          kahve_id: s.kahve_id, hediye_adet: s.hediye_adet ? 0 : s.hediye_adet + 1
+        });
+        sol.append(hd);
+      }
+      li.append(sol);
+
+      const adet = document.createElement('div');
+      adet.className = 'kh-adet';
+      const eksi = document.createElement('button'); eksi.type = 'button'; eksi.textContent = '−';
+      eksi.onclick = () => gonder('{% url "kahve:kasa-adet" %}', { kahve_id: s.kahve_id, adet: s.adet - 1 });
+      const sayi = document.createElement('span'); sayi.className = 'kh-adet__sayi'; sayi.textContent = s.adet;
+      const arti = document.createElement('button'); arti.type = 'button'; arti.textContent = '+';
+      arti.onclick = () => gonder('{% url "kahve:kasa-adet" %}', { kahve_id: s.kahve_id, adet: s.adet + 1 });
+      adet.append(eksi, sayi, arti);
+      li.append(adet);
+
+      const tutar = document.createElement('div');
+      tutar.className = 'kh-satir__tutar';
+      tutar.textContent = para(s.ara_toplam) + ' ₺';
+      li.append(tutar);
+
+      liste.append(li);
+    });
+
+    $('khBosSepet').style.display = veri.satirlar.length ? 'none' : 'block';
+    $('khToplam').textContent = para(veri.toplam);
+
+    // Tutar 0 ise (hepsi hediye) odeme turu sormanin anlami yok.
+    const bedava = veri.satirlar.length > 0 && veri.toplam === 0;
+    $('khOdemeAc').disabled = veri.satirlar.length === 0;
+    $('khOdemeAc').textContent = bedava ? 'Hediyeyi ver ve bitir' : 'Satışı tamamla';
+
+    // musteri karti
+    // DIKKAT: ad_soyad musterinin kendi Firebase displayName'inden geliyor,
+    // yani kullanici girdisi. innerHTML ile basma - textContent kullan.
+    const kutu = $('khMusteri');
+    kutu.replaceChildren();
+    if (veri.musteri) {
+      const m = veri.musteri;
+      kutu.style.display = 'block';
+
+      const satir = document.createElement('div');
+      satir.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px';
+
+      const sol = document.createElement('div');
+      const isim = document.createElement('strong');
+      isim.textContent = m.ad_soyad;
+      const kod = document.createElement('div');
+      kod.className = 'kh-kucuk kh-veri';
+      kod.textContent = m.kod;
+      sol.append(isim, kod);
+
+      const sag = document.createElement('div');
+      sag.style.textAlign = 'right';
+      const damga = document.createElement('div');
+      damga.className = 'kh-veri';
+      damga.style.color = 'var(--crema)';
+      damga.textContent = m.aktif_kahve + ' / ' + m.esik + ' damga';
+      sag.append(damga);
+
+      if (m.bekleyen_hediye) {
+        const hediye = document.createElement('div');
+        hediye.className = 'kh-veri';
+        hediye.style.cssText = 'color:var(--cini-acik);font-size:.75rem';
+        hediye.textContent = m.bekleyen_hediye + ' hediye hazır';
+        sag.append(hediye);
+      }
+
+      // Bu satis sayaca kac damga ekleyecek?
+      if (veri.damga_adedi) {
+        const damga = document.createElement('div');
+        damga.className = 'kh-veri';
+        damga.style.cssText = 'color:rgba(242,241,238,.5);font-size:.75rem';
+        damga.textContent = 'bu satış +' + veri.damga_adedi + ' damga';
+        sag.append(damga);
+      }
+
+      satir.append(sol, sag);
+      kutu.append(satir);
+
+      const cikar = document.createElement('button');
+      cikar.className = 'kh-mini kh-mini--sil';
+      cikar.type = 'button';
+      cikar.textContent = 'KARTI ÇIKAR';
+      cikar.style.marginTop = '8px';
+      cikar.onclick = () => gonder('{% url "kahve:kasa-musteri-cikar" %}');
+      kutu.append(cikar);
+    } else {
+      kutu.style.display = 'none';
+    }
+
+    parcaliNotu();
+  }
+
+  async function gonder(adres, govde) {
+    const { veri } = await istek(adres, govde);
+    if (veri.ok) {
+      ciz(veri.sepet);
+      if (veri.mesaj) window.khBildir(veri.mesaj);
+    } else {
+      window.khBildir(veri.hata || 'İşlem yapılamadı.', true);
+    }
+    return veri;
+  }
+
+  // --- menuden sepete ekle ---
+  const urunler = $('khUrunler');
+  if (urunler) {
+    urunler.addEventListener('click', function (olay) {
+      const btn = olay.target.closest('button[data-kahve]');
+      if (btn) gonder('{% url "kahve:kasa-sepete-ekle" %}', { kahve_id: btn.dataset.kahve });
+    });
+  }
+
+  // --- musteri karti okut ---
+  $('khKod').addEventListener('keydown', function (olay) {
+    if (olay.key !== 'Enter') return;
+    olay.preventDefault();
+    const kod = this.value.trim();
+    if (!kod) return;
+    gonder('{% url "kahve:kasa-musteri-bul" %}', { kod: kod }).then(() => { this.value = ''; });
+  });
+
+  $('khSifirla').addEventListener('click', function () {
+    gonder('{% url "kahve:kasa-sifirla" %}');
+    kapatOdeme();
+  });
+
+  // --- odeme ---
+  function kapatOdeme() { $('khOdemePanel').style.display = 'none'; }
+
+  $('khOdemeAc').addEventListener('click', function () {
+    // Odenecek bir sey yoksa odeme panelini hic acma, dogrudan bitir.
+    if (sepet && sepet.toplam === 0) {
+      odemeTuru = 'nakit';
+      satisiBitir();
+      return;
+    }
+    $('khOdemePanel').style.display = 'block';
+    $('khOdemePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('khVazgec').addEventListener('click', kapatOdeme);
+
+  document.querySelectorAll('.kh-odeme button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      odemeTuru = btn.dataset.odeme;
+      document.querySelectorAll('.kh-odeme button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+      const parcali = odemeTuru === 'parcali';
+      $('khParcali').style.display = parcali ? 'grid' : 'none';
+      $('khParcaliNot').style.display = parcali ? 'block' : 'none';
+      if (parcali) {
+        $('khNakit').value = sepet.toplam.toFixed(2);
+        $('khKart').value = '0';
+      }
+      parcaliNotu();
+    });
+  });
+
+  function parcaliNotu() {
+    if (odemeTuru !== 'parcali' || !sepet) return;
+    const nakit = parseFloat($('khNakit').value) || 0;
+    const kart = parseFloat($('khKart').value) || 0;
+    const fark = +(sepet.toplam - nakit - kart).toFixed(2);
+    const not = $('khParcaliNot');
+    if (fark === 0) {
+      not.textContent = 'Tutarlar toplamı doğru.';
+      not.style.color = 'var(--cini-acik)';
+    } else if (fark > 0) {
+      not.textContent = para(fark) + ' ₺ eksik.';
+      not.style.color = '#E8A48F';
+    } else {
+      not.textContent = para(-fark) + ' ₺ fazla.';
+      not.style.color = '#E8A48F';
+    }
+  }
+  $('khNakit').addEventListener('input', function () {
+    const kalan = +(sepet.toplam - (parseFloat(this.value) || 0)).toFixed(2);
+    $('khKart').value = kalan > 0 ? kalan.toFixed(2) : '0';
+    parcaliNotu();
+  });
+  $('khKart').addEventListener('input', parcaliNotu);
+
+  async function satisiBitir() {
+    $('khOnayla').disabled = true;
+    $('khOdemeAc').disabled = true;
+    const { veri } = await istek('{% url "kahve:kasa-satis-tamamla" %}', {
+      odeme_turu: odemeTuru,
+      nakit: $('khNakit').value,
+      kart: $('khKart').value,
+    });
+    $('khOnayla').disabled = false;
+    $('khOdemeAc').disabled = false;
+
+    if (!veri.ok) { window.khBildir(veri.hata, true); return; }
+
+    ciz(veri.sepet);
+    kapatOdeme();
+    odemeTuru = 'nakit';
+    document.querySelectorAll('.kh-odeme button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.odeme === 'nakit'));
+    });
+    $('khParcali').style.display = 'none';
+    $('khParcaliNot').style.display = 'none';
+
+    $('khGunSatis').textContent = veri.gun.satis;
+    $('khGunCiro').textContent = Math.round(veri.gun.ciro);
+    $('khGunNakit').textContent = Math.round(veri.gun.nakit);
+    $('khGunKart').textContent = Math.round(veri.gun.kart);
+
+    let mesaj = para(veri.satis.toplam) + ' ₺ ' + veri.satis.odeme + ' — satış tamam.';
+    if (veri.kazanilan_hediye) mesaj += ' Müşteri hediye kahve kazandı!';
+    window.khBildir(mesaj);
+    $('khKod').focus();
+  }
+
+  $('khOnayla').addEventListener('click', satisiBitir);
+
+  // --- klavye kisayollari ---
+  // F2 kirtasiye kasasi, F8 kahve kasasi (buradayiz), F4 musteriler,
+  // F3 bu ekranin kasasini sifirlar. F5/F7/F11/F12 tarayiciya ait, kullanilmiyor.
+  document.addEventListener('keydown', function (olay) {
+    if (olay.key === 'F2') {
+      olay.preventDefault();
+      window.location.href = '/modern-urun-ara/';
+    } else if (olay.key === 'F3') {
+      olay.preventDefault();
+      gonder('{% url "kahve:kasa-sifirla" %}');
+      kapatOdeme();
+    } else if (olay.key === 'F4') {
+      olay.preventDefault();
+      window.location.href = '/musteri-listesi/';
+    } else if (olay.key === 'F8') {
+      olay.preventDefault();
+      $('khKod').focus();   // zaten buradayiz, barkod alanina odaklan
+    }
+  });
+
+  // ilk durum
+  gonder('{% url "kahve:kasa-durum" %}');
+})();
+</script>
+{% endblock %}

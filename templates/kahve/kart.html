@@ -1,0 +1,159 @@
+{% extends "kahve/base.html" %}
+
+{% block baslik %}{{ musteri.ad_soyad }} — {{ ayar.isletme_adi }}{% endblock %}
+
+{% block icerik %}
+
+<section class="kh-bolum">
+  <div class="kh-kabuk kh-orta">
+
+    <div class="kh-kart">
+      <div class="kh-kart__ust">
+        <div>
+          <p class="kh-etiket">{% if salt_okunur %}Müşteri kartı{% else %}Kartım{% endif %}</p>
+          <h1 class="kh-kart__ad" style="margin-top:6px">{{ musteri.ad_soyad }}</h1>
+        </div>
+        {% if bekleyen_hediye %}
+          <span class="kh-rozet kh-rozet--hediye">☕ {{ bekleyen_hediye }} hediye</span>
+        {% endif %}
+      </div>
+
+      <div class="kh-kart__sayac">
+        <span class="kh-sayac__buyuk kh-veri">{{ aktif_sayi }}</span>
+        <span class="kh-sayac__bolu kh-veri">/ {{ esik }}</span>
+        <span class="kh-etiket" style="margin-left:var(--b2)">damga</span>
+      </div>
+
+      <ol class="kh-damgalar kh-kart__damgalar">
+        {% for d in damgalar %}
+          <li class="kh-damga{% if d.dolu %} kh-damga--dolu{% endif %}{% if d.sonuyor %} kh-damga--sonuyor{% endif %}"
+              style="--i:{{ forloop.counter0 }}">
+            <span class="kh-damga__halka" aria-hidden="true"></span>
+            <span class="kh-damga__gun">
+              {% if d.sonuyor %}{{ d.kalan_gun }} gün{% elif d.dolu %}{{ d.tarih|date:"j M" }}{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+        <li class="kh-damga kh-damga--hedef" style="--i:{{ esik }}">
+          <span class="kh-damga__halka" aria-hidden="true">☕</span>
+          <span class="kh-damga__gun">hediye</span>
+        </li>
+      </ol>
+
+      <div class="kh-kart__alt">
+        <p class="kh-metin" style="font-size:.9375rem;margin:0">
+          {% if bekleyen_hediye %}
+            Sıradaki kahven bizden.
+          {% elif kalan == 1 %}
+            Bir kahve daha, sonraki bizden.
+          {% else %}
+            Hediye kahveye <strong class="kh-veri">{{ kalan }}</strong> kahve kaldı.
+          {% endif %}
+        </p>
+        {% if en_yakin_dusen and en_yakin_dusen.kalan_gun <= 3 %}
+          <span class="kh-rozet kh-rozet--uyari">En eski damga {{ en_yakin_dusen.kalan_gun }} gün sonra düşecek</span>
+        {% else %}
+          <span class="kh-kucuk kh-veri">Toplam {{ toplam_icim }} kahve</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="kh-porselen kh-kod" style="margin-top:var(--b3)">
+      <div class="kh-kod__qr"><div id="khQr"></div></div>
+      <div>
+        <p class="kh-etiket" style="color:var(--kabuk-koyu)">Kasada okut</p>
+        <div class="kh-kod__barkod" style="margin-top:var(--b2)"><svg id="khBarkod"></svg></div>
+        <p class="kh-kod__no" style="margin-top:var(--b1)">{{ musteri.kod }}</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{# --- gecmis --- #}
+<section class="kh-bolum--dar">
+  <div class="kh-kabuk kh-orta">
+    <div class="kh-bolum__baslik">
+      <div>
+        <p class="kh-etiket kh-etiket--cini">Hareketler</p>
+        <h2 class="kh-h1" style="margin-top:var(--b1)">Son kahveler</h2>
+      </div>
+    </div>
+
+    {% if gecmis %}
+      <ul class="kh-gecmis kh-yuzey" style="padding:var(--b1) var(--b3)">
+        {% for k in gecmis %}
+          <li>
+            <span class="kh-gecmis__nokta kh-gecmis__nokta--{{ k.durum }}" aria-hidden="true"></span>
+            <span class="kh-gecmis__ad">
+              {{ k.kahve_adi|default:"Kahve" }}
+              <span class="kh-kucuk"> · {{ k.get_durum_display }}</span>
+            </span>
+            <span class="kh-gecmis__tarih">{{ k.tarih|date:"j M Y H:i" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="kh-bos">
+        <h3 class="kh-h2">Henüz kahve yok</h3>
+        <p class="kh-metin">İlk kahveni içtiğinde kartına ilk damga düşecek.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if kahveler %}
+<section class="kh-bolum--dar">
+  <div class="kh-kabuk kh-orta">
+    <div class="kh-bolum__baslik">
+      <div>
+        <p class="kh-etiket">Menü</p>
+        <h2 class="kh-h1" style="margin-top:var(--b1)">Sıradaki ne olsun?</h2>
+      </div>
+      <a class="kh-btn kh-btn--cizgi" href="{% url 'kahve:menu' %}">Tüm menü</a>
+    </div>
+    <div class="kh-izgara" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+      {% for kahve in kahveler %}
+        <article class="kh-kahve">
+          <div class="kh-kahve__gorsel">
+            {% if kahve.gorsel %}<img src="{{ kahve.gorsel.url }}" alt="{{ kahve.ad }}" loading="lazy">
+            {% else %}<div class="kh-kahve__bos" aria-hidden="true"><span></span></div>{% endif %}
+          </div>
+          <div class="kh-kahve__govde">
+            <div class="kh-kahve__ust">
+              <h3 class="kh-h2">{{ kahve.ad }}</h3>
+              <span class="kh-kahve__fiyat">{{ kahve.fiyat|floatformat:0 }} ₺</span>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block ek_script %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script>
+  (function () {
+    var qrKutu = document.getElementById('khQr');
+    if (qrKutu && window.QRCode) {
+      new QRCode(qrKutu, {
+        text: "{{ qr_adresi|escapejs }}",
+        width: 148, height: 148,
+        colorDark: '#1C1411', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+    if (window.JsBarcode) {
+      JsBarcode('#khBarkod', '{{ musteri.kod }}', {
+        format: 'CODE128', displayValue: false, height: 62, margin: 0,
+        lineColor: '#1C1411', width: 2
+      });
+    }
+  })();
+</script>
+{% endblock %}

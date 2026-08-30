@@ -1,0 +1,71 @@
+{% extends 'system/user/atlas_base.html' %}
+
+{% block baslik %}Atlas Kırtasiye{% endblock %}
+{% block aciklama %}Okul ve ofis malzemeleri, taze kahve. Barkodunu okut, fiyatı anında gör.{% endblock %}
+
+{% block icerik %}
+
+<header class="at-ust">
+  <div class="at-kabuk at-ust__ic">
+    <a class="at-marka" href="/">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
+    <nav class="at-nav">
+      <a href="{% url 'fiyat-monitor' %}">Fiyat sorgula</a>
+      <a href="{% url 'kahve:menu' %}">Kahve menüsü</a>
+      <a class="at-btn at-btn--cizgi" href="{% url 'giris-yap' %}" style="padding:10px 20px">Personel girişi</a>
+    </nav>
+  </div>
+</header>
+
+<section class="at-bolum" style="padding-bottom:var(--b2)">
+  <div class="at-kabuk">
+    <p class="at-etiket">Atlas Kırtasiye</p>
+    <h1 class="at-hero" style="margin-top:var(--b2);max-width:15ch">
+      Tek dükkân,<br>iki tezgâh.
+    </h1>
+    <p class="at-metin" style="margin-top:var(--b3);max-width:50ch;font-size:1.0625rem">
+      Bir tarafta okul ve ofis malzemeleri, diğer tarafta taze demlenmiş kahve.
+      Aynı kapıdan giriliyor.
+    </p>
+  </div>
+</section>
+
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
+    <div class="at-tezgahlar">
+
+      <a class="at-tezgah at-tezgah--kirtasiye" href="{% url 'fiyat-monitor' %}">
+        <span class="at-tezgah__no">01 — TEZGÂH</span>
+        <h2 class="at-tezgah__ad">Kırtasiye</h2>
+        <p class="at-metin" style="font-size:.9375rem">
+          Defter, kalem, fotokopi kâğıdı, dosya, boya. Aradığın ürünün fiyatını
+          merak ediyorsan barkodunu okutman yeterli — ekranda anında görürsün.
+        </p>
+        <span class="at-tezgah__ok">Fiyat sorgula →</span>
+      </a>
+
+      <a class="at-tezgah at-tezgah--kahve" href="{% url 'kahve:menu' %}">
+        <span class="at-tezgah__no">02 — TEZGÂH</span>
+        <h2 class="at-tezgah__ad">Atlas Kahve</h2>
+        <p class="at-metin" style="font-size:.9375rem">
+          Türk kahvesinden flat white'a. Her kahve kartına bir damga bırakır;
+          <strong class="at-veri" style="color:var(--amber-acik)">{{ hediye_icin_kahve }}</strong>
+          damga dolunca sıradaki kahve bizden.
+        </p>
+        <span class="at-tezgah__ok">Menüye bak →</span>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<footer class="at-bolum--dar" style="border-top:1px solid rgba(242,241,238,.08);margin-top:var(--b4)">
+  <div class="at-kabuk at-kucuk" style="display:flex;justify-content:space-between;gap:var(--b2);flex-wrap:wrap">
+    <span>Atlas Kırtasiye</span>
+    <a href="{% url 'giris-yap' %}" style="color:inherit;text-decoration:none">Personel girişi</a>
+  </div>
+</footer>
+
+{% endblock %}

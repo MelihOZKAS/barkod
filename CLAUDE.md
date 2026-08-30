@@ -1,6 +1,10 @@
 # ali — Atlas Kahve / Stok Yönetim Sistemi
 
-> Claude Code'un her oturumda okuduğu proje hafızası. **Yapı değiştiğinde güncelle.**
+> Claude Code'un her oturumda okuduğu proje hafızası.
+>
+> **Kural: her oturumun sonunda bu dosyayı güncelle.** Yapı değiştiyse ilgili
+> bölümü düzelt, yapılan işi en alttaki **Değişiklik günlüğü**'ne bir satırla ekle.
+> Gelecek oturum neyin neden böyle olduğunu buradan öğreniyor.
 
 ---
 
@@ -112,6 +116,24 @@ cd mobilapp && flutter analyze && flutter test    # 4 test
 
 Barkodlu stok, sepet, müşteri borç takibi, fiyat monitörü. Fonksiyon tabanlı view'lar,
 template'ler `templates/system/user/` altında.
+
+#### Sayfalar
+| URL | Ne | Tasarım |
+|---|---|---|
+| `/` | Halka açık ana sayfa ("tek dükkân, iki tezgâh") | Atlas (yeni) |
+| `/giris-yap/` | Personel girişi | Atlas (yeni) |
+| `/panel/` | Gösterge paneli — açık borç, bugünün özeti, listeler | Atlas (yeni) |
+| `/modern-urun-ara/` | Kırtasiye kasası | eski Bootstrap teması |
+| `/musteri-listesi/`, `/bakiye/...`, `/urun-ara*` | diğer ekranlar | eski Bootstrap teması |
+| `/fiyat-monitor/` | Halka açık fiyat sorgulama (login yok) | kendi tasarımı |
+
+**Tasarım geçişi yarım:** `/`, `/giris-yap/` ve `/panel/` yeni **Atlas** tasarım
+sistemine geçti (`stok/static/stok/atlas.css`, `.at` sınıfı altında kapsanmış,
+`templates/system/user/atlas_base.html`'i genişletir). Kalan sayfalar hâlâ eski
+`userBase.html` + Bootstrap temasında. Sıradaki adım onları taşımak.
+
+Atlas, kahve modülünün kardeşi: aynı tipografi, aynı 8pt ızgara, aynı yuvarlaklık.
+Fark renkte — kahve sıcak amber ekseninde, kırtasiye serin çini mavisi ekseninde.
 
 **Kasa ekranı `/modern-urun-ara/`.**
 
@@ -370,3 +392,35 @@ Kod, değişken ve fonksiyon adları **Türkçe** (`kahve_ekle`, `suresi_dolanla
 Python kaynak dosyalarındaki **yorumlarda Türkçe karakter kullanma** (bazı ortamlarda
 bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türkçe kullan** —
 `verbose_name`, `help_text`, admin etiketleri, şablonlar, hata mesajları.
+
+---
+
+## Değişiklik günlüğü
+
+> Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-08-30
+- **`kahve` modülü eklendi** — kahve satışı, damga kartı, hediye kahve. Kasa
+  ekranı (sepet → müşteri kartı → nakit/kart/parçalı ödeme → kasa sıfırlanır),
+  gece cron'u, mobil API. Ürünlerde iki ayrı bayrak: "Hediye sayacına +1"
+  (varsayılan **kapalı**, kurabiye/su için) ve "Hediye ile alınabilir".
+- **Flutter mobil uygulaması** (`mobilapp/`) — alt navigasyonlu Menü + Kartım,
+  tam ekran QR. Firebase henüz bağlı değil.
+- **Kasa sayfası hızlandırıldı** — sepet satırındaki 1000 seçenekli `<select>`
+  kaldırıldı (30 ürünlük sepet 5,7 MB → 13 KB), `select_related` ile 37 → 7 sorgu.
+- **Beyaz tema kaldırıldı** — `/urun-ara-beyaz/`, `white.html`, `WhiteAssetsPanel/`
+  (14 MB). F2 artık Modern sayfaya, F8 kahve kasasına gidiyor.
+- **`login_url='giris-yap'` düzeltildi** — o isimde URL yoktu, anonim ziyaretçi
+  302 yerine 500 alıyordu. Artık gerçekten var.
+- **Ana sayfa ve giriş ayrıldı** — `/` halka açık ana sayfa oldu, giriş
+  `/giris-yap/`'a taşındı. Panel yeniden yazıldı: 3 ürün sayısı yerine açık borç,
+  bugünün kahve cirosu, borç hareketleri, tükenen ürünler.
+- **Yedekleme** — admin'den "CSV olarak indir" eylemi + `stok_disa_aktar` /
+  `stok_ice_aktar` komutları (kahve tarafında da aynısı var).
+- **Kullanılmayan tema dosyaları silindi** — 286 dosya, 6 MB. Yüklenmeyen
+  eklentiler, kullanılmayan ikon fontları, tema demo görselleri. Silmeden önce
+  şablon + CSS `url()` referansları tarandı; `icofont`, `apex`,
+  `perfect-scrollbar`, `img/svg`, `img/png-icon` kullanıldığı için duruyor.
+- **Güvenlik** — kasa ekranındaki XSS (müşteri adı Firebase displayName'den
+  geliyordu, `innerHTML` ile basılıyordu), `urun_miktar_guncelle`'de eksik
+  `login_required` ve kullanıcı filtresi, müşteri barkodunda `random` → `secrets`.

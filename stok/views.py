@@ -1,4 +1,5 @@
 from django.shortcuts import render,redirect,HttpResponse,get_object_or_404
+from django.utils.http import url_has_allowed_host_and_scheme
 from .models import Stok,SepetUrun,Musteri,BorcHareketi,Liste_Grup,UrunGruplari
 from django.contrib.auth.models import auth
 from django.contrib.auth.decorators import login_required
@@ -18,45 +19,110 @@ from django.http import JsonResponse
 
 
 
-def home(request):
+def anasayfa(request):
+    """Halka acik ana sayfa. Giris yok, herkese acik."""
+    hediye_icin_kahve = 5
+    try:
+        from kahve.models import KahveAyar
+
+        hediye_icin_kahve = KahveAyar.al().hediye_icin_kahve
+    except Exception:
+        # Kahve modulunde bir sorun olsa bile ana sayfa acilmali.
+        pass
+    return render(
+        request,
+        "system/user/anasayfa.html",
+        {"hediye_icin_kahve": hediye_icin_kahve},
+    )
+
+
+def giris_yap(request):
+    """Personel girisi. Basarisiz denemede sayfada hata gosterir."""
+    if request.user.is_authenticated:
+        return redirect("panel")
+
+    hata = None
+    girilen_kullanici = ""
+
     if request.method == "POST":
-        username = request.POST["username"]
-        password = request.POST["password"]
-        print("Nasip1")
+        girilen_kullanici = (request.POST.get("username") or "").strip()
+        sifre = request.POST.get("password") or ""
+        kullanici = auth.authenticate(request, username=girilen_kullanici, password=sifre)
+        if kullanici is not None:
+            auth.login(request, kullanici)
+            # login_required'in ekledigi ?next= varsa oraya don, ama sadece
+            # kendi sitemizdeki bir adrese (acik yonlendirme olmasin).
+            sonraki = request.GET.get("next")
+            if sonraki and url_has_allowed_host_and_scheme(
+                sonraki, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+            ):
+                return redirect(sonraki)
+            return redirect("panel")
+        hata = "Kullanıcı adı veya şifre hatalı."
 
-        user = auth.authenticate(username=username,password=password)
-        if user is not None:
-            print("Nasip2")
-            auth.login(request,user)
-            return redirect('panel')
-    return render(request, "system/user/giris-yap.html")
+    return render(
+        request,
+        "system/user/giris-yap.html",
+        {"hata": hata, "girilen_kullanici": girilen_kullanici},
+    )
 
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def logout(request):
     auth.logout(request)
     return redirect("home")
 
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def konsol_home_detail(request):
-    first_name = request.user.first_name
-    last_name = request.user.last_name
-    email = request.user.email
-    UrunToplami = Stok.objects.all().count()
-    StokVarToplami = Stok.objects.filter(Stok_Durumu=True).count()
-    StokYokToplami = Stok.objects.filter(Stok_Durumu=False).count()
+    """Personel paneli: bugunun ozeti, acik borclar ve tukenen urunler."""
+    bugun = timezone.localtime().date()
+
+    # --- kirtasiye ---
+    urun_toplami = Stok.objects.count()
+    stokta_yok = Stok.objects.filter(Stok_Durumu=False)
+
+    borclu = Musteri.objects.filter(borc__gt=0)
+    toplam_borc = borclu.aggregate(t=Sum("borc"))["t"] or 0
+    bugun_borc = (
+        BorcHareketi.objects.filter(tarih__date=bugun).aggregate(t=Sum("tutar"))["t"] or 0
+    )
+
+    # --- kahve (modulde sorun olsa bile panel acilmali) ---
+    kahve = {"ciro": 0, "nakit": 0, "kart": 0, "satis": 0, "hediye": 0, "satislar": []}
+    try:
+        from kahve.models import KahveSatis
+
+        bugunku = KahveSatis.objects.filter(tarih__date=bugun)
+        ozet = bugunku.aggregate(
+            ciro=Sum("toplam"), nakit=Sum("nakit_tutar"),
+            kart=Sum("kart_tutar"), hediye=Sum("hediye_adedi"),
+        )
+        kahve = {
+            "ciro": ozet["ciro"] or 0,
+            "nakit": ozet["nakit"] or 0,
+            "kart": ozet["kart"] or 0,
+            "hediye": ozet["hediye"] or 0,
+            "satis": bugunku.count(),
+            "satislar": list(KahveSatis.objects.select_related("musteri")[:6]),
+        }
+    except Exception:
+        pass
+
+    return render(request, "system/user/panel.html", {
+        "ad": request.user.get_full_name() or request.user.get_username(),
+        "urun_toplami": urun_toplami,
+        "stokta_yok_sayisi": stokta_yok.count(),
+        "stokta_yok_liste": stokta_yok.order_by("Urun_Adi")[:6],
+        "toplam_borc": toplam_borc,
+        "borclu_sayisi": borclu.count(),
+        "en_borclular": borclu.order_by("-borc")[:6],
+        "bugun_borc": bugun_borc,
+        "kahve": kahve,
+        "son_hareketler": BorcHareketi.objects.select_related("musteri").order_by("-tarih")[:6],
+    })
 
 
-    context = {'name': f"{first_name} {last_name}",
-               'email':email,
-               'UrunToplami':UrunToplami,
-               'StokVarToplami':StokVarToplami,
-               'StokYokToplami':StokYokToplami,
-               }
-    return render(request, 'system/user/panel.html',context)
 
-
-
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def urun_ara(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -110,7 +176,7 @@ def urun_ara(request):
 
 
 
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def urun_ara_yeni(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -163,7 +229,7 @@ def urun_ara_yeni(request):
 
 
 @csrf_exempt
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def urun_miktar_guncelle(request, urun_id):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST bekleniyor.'}, status=405)
@@ -183,7 +249,7 @@ def urun_miktar_guncelle(request, urun_id):
 
     return JsonResponse({'success': True, 'miktar': miktar})
 
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def urun_ara_yeni_iki(request):
     if request.method == 'POST':
         query = request.POST.get('title')
@@ -236,7 +302,7 @@ def urun_ara_yeni_iki(request):
 
 
 
-@login_required(login_url = 'home')
+@login_required(login_url='giris-yap')
 def Bayi_Listesi(request):
     Musteri_Listesi = Musteri.objects.all()
     first_name = request.user.first_name
@@ -483,7 +549,7 @@ def barkodlari_gruba_ekle(request):
 
     return HttpResponse('Barkodlar başarıyla gruplara eklendi.')
 
-@login_required(login_url='home')
+@login_required(login_url='giris-yap')
 def yeni_sayfa(request):
     uyari = False
     if request.method == 'POST':
@@ -541,7 +607,7 @@ def yeni_sayfa(request):
 # YENİ MODERN SAYFA VIEW FONKSİYONLARI
 # ============================================
 
-@login_required(login_url='home')
+@login_required(login_url='giris-yap')
 def modern_urun_ara(request):
     results = []
 
@@ -711,7 +777,7 @@ def fiyat_monitor(request):
     return render(request, 'system/user/fiyat-monitor.html', context)
 
 
-@login_required(login_url='home')
+@login_required(login_url='giris-yap')
 def musteri_listesi_json(request):
     q = request.GET.get('q', '').strip()
     musteriler = Musteri.objects.all().order_by('isim_soyisim')
@@ -729,7 +795,7 @@ def musteri_listesi_json(request):
 
 
 @csrf_exempt
-@login_required(login_url='home')
+@login_required(login_url='giris-yap')
 def hizli_musteri_ekle(request):
     if request.method == 'POST':
         isim = request.POST.get('isim_soyisim', '').strip()
@@ -752,7 +818,7 @@ def hizli_musteri_ekle(request):
 
 
 @csrf_exempt
-@login_required(login_url='home')
+@login_required(login_url='giris-yap')
 def modern_borca_aktar(request):
     if request.method == 'POST':
         musteri_id = request.POST.get('musteri_id')

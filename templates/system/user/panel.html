@@ -1,99 +1,182 @@
-{% extends 'system/user/userBase.html' %}
-{% load static %}
+{% extends 'system/user/atlas_base.html' %}
 
+{% block baslik %}Panel — Atlas Kırtasiye{% endblock %}
 
+{% block icerik %}
 
+<header class="at-ust">
+  <div class="at-kabuk at-ust__ic">
+    <a class="at-marka" href="{% url 'panel' %}">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
+    <nav class="at-nav">
+      <a href="{% url 'modern-urun-ara' %}">Kırtasiye kasası<kbd class="at-tus">F2</kbd></a>
+      <a href="{% url 'kahve:kasa' %}">Kahve kasası<kbd class="at-tus">F8</kbd></a>
+      <a href="{% url 'musteri-listesi' %}">Müşteriler<kbd class="at-tus">F4</kbd></a>
+      <a href="/admin/">Yönetim</a>
+      <a href="{% url 'cikis-yap' %}">Çıkış</a>
+    </nav>
+  </div>
+</header>
 
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
 
-
-{% block userContent %}
-        <script>
-            document.addEventListener('keydown', function (event) {
-                /*if (event.key === 'F2') {
-                    // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/sepeti-sifirla/';
-                } else if (event.key === 'F3') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/urun-ara/'; }*/
-                if (event.key === 'F4') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/musteri-ekle/';
-                } else if (event.key === 'F2') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/modern-urun-ara/';
-                } else if (event.key === 'F3') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/modern-sepeti-sifirla/';
-                }
-            });
-        </script>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="container-fluid">
-            <div class="row">
-
-                <div class="col-xl-3 col-sm-6">
-                    <!-- Card -->
-                    <div class="card mb-30">
-                        <div class="state">
-                            <div class="d-flex align-items-center flex-wrap">
-                                <div class="state-icon d-flex justify-content-center">
-                                    <img src="{% static 'assetsPanel/img/panel/siir_panel_2.png' %}" alt="">
-                                </div>
-                                <div class="state-content">
-                                    <p class="font-14 mb-2">Toplam Ürün Sayısı</p>
-                                    <h2 class="text-center">{{ UrunToplami }}</h2>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- End Card -->
-                </div>
-
-                <div class="col-xl-3 col-sm-6">
-                    <!-- Card -->
-                    <div class="card mb-30">
-                        <div class="state">
-                            <div class="d-flex align-items-center flex-wrap">
-                                <div class="state-icon d-flex justify-content-center">
-                                    <img src="{% static 'assetsPanel/img/panel/soz.png' %}" alt="">
-                                </div>
-                                <div class="state-content">
-                                    <p class="font-14 mb-2">Stokta Olan Ürünler</p>
-                                    <h2 class="text-center">{{ StokVarToplami }}</h2>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- End Card -->
-                </div>
-
-                <div class="col-xl-3 col-sm-6">
-                    <!-- Card -->
-                    <div class="card mb-30">
-                        <div class="state">
-                            <div class="d-flex align-items-center flex-wrap">
-                                <div class="state-icon d-flex justify-content-center">
-                                    <img src="{% static 'assetsPanel/img/panel/hikaye.png' %}" alt="">
-                                </div>
-                                <div class="state-content">
-                                    <p class="font-14 mb-2">Stokta Olmayan Ürünler</p>
-                                    <h2 class="text-center">{{ StokYokToplami }}</h2>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- End Card -->
-                </div>
-
-
-
-            </div>
-        </div>
+    <div class="at-bolum__baslik" style="margin-bottom:var(--b3)">
+      <div>
+        <p class="at-etiket">Panel</p>
+        <h1 class="at-h1" style="margin-top:6px">Merhaba {{ ad }}</h1>
+      </div>
+      <span class="at-kucuk at-veri">{% now "j F Y, H:i" %}</span>
     </div>
-    <!-- End Main Content -->
 
+    <!-- Kahraman rakam + bugunun ozeti -->
+    <div class="at-izgara at-izgara--ust">
 
+      <div class="at-kutu at-kutu--vurgu">
+        <span class="at-kutu__etiket">Açık borç</span>
+        <span class="at-kutu__kahraman">{{ toplam_borc|floatformat:0 }} ₺</span>
+        <span class="at-kutu__alt">
+          {% if borclu_sayisi %}{{ borclu_sayisi }} müşteride{% else %}Açık borç yok{% endif %}
+        </span>
+      </div>
 
-{% endblock userContent %}
+      <div class="at-kutu">
+        <span class="at-kutu__etiket">Bugün kahve cirosu</span>
+        <span class="at-kutu__deger" style="color:var(--amber-acik)">{{ kahve.ciro|floatformat:0 }} ₺</span>
+        <span class="at-kutu__alt">
+          {{ kahve.satis }} satış
+          {% if kahve.ciro %}· {{ kahve.nakit|floatformat:0 }} nakit / {{ kahve.kart|floatformat:0 }} kart{% endif %}
+        </span>
+      </div>
+
+      <div class="at-kutu">
+        <span class="at-kutu__etiket">Bugün borca aktarılan</span>
+        <span class="at-kutu__deger">{{ bugun_borc|floatformat:0 }} ₺</span>
+        <span class="at-kutu__alt">Kırtasiye veresiye hareketleri</span>
+      </div>
+
+      <div class="at-kutu">
+        <span class="at-kutu__etiket">Tükenen ürün</span>
+        <span class="at-kutu__deger">{{ stokta_yok_sayisi }}</span>
+        <span class="at-kutu__alt">
+          {% if stokta_yok_sayisi %}
+            <span class="at-rozet at-rozet--uyari">
+              <span class="at-rozet__nokta" aria-hidden="true"></span>Stok girilmeli
+            </span>
+          {% else %}
+            <span class="at-rozet at-rozet--iyi">
+              <span class="at-rozet__nokta" aria-hidden="true"></span>Tümü stokta
+            </span>
+          {% endif %}
+          <span style="display:block;margin-top:6px">Toplam {{ urun_toplami }} ürün</span>
+        </span>
+      </div>
+
+    </div>
+
+    <!-- Iki liste -->
+    <div class="at-izgara at-izgara--ikili" style="margin-top:var(--b3)">
+
+      <div class="at-kutu">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b2);margin-bottom:var(--b2)">
+          <h2 class="at-h2">En çok borcu olanlar</h2>
+          <a class="at-kucuk" href="{% url 'musteri-listesi' %}" style="color:var(--cini-acik);text-decoration:none">Tümü →</a>
+        </div>
+        {% if en_borclular %}
+          <ul class="at-liste">
+            {% for m in en_borclular %}
+              <li>
+                <span class="at-liste__ad">{{ m.isim_soyisim }}</span>
+                <a class="at-liste__deger" href="{% url 'bakiye' m.id %}" style="color:var(--kagit);text-decoration:none">{{ m.borc|floatformat:0 }} ₺</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="at-bos-durum">Kimsenin açık borcu yok.</p>
+        {% endif %}
+      </div>
+
+      <div class="at-kutu">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b2);margin-bottom:var(--b2)">
+          <h2 class="at-h2">Tükenen ürünler</h2>
+          <a class="at-kucuk" href="/admin/stok/stok/?Stok_Durumu__exact=0" style="color:var(--cini-acik);text-decoration:none">Tümü →</a>
+        </div>
+        {% if stokta_yok_liste %}
+          <ul class="at-liste">
+            {% for u in stokta_yok_liste %}
+              <li>
+                <span class="at-liste__ad">{{ u.Urun_Adi }}</span>
+                <span class="at-liste__tarih">{{ u.Barkod }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="at-bos-durum">Tükenen ürün yok.</p>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- Son hareketler -->
+    <div class="at-izgara at-izgara--ikili" style="margin-top:var(--b3)">
+
+      <div class="at-kutu">
+        <h2 class="at-h2" style="margin-bottom:var(--b2)">Son borç hareketleri</h2>
+        {% if son_hareketler %}
+          <ul class="at-liste">
+            {% for h in son_hareketler %}
+              <li>
+                <span class="at-liste__ad">
+                  {{ h.musteri.isim_soyisim }}
+                  <span class="at-kucuk"> · {{ h.aciklama }}</span>
+                </span>
+                <span class="at-liste__deger">{{ h.tutar|floatformat:0 }} ₺</span>
+                <span class="at-liste__tarih">{{ h.tarih|date:"j M H:i" }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="at-bos-durum">Henüz borç hareketi yok.</p>
+        {% endif %}
+      </div>
+
+      <div class="at-kutu">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b2);margin-bottom:var(--b2)">
+          <h2 class="at-h2">Son kahve satışları</h2>
+          <a class="at-kucuk" href="/admin/kahve/kahvesatis/" style="color:var(--amber);text-decoration:none">Tümü →</a>
+        </div>
+        {% if kahve.satislar %}
+          <ul class="at-liste">
+            {% for s in kahve.satislar %}
+              <li>
+                <span class="at-liste__ad">
+                  {% if s.musteri %}{{ s.musteri.ad_soyad }}{% else %}Kartsız{% endif %}
+                  <span class="at-kucuk"> · {{ s.fincan_adedi }} kalem</span>
+                </span>
+                <span class="at-liste__deger">{{ s.toplam|floatformat:0 }} ₺</span>
+                <span class="at-liste__tarih">{{ s.tarih|date:"j M H:i" }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="at-bos-durum">Henüz kahve satışı yok.</p>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block ek_script %}
+<script>
+  document.addEventListener('keydown', function (olay) {
+    if (olay.key === 'F2') { olay.preventDefault(); window.location.href = '{% url "modern-urun-ara" %}'; }
+    else if (olay.key === 'F4') { olay.preventDefault(); window.location.href = '{% url "musteri-listesi" %}'; }
+    else if (olay.key === 'F8') { olay.preventDefault(); window.location.href = '{% url "kahve:kasa" %}'; }
+  });
+</script>
+{% endblock %}

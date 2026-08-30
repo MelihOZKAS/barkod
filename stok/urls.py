@@ -3,7 +3,8 @@ from . import views
 
 
 urlpatterns = [
-    path("", views.home, name="home"),
+    path("", views.anasayfa, name="home"),
+    path("giris-yap/", views.giris_yap, name="giris-yap"),
     path("urun-ara/", views.urun_ara, name='Arama'),
     path("urun-ara-yeni/", views.urun_ara_yeni, name='AramaYeni'),
     path("urun-ara-yeni-2/", views.urun_ara_yeni_iki, name='AramaYeni2'),

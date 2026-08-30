@@ -1,100 +1,95 @@
-{% load static %}
+{% extends 'system/user/atlas_base.html' %}
 
+{% block baslik %}Personel girişi — Atlas Kırtasiye{% endblock %}
 
-<!DOCTYPE html>
-<html lang="tr">
+{% block ek_stil %}
+<style>
+  .at-giris { min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; }
+  .at-giris__sol {
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: var(--b5) var(--b6);
+    border-right: 1px solid rgba(242, 241, 238, .08);
+  }
+  .at-giris__sag { display: grid; place-items: center; padding: var(--b5) var(--b4); }
+  .at-giris__kart { width: 100%; max-width: 400px; }
+  .at-kisayol { list-style: none; padding: 0; margin: var(--b4) 0 0; display: grid; gap: 10px; }
+  .at-kisayol li { display: flex; align-items: center; gap: var(--b2); font-size: .875rem; color: rgba(242,241,238,.55); }
+  .at-kisayol kbd {
+    font-family: var(--f-veri); font-size: .6875rem; padding: 3px 8px; border-radius: 6px;
+    background: rgba(242,241,238,.08); border: 1px solid rgba(242,241,238,.16); color: rgba(242,241,238,.7);
+  }
+  .at-hata {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px var(--b2); margin-bottom: var(--b3);
+    border-radius: var(--r-s); font-size: .9375rem;
+    background: rgba(201, 86, 59, .14); border: 1px solid rgba(201, 86, 59, .38); color: #E8A48F;
+  }
+  @media (max-width: 900px) {
+    .at-giris { grid-template-columns: 1fr; min-height: auto; }
+    .at-giris__sol { border-right: 0; border-bottom: 1px solid rgba(242,241,238,.08); padding: var(--b4) var(--b3); }
+    .at-giris__sag { padding: var(--b4) var(--b3); }
+  }
+</style>
+{% endblock %}
 
-<head>
-    <!-- Page Title -->
-    <title>Kullanıcı Girişi</title>
+{% block icerik %}
+<div class="at-giris">
 
-    <!-- Meta Data -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Barkod tarayıcı sistemi web/tablet/mobile uyumlu.">
-    <meta name="keywords" content="şiirler, yazarlar, şairler, sözler, hikayeler, aşk şiirleri, ksıa aşk sözleri">
+  <div class="at-giris__sol">
+    <a class="at-marka" href="/">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
 
-    <!-- Favicon -->
-    <link rel="shortcut icon" href="{% static 'assetsPanel/img/favicon.png' %}">
+    <div>
+      <p class="at-etiket">Kasa</p>
+      <h1 class="at-hero" style="margin-top:var(--b2);max-width:12ch">Tezgâhın arkası.</h1>
+      <p class="at-metin" style="margin-top:var(--b3);max-width:42ch">
+        Barkod okut, sepeti topla, borca aktar. Kahve kasası da burada.
+      </p>
 
-    <!-- Web Fonts -->
-    <link href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700,700i&display=swap" rel="stylesheet">
-
-    <!-- ======= BEGIN GLOBAL MANDATORY STYLES ======= -->
-    <link rel="stylesheet" href="{% static 'assetsPanel/bootstrap/css/bootstrap.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assetsPanel/fonts/icofont/icofont.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assetsPanel/plugins/perfect-scrollbar/perfect-scrollbar.min.css' %}">
-    <!-- ======= END BEGIN GLOBAL MANDATORY STYLES ======= -->
-
-    <!-- ======= MAIN STYLES ======= -->
-    <link rel="stylesheet" href="{% static 'assetsPanel/css/style.css' %}">
-    <!-- ======= END MAIN STYLES ======= -->
-
-</head>
-
-<body>
-
-<div class="mn-vh-100 d-flex align-items-center">
-    <div class="container">
-        <!-- Card -->
-        <div class="card justify-content-center auth-card">
-            <div class="row justify-content-center">
-                <div class="col-xl-7 col-lg-9">
-                    <h4 class="mb-5 font-20">Stok Takip' e Hoş Geldiniz</h4>
-                    <form action="#" method="POST">
-                        {% csrf_token %}
-
-                        <!-- Form Group -->
-                        <div class="form-group mb-20">
-                            <label for="email" class="mb-2 font-14 bold">Kullanıcı Adınız</label>
-                            <input type="text" id="email" name="username" class="theme-input-style"
-                                   placeholder="Kullanını Adınız">
-                        </div>
-                        <!-- End Form Group -->
-
-                        <!-- Form Group -->
-                        <div class="form-group mb-20">
-                            <label for="password" class="mb-2 font-14 bold">Şifreniz</label>
-                            <input type="password" id="password" name="password" class="theme-input-style"
-                                   placeholder="********">
-                        </div>
-                        <!-- End Form Group -->
-
-
-                        <div class="d-flex align-items-center">
-                            <button type="submit" class="btn long mr-20">Giriş Yap</button>
-
-                        </div>
-                    </form>
-
-                </div>
-            </div>
-        </div>
-        <!-- End Card -->
+      <ul class="at-kisayol">
+        <li><kbd>F2</kbd> Kırtasiye kasası</li>
+        <li><kbd>F8</kbd> Kahve kasası</li>
+        <li><kbd>F4</kbd> Müşteri listesi</li>
+      </ul>
     </div>
+
+    <p class="at-kucuk" style="margin:0">
+      Müşteri misiniz? <a href="/" style="color:var(--cini-acik)">Ana sayfaya dönün</a>
+    </p>
+  </div>
+
+  <div class="at-giris__sag">
+    <div class="at-giris__kart">
+      <h2 class="at-h1">Giriş yap</h2>
+      <p class="at-kucuk" style="margin-top:6px">Kullanıcı adınız ve şifrenizle.</p>
+
+      {% if hata %}
+        <div class="at-hata" style="margin-top:var(--b3)" role="alert">
+          <span aria-hidden="true">!</span>
+          <span>{{ hata }}</span>
+        </div>
+      {% endif %}
+
+      <form method="POST" style="margin-top:var(--b3)" novalidate>
+        {% csrf_token %}
+
+        <label class="at-etiket" for="username">Kullanıcı adı</label>
+        <input class="at-alan" id="username" name="username" type="text"
+               autocomplete="username" autocapitalize="none" spellcheck="false"
+               value="{{ girilen_kullanici|default:'' }}"
+               style="margin:var(--b1) 0 var(--b3)" autofocus required>
+
+        <label class="at-etiket" for="password">Şifre</label>
+        <input class="at-alan" id="password" name="password" type="password"
+               autocomplete="current-password"
+               style="margin:var(--b1) 0 var(--b4)" required>
+
+        <button class="at-btn at-btn--ana at-btn--genis" type="submit">Giriş yap</button>
+      </form>
+    </div>
+  </div>
+
 </div>
-
-<!-- Footer -->
-<footer class="footer style--two">
-    <p>www.atlaskirtasiyemsepet.net © 2023 - Melih ÖZKAŞ</p>
-    <ul class="footer-links">
-        <li><a href="https://masaloku.com.tr/" target="_blank" rel="dofollow">Masal Oku</a></li>
-        <li><a href="https://www.enguzelsiirler.com/" target="_blank" rel="dofollow">En Güzel Şiirler</a></li>
-        <li><a href="https://www.cocukmasallarioku.com/masal-oku/" target="_blank" rel="dofollow">Masal Oku</a></li>
-        <li><a href="https://www.yuksekteknoloji.com/" target="_blank" rel="dofollow">Teknoloji Haberleri</a></li>
-        <li><a href="https://www.erkekbebekisimleri.net" target="_blank" rel="dofollow">Bebek İsimleri</a></li>
-    </ul>
-</footer>
-
-<!-- End Footer -->
-
-<!-- ======= BEGIN GLOBAL MANDATORY SCRIPTS ======= -->
-<script src="{% static 'assetsPanel/js/jquery.min.js' %}"></script>
-<script src="{% static 'assetsPanel/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'assetsPanel/plugins/perfect-scrollbar/perfect-scrollbar.min.js' %}"></script>
-<script src="{% static 'assetsPanel/js/script.js' %}"></script>
-<!-- ======= BEGIN GLOBAL MANDATORY SCRIPTS ======= -->
-</body>
-
-</html>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% load static %}<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block baslik %}Atlas Kırtasiye{% endblock %}</title>
+<meta name="theme-color" content="#12151A">
+<meta name="description" content="{% block aciklama %}Atlas Kırtasiye — okul ve ofis malzemeleri, Atlas Kahve.{% endblock %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{% static 'stok/atlas.css' %}">
+{% block ek_stil %}{% endblock %}
+</head>
+<body class="at">
+
+{% block icerik %}{% endblock %}
+
+{% block ek_script %}{% endblock %}
+</body>
+</html>

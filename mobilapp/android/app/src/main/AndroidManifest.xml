@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter sablonu bu izni sadece debug/profile manifest'lerine koyuyor;
+         release derlemesi onlari kullanmadigi icin internete cikamiyordu. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="mobilapp"
+        android:label="Atlas Coffee"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

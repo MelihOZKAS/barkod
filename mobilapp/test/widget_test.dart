@@ -24,12 +24,27 @@ void main() {
     expect(find.byType(AnaEkran), findsOneWidget);
   });
 
-  testWidgets('Cam alt bar kategorileri ve Kartim dugmesini gosterir', (tester) async {
+  testWidgets('Alt bar iki sekme, kategoriler menunun ustunde', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AnaEkran()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tümü'), findsOneWidget);
+    // Alt bar sadece iki sekme
+    expect(find.text('Menü'), findsOneWidget);
     expect(find.text('Kartım'), findsOneWidget);
+
+    // Kategori seridi urun ekraninin ustunde
+    expect(find.text('Tümü'), findsOneWidget);
+    expect(find.text('Bugün ne içiyoruz?'), findsOneWidget);
+
+    // Kategori secince baslik degisir, sekme Menu'de kalir
+    final kategori = DemoVeri.menu.first.kategori;
+    await tester.tap(find.text(kategori));
+    await tester.pumpAndSettle();
+    expect(find.text(kategori), findsWidgets);
+    expect(find.text('Bugün ne içiyoruz?'), findsNothing);
+
+    await tester.tap(find.text('Tümü'));
+    await tester.pumpAndSettle();
     expect(find.text('Bugün ne içiyoruz?'), findsOneWidget);
 
     await tester.tap(find.text('Kartım'));

@@ -4,4 +4,8 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Sadece debug: "adb reverse" ile bilgisayardaki http://localhost sunucusuna
+         baglanip test edebilmek icin. Release manifest'inde YOK, canliya sizmaz. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

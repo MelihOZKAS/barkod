@@ -14,8 +14,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Bu iki satir Python paket derlemesi icin; basina "/" konmazsa
+# mobilapp/lib/ (Flutter kaynak kodunun tamami) da gormezden geliniyordu.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -168,3 +170,7 @@ cython_debug/
 
 # macOS
 .DS_Store
+
+# Yerel gelistirme veritabani - repoya girmez
+yerel.sqlite3
+*.sqlite3

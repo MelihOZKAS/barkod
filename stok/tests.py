@@ -505,6 +505,17 @@ class KasaRaporuTesti(TestCase):
         self.assertEqual(kasaya, Decimal("240"))
         self.assertEqual(ozet["toplam"]["ciro"] - kasaya, ozet["toplam"]["borc"])
 
+    def test_tezgah_dokumu_ayri_ayri_gosterilir(self):
+        """Iki tezgah ayri isliyor; nakit/kart/borc kirilimi de ayri gorunmeli."""
+        cevap = self.client.get(reverse("kasa-raporu"), {"donem": "gun"})
+        govde = cevap.content.decode()
+
+        self.assertContains(cevap, "Tezgâh dökümü")
+        # kirtasiye 100 nakit + 60 kart, kahve 80 nakit
+        for beklenen in ("Kırtasiye", "Kahve", "Borca yazılan", "Satış adedi"):
+            with self.subTest(beklenen=beklenen):
+                self.assertIn(beklenen, govde)
+
     def test_rapor_sayfasi_acilir(self):
         for donem in ("gun", "ay", "yil"):
             with self.subTest(donem=donem):

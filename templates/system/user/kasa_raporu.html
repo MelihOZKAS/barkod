@@ -44,6 +44,11 @@
   /* Odeme turu bir "durum" degil; kart icin notr rozet. */
   .at-rozet--notr { background:rgba(139,149,163,.16); color:#B6BFCB; border:1px solid rgba(139,149,163,.32); }
 
+  .at-tablo--dokum td:first-child { color: rgba(242,241,238,.62); }
+  .at-tablo--dokum .vurgu { font-weight: 700; font-size: 1rem; }
+  .at-tablo--dokum .borc { color: #E8A48F; }
+  .at-tablo--dokum tbody tr:last-child td { color: rgba(242,241,238,.5); }
+
   .at-ikili { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:var(--b3); }
 </style>
 {% endblock %}
@@ -122,11 +127,58 @@
         <p class="at-olcum__deger">{{ ozet.toplam.borc|floatformat:0|intcomma }} ₺</p>
         <p class="at-olcum__alt">Tahsil edilmedi</p>
       </div>
-      <div class="at-olcum">
-        <span class="at-etiket">Kırtasiye · Kahve</span>
-        <p class="at-olcum__deger">{{ ozet.kirtasiye.ciro|floatformat:0|intcomma }} · {{ ozet.kahve.ciro|floatformat:0|intcomma }} ₺</p>
-        <p class="at-olcum__alt">{{ ozet.kirtasiye.satis }} · {{ ozet.kahve.satis }} satış</p>
+    </div>
+
+    <!-- Tezgah dokumu: iki tezgah ayri isliyor, parasi da ayri gorunsun -->
+    <div class="at-yuzey" style="padding:var(--b3);margin-bottom:var(--b3)">
+      <h2 class="at-h2" style="margin-bottom:var(--b3)">Tezgâh dökümü</h2>
+      <div class="at-sarma">
+        <table class="at-tablo at-tablo--dokum">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="sag"><span class="at-nokta" style="background:var(--cini-acik)"></span>Kırtasiye</th>
+              <th class="sag"><span class="at-nokta" style="background:var(--amber)"></span>Kahve</th>
+              <th class="sag">Toplam</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Ciro</td>
+              <td class="sag vurgu">{{ ozet.kirtasiye.ciro|floatformat:0|intcomma }} ₺</td>
+              <td class="sag vurgu">{{ ozet.kahve.ciro|floatformat:0|intcomma }} ₺</td>
+              <td class="sag vurgu">{{ ozet.toplam.ciro|floatformat:0|intcomma }} ₺</td>
+            </tr>
+            <tr>
+              <td>Nakit</td>
+              <td class="sag">{{ ozet.kirtasiye.nakit|floatformat:0|intcomma }} ₺</td>
+              <td class="sag">{{ ozet.kahve.nakit|floatformat:0|intcomma }} ₺</td>
+              <td class="sag">{{ ozet.toplam.nakit|floatformat:0|intcomma }} ₺</td>
+            </tr>
+            <tr>
+              <td>Kredi kartı</td>
+              <td class="sag">{{ ozet.kirtasiye.kart|floatformat:0|intcomma }} ₺</td>
+              <td class="sag">{{ ozet.kahve.kart|floatformat:0|intcomma }} ₺</td>
+              <td class="sag">{{ ozet.toplam.kart|floatformat:0|intcomma }} ₺</td>
+            </tr>
+            <tr>
+              <td>Borca yazılan</td>
+              <td class="sag borc">{{ ozet.kirtasiye.borc|floatformat:0|intcomma }} ₺</td>
+              <td class="sag borc">{{ ozet.kahve.borc|floatformat:0|intcomma }} ₺</td>
+              <td class="sag borc">{{ ozet.toplam.borc|floatformat:0|intcomma }} ₺</td>
+            </tr>
+            <tr>
+              <td>Satış adedi</td>
+              <td class="sag">{{ ozet.kirtasiye.satis }}</td>
+              <td class="sag">{{ ozet.kahve.satis }}</td>
+              <td class="sag">{{ ozet.toplam.satis }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+      <p class="at-kucuk" style="margin-top:var(--b2)">
+        Nakit + kredi kartı kasaya giren paradır; borca yazılan ciroya dahildir ama tahsil edilmemiştir.
+      </p>
     </div>
 
     <!-- Gun gun ciro -->

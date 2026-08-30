@@ -40,12 +40,7 @@
 
 {% block icerik %}{% endblock %}
 
-<footer class="kh-bolum--dar" style="border-top:1px solid rgba(242,241,238,.08);margin-top:var(--b5)">
-  <div class="kh-kabuk kh-kucuk" style="display:flex;justify-content:space-between;gap:var(--b2);flex-wrap:wrap">
-    <span>{{ ayar.isletme_adi }}</span>
-    <span class="kh-veri">{{ ayar.hediye_icin_kahve }} kahve · {{ ayar.gecerlilik_gun }} gün</span>
-  </div>
-</footer>
+{% block alt_bilgi %}{% include 'parcali/site_footer.html' %}{% endblock %}
 
 <div class="kh-bildirim" id="khBildirim" role="status" aria-live="polite"></div>
 <script>

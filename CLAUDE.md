@@ -124,10 +124,17 @@ template'ler `templates/system/user/` altında.
 | `/giris-yap/` | Personel girişi | Atlas (yeni) |
 | `/panel/` | Gösterge paneli — açık borç, bugünün özeti, listeler | Atlas (yeni) |
 | `/modern-urun-ara/` | Kırtasiye kasası | eski Bootstrap teması |
-| `/musteri-listesi/`, `/bakiye/...`, `/urun-ara*` | diğer ekranlar | eski Bootstrap teması |
+| `/musteri-listesi/` | Müşteriler — arama, borca/isme göre sıralama, toplam borç | Atlas (yeni) |
+| `/bakiye/...`, `/urun-ara*` | diğer ekranlar | eski Bootstrap teması |
 | `/fiyat-monitor/` | Halka açık fiyat sorgulama (login yok) | kendi tasarımı |
 
-**Tasarım geçişi yarım:** `/`, `/giris-yap/` ve `/panel/` yeni **Atlas** tasarım
+**Ortak footer:** `templates/parcali/site_footer.html` — hem Atlas hem kahve
+sayfalarında. İçinde SEO backlink'leri var (cocukmasallarioku, enguzelsiirler,
+erkekbebekisimleri, yuksekteknoloji, masaloku); eski footer'dan taşındı, silme.
+Uygulama ekranlarında (panel, giriş, kasa) `{% block alt_bilgi %}{% endblock %}`
+ile kapatılıyor.
+
+**Tasarım geçişi yarım:** `/`, `/giris-yap/`, `/panel/` ve `/musteri-listesi/` yeni **Atlas** tasarım
 sistemine geçti (`stok/static/stok/atlas.css`, `.at` sınıfı altında kapsanmış,
 `templates/system/user/atlas_base.html`'i genişletir). Kalan sayfalar hâlâ eski
 `userBase.html` + Bootstrap temasında. Sıradaki adım onları taşımak.

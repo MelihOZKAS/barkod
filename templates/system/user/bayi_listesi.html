@@ -1,141 +1,185 @@
-{% extends 'system/user/userBase.html' %}
-{% load static %}
+{% extends 'system/user/atlas_base.html' %}
 
+{% block baslik %}Müşteriler — Atlas Kırtasiye{% endblock %}
+{% block alt_bilgi %}{% endblock %}
 
+{% block ek_stil %}
+<style>
+  .at-tablo { width: 100%; border-collapse: collapse; }
+  .at-tablo th {
+    text-align: left; padding: 0 var(--b2) 10px 0;
+    font-family: var(--f-veri); font-size: .6875rem; letter-spacing: .12em;
+    text-transform: uppercase; color: rgba(242,241,238,.4); font-weight: 500;
+    border-bottom: 1px solid rgba(242,241,238,.1); white-space: nowrap;
+  }
+  .at-tablo td { padding: 13px var(--b2) 13px 0; border-bottom: 1px solid rgba(242,241,238,.06); }
+  .at-tablo tr:last-child td { border-bottom: 0; }
+  .at-tablo tr:hover td { background: rgba(242,241,238,.02); }
+  .at-tablo__ad { font-weight: 600; font-size: .9375rem; }
+  .at-tablo__sayi { font-family: var(--f-veri); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .at-tablo__islem { text-align: right; white-space: nowrap; }
+  .at-mini {
+    display: inline-flex; align-items: center; padding: 6px 12px; margin-left: 6px;
+    border-radius: var(--r-tam); font-size: .8125rem; font-weight: 600;
+    text-decoration: none; border: 1px solid rgba(242,241,238,.16);
+    color: rgba(242,241,238,.7); background: transparent; cursor: pointer;
+    transition: border-color var(--gecis), color var(--gecis);
+  }
+  .at-mini:hover { border-color: var(--cini-acik); color: var(--kagit); }
+  .at-borc { color: var(--amber-acik); }
+  .at-borc--yok { color: rgba(242,241,238,.32); }
+  .at-arac { display: flex; gap: var(--b2); flex-wrap: wrap; align-items: center; margin-bottom: var(--b3); }
+  .at-arac form { display: flex; gap: var(--b1); flex: 1; min-width: 260px; }
+  .at-sekme { display: flex; gap: 6px; }
+  .at-sekme a {
+    padding: 9px 14px; border-radius: var(--r-tam); font-size: .8125rem; font-weight: 600;
+    text-decoration: none; color: rgba(242,241,238,.6); background: rgba(242,241,238,.05);
+    transition: background var(--gecis), color var(--gecis);
+  }
+  .at-sekme a:hover { color: var(--kagit); }
+  .at-sekme a[aria-current="true"] { background: var(--cini-acik); color: #0C1417; }
+  .at-katla { border: 1px solid rgba(242,241,238,.1); border-radius: var(--r-m); overflow: hidden; }
+  .at-katla > summary {
+    padding: 14px var(--b3); cursor: pointer; font-weight: 600; font-size: .9375rem;
+    list-style: none; display: flex; align-items: center; gap: var(--b1);
+  }
+  .at-katla > summary::-webkit-details-marker { display: none; }
+  .at-katla[open] > summary { border-bottom: 1px solid rgba(242,241,238,.1); }
+  .at-form-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--b2); padding: var(--b3); }
+  @media (max-width: 720px) { .at-gizle-mobil { display: none; } }
+</style>
+{% endblock %}
 
+{% block icerik %}
 
+<header class="at-ust">
+  <div class="at-kabuk at-ust__ic">
+    <a class="at-marka" href="{% url 'panel' %}">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
+    <nav class="at-nav">
+      <a href="{% url 'panel' %}">Panel</a>
+      <a href="{% url 'modern-urun-ara' %}">Kırtasiye kasası<kbd class="at-tus">F2</kbd></a>
+      <a href="{% url 'kahve:kasa' %}">Kahve kasası<kbd class="at-tus">F8</kbd></a>
+      <a href="/admin/">Yönetim</a>
+      <a href="{% url 'cikis-yap' %}">Çıkış</a>
+    </nav>
+  </div>
+</header>
 
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
 
-{% block userContent %}
-
-        <script>
-            document.addEventListener('keydown', function (event) {
-                /*if (event.key === 'F2') {
-                    // F1 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/sepeti-sifirla/';
-                } else if (event.key === 'F3') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/urun-ara/'; }*/
-                if (event.key === 'F4') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/musteri-ekle/';
-                } else if (event.key === 'F2') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/modern-urun-ara/';
-                } else if (event.key === 'F3') {
-                    // F2 tuşuna basıldığında, belirtilen URL'ye bir istek gönder
-                    window.location.href = '/modern-sepeti-sifirla/';
-                }
-            });
-        </script>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="container-fluid">
-
-            <!-- AnaKategoriler -->
-            <div class="row">
-                <div class="col-lg-12" style="margin-top: 8px;">
-                    <form action="{% url 'musteri-ekle' %}" method="POST">
-                        {% csrf_token %}
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="isim_soyisim">İsim Soyisim:</label>
-                                    <input type="text" name="isim_soyisim" id="isim_soyisim" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="Cep_Telefonu">Cep Telefonu:</label>
-                                    <input type="text" name="Cep_Telefonu" id="Cep_Telefonu" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="borc">Borç:</label>
-                                    <input type="text" name="borc" id="borc" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="aciklama">Açıklama:</label>
-                                    <textarea name="aciklama" id="aciklama" class="form-control"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn s_alert bg-success text-white mr-3 mr-sm-4 mb-10"
-                                id="submit">Müşteri Ekle
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-
-            <div class="row">
-
-                <div class="col-12">
-                    <div class="card mb-30">
-                        <div class="card-body pt-30">
-                            <h4 class="font-20 ">Müşteri Listesi</h4>
-                        </div>
-                        <div class="table-responsive">
-                            <!-- Invoice List Table -->
-                            <table class="text-nowrap hoverable dh-table">
-                                <thead>
-                                <tr>
-                                    <th>ISIM SOYISIM</th>
-                                    <th>Cep Telefonu</th>
-                                    <th>Borcu</th>
-                                    <th>Açıklama</th>
-                                    <th>Tarih</th>
-                                    <th>Bakiye işlemleri</th>
-                                    <th>Bakiye Hareketleri</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for Musteri in Musteri_Listesi %}
-                                    <tr>
-                                        <td>{{ Musteri.isim_soyisim }}</td>
-                                        <td>{{ Musteri.Cep_Telefonu }}</td>
-                                        <td>{{ Musteri.borc }}</td>
-                                        <td>{{ Musteri.aciklama }}</td>
-                                        <td>{{ Musteri.Ekleme_Tarih }}</td>
-                                        <td>
-                                            <form action="{% url 'bakiye' Musteri.id %}" method="POST">
-                                                {% csrf_token %}
-                                                <button type="submit" class="details-btn">Bakiye Düzenle<i
-                                                        class="icofont-arrow-right"></i></button>
-                                            </form>
-                                        </td>
-
-                                        <td>
-                                            <form action="{% url 'bakiye-hareketi' Musteri.id %}" method="POST">
-                                                {% csrf_token %}
-                                                <button type="submit" class="details-btn">Bakiye Hareketleri<i
-                                                        class="icofont-arrow-right"></i></button>
-                                            </form>
-                                        </td>
-
-
-                                    </tr>
-
-                                {% endfor %}
-
-
-                                </tbody>
-                            </table>
-                            <!-- End Invoice List Table -->
-                        </div>
-                    </div>
-                </div>
-
-
-            </div>
-        </div>
+    <div class="at-bolum__baslik" style="margin-bottom:var(--b3)">
+      <div>
+        <p class="at-etiket">Müşteriler</p>
+        <h1 class="at-h1" style="margin-top:6px">
+          {{ musteri_sayisi }} müşteri
+        </h1>
+      </div>
+      <div style="text-align:right">
+        <div class="at-kutu__deger at-borc">{{ toplam_borc|floatformat:0 }} ₺</div>
+        <div class="at-kucuk">{{ borclu_sayisi }} müşteride açık borç</div>
+      </div>
     </div>
-    <!-- End Main Content -->
 
+    <!-- arama + siralama -->
+    <div class="at-arac">
+      <form method="GET" role="search">
+        <input class="at-alan" type="search" name="q" value="{{ arama }}"
+               placeholder="İsim veya telefon ara" aria-label="Müşteri ara">
+        <input type="hidden" name="sirala" value="{{ sirala }}">
+        <button class="at-btn at-btn--cizgi" type="submit">Ara</button>
+        {% if arama %}<a class="at-btn at-btn--cizgi" href="{% url 'musteri-listesi' %}">Temizle</a>{% endif %}
+      </form>
+      <div class="at-sekme">
+        <a href="?sirala=borc{% if arama %}&q={{ arama }}{% endif %}" {% if sirala == 'borc' %}aria-current="true"{% endif %}>Borca göre</a>
+        <a href="?sirala=ad{% if arama %}&q={{ arama }}{% endif %}" {% if sirala == 'ad' %}aria-current="true"{% endif %}>İsme göre</a>
+        <a href="?sirala=yeni{% if arama %}&q={{ arama }}{% endif %}" {% if sirala == 'yeni' %}aria-current="true"{% endif %}>Yeni eklenen</a>
+      </div>
+    </div>
 
+    <!-- yeni müşteri -->
+    <details class="at-katla" style="margin-bottom:var(--b3)">
+      <summary>+ Yeni müşteri ekle</summary>
+      <form action="{% url 'musteri-ekle' %}" method="POST">
+        {% csrf_token %}
+        <div class="at-form-izgara">
+          <div>
+            <label class="at-etiket" for="isim_soyisim">İsim soyisim</label>
+            <input class="at-alan" id="isim_soyisim" name="isim_soyisim" style="margin-top:6px" required>
+          </div>
+          <div>
+            <label class="at-etiket" for="Cep_Telefonu">Cep telefonu</label>
+            <input class="at-alan" id="Cep_Telefonu" name="Cep_Telefonu" inputmode="numeric" style="margin-top:6px">
+          </div>
+          <div>
+            <label class="at-etiket" for="borc">Açılış borcu</label>
+            <input class="at-alan" id="borc" name="borc" value="0" inputmode="decimal" style="margin-top:6px">
+          </div>
+          <div>
+            <label class="at-etiket" for="aciklama">Açıklama</label>
+            <input class="at-alan" id="aciklama" name="aciklama" style="margin-top:6px">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="at-btn at-btn--ana at-btn--genis" type="submit">Ekle</button>
+          </div>
+        </div>
+      </form>
+    </details>
 
-{% endblock userContent %}
+    <!-- liste -->
+    <div class="at-kutu" style="padding:var(--b3)">
+      {% if musteriler %}
+        <table class="at-tablo">
+          <thead>
+            <tr>
+              <th>Müşteri</th>
+              <th class="at-gizle-mobil">Telefon</th>
+              <th class="at-tablo__sayi">Borç</th>
+              <th class="at-gizle-mobil">Açıklama</th>
+              <th class="at-tablo__islem">İşlem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in musteriler %}
+              <tr>
+                <td>
+                  <div class="at-tablo__ad">{{ m.isim_soyisim }}</div>
+                  <div class="at-kucuk at-veri">{{ m.Ekleme_Tarih|date:"j M Y" }}</div>
+                </td>
+                <td class="at-gizle-mobil at-veri" style="font-size:.875rem;color:rgba(242,241,238,.6)">
+                  {{ m.Cep_Telefonu|default:"—" }}
+                </td>
+                <td class="at-tablo__sayi {% if m.borc > 0 %}at-borc{% else %}at-borc--yok{% endif %}">
+                  {{ m.borc|floatformat:0 }} ₺
+                </td>
+                <td class="at-gizle-mobil at-kucuk">{{ m.aciklama|default:""|truncatechars:40 }}</td>
+                <td class="at-tablo__islem">
+                  <a class="at-mini" href="{% url 'bakiye' m.id %}">Bakiye</a>
+                  <a class="at-mini" href="{% url 'bakiye-hareketi' m.id %}">Hareketler</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif arama %}
+        <p class="at-bos-durum">"{{ arama }}" için müşteri bulunamadı.</p>
+      {% else %}
+        <p class="at-bos-durum">Henüz müşteri yok. Yukarıdan ekleyebilirsin.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block ek_script %}
+<script>
+  document.addEventListener('keydown', function (olay) {
+    if (olay.key === 'F2') { olay.preventDefault(); window.location.href = '{% url "modern-urun-ara" %}'; }
+    else if (olay.key === 'F8') { olay.preventDefault(); window.location.href = '{% url "kahve:kasa" %}'; }
+  });
+</script>
+{% endblock %}

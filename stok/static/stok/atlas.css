@@ -152,6 +152,7 @@
 .at-tezgah {
   position: relative; display: flex; flex-direction: column;
   padding: var(--b4); border-radius: var(--r-l); overflow: hidden;
+  /* fotograf varsa ustten dolgu olmaz, .at-tezgah kuralinda sifirlaniyor */
   background: var(--murekkep-2); border: 1px solid rgba(242, 241, 238, .08);
   text-decoration: none; color: inherit;
   transition: transform var(--gecis), border-color var(--gecis), box-shadow var(--gecis);
@@ -302,3 +303,31 @@
 .at-kahve__govde { display: flex; align-items: baseline; justify-content: space-between; gap: var(--b1); padding: 12px var(--b2) var(--b2); }
 .at-kahve__ad { font-weight: 600; font-size: .9375rem; }
 .at-kahve__fiyat { font-family: var(--f-veri); font-size: .8125rem; color: var(--amber); white-space: nowrap; }
+
+/* --- ana sayfa hero: tam genislik fotograf + okunabilirlik perdesi -------- */
+.at-hero-alan { position: relative; overflow: hidden; }
+.at-hero-alan__foto {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+}
+.at-hero-alan__perde {
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg,
+    rgba(18,21,26,.96) 0%, rgba(18,21,26,.90) 38%, rgba(18,21,26,.55) 68%, rgba(18,21,26,.35) 100%);
+}
+.at-hero-alan__ic { position: relative; padding: var(--b7) 0 var(--b6); }
+
+/* tezgah kartlarinda kare fotograf */
+.at-tezgah { padding-top: 0; overflow: hidden; }
+.at-tezgah__foto {
+  width: calc(100% + var(--b4) * 2); margin: 0 calc(var(--b4) * -1) var(--b3);
+  aspect-ratio: 16 / 7; object-fit: cover; display: block;
+}
+.at-tezgah > .at-tezgah__no { margin-top: 0; }
+
+@media (max-width: 760px) {
+  .at-hero-alan__ic { padding: var(--b6) 0 var(--b5); }
+  .at-hero-alan__perde {
+    background: linear-gradient(180deg, rgba(18,21,26,.78) 0%, rgba(18,21,26,.94) 55%, var(--murekkep) 100%);
+  }
+}

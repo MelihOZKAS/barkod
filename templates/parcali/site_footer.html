@@ -1,0 +1,67 @@
+{% comment %}
+  Tum halka acik sayfalarin ortak alt bilgisi (Atlas + Kahve).
+  Kendi stilini tasir, iki tasarim sisteminden de bagimsizdir; ikisi de koyu
+  zeminli oldugu icin ayni footer her ikisinde de dogru gorunur.
+{% endcomment %}
+<style>
+  .sf { border-top: 1px solid rgba(242,241,238,.08); margin-top: 64px; padding: 48px 0 28px;
+        font-family: 'Instrument Sans', system-ui, sans-serif; color: rgba(242,241,238,.62); }
+  .sf__kabuk { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  .sf__ust { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 32px; }
+  .sf__ad { font-family: 'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;
+            font-weight: 700; font-size: 1.05rem; letter-spacing: -.02em; color: #F2F1EE; }
+  .sf__slogan { margin: 12px 0 0; font-size: .875rem; line-height: 1.6; max-width: 36ch; }
+  .sf__baslik { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .6875rem;
+                letter-spacing: .16em; text-transform: uppercase; color: rgba(242,241,238,.4);
+                margin: 0 0 14px; }
+  .sf__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+  .sf__liste a, .sf__telif a { color: rgba(242,241,238,.62); text-decoration: none;
+                               font-size: .875rem; transition: color 200ms; }
+  .sf__liste a:hover, .sf__telif a:hover { color: #F2F1EE; }
+  .sf__telif { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+               margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(242,241,238,.06);
+               font-size: .8125rem; color: rgba(242,241,238,.38); }
+  @media (max-width: 760px) { .sf__ust { grid-template-columns: 1fr; gap: 28px; } }
+</style>
+
+<footer class="sf">
+  <div class="sf__kabuk">
+    <div class="sf__ust">
+
+      <div>
+        <div class="sf__ad">Atlas Kırtasiye</div>
+        <p class="sf__slogan">
+          Okul ve ofis malzemeleri, taze demlenmiş kahve. Aynı kapıdan giriliyor.
+        </p>
+      </div>
+
+      <div>
+        <p class="sf__baslik">Atlas</p>
+        <ul class="sf__liste">
+          <li><a href="/">Ana sayfa</a></li>
+          <li><a href="{% url 'kahve:menu' %}">Kahve menüsü</a></li>
+          <li><a href="{% url 'fiyat-monitor' %}">Fiyat sorgula</a></li>
+          <li><a href="{% url 'giris-yap' %}">Personel girişi</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="sf__baslik">Diğer sitelerimiz</p>
+        <ul class="sf__liste">
+          <li><a href="https://www.cocukmasallarioku.com/" target="_blank" rel="noopener">Çocuk Masalı Oku</a></li>
+          <li><a href="https://www.cocukmasallarioku.com/masal-oku/" target="_blank" rel="noopener">Masal Oku</a></li>
+          <li><a href="https://www.enguzelsiirler.com/" target="_blank" rel="noopener">En Güzel Şiirler</a></li>
+          <li><a href="https://www.erkekbebekisimleri.net" target="_blank" rel="noopener">Bebek İsimleri</a></li>
+          <li><a href="https://www.yuksekteknoloji.com/" target="_blank" rel="noopener">Teknoloji Haberleri</a></li>
+          <li><a href="https://masaloku.com.tr/" target="_blank" rel="noopener">Masal Oku</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="sf__telif">
+      <span>© {% now "Y" %} Atlas Kırtasiye — Melih Özkaş</span>
+      <a href="https://www.atlaskirtasiyemsepet.net/">Kaliteli Kırtasiye Malzemeleri</a>
+    </div>
+  </div>
+</footer>

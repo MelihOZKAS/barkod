@@ -3,7 +3,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from .models import Stok,SepetUrun,Musteri,BorcHareketi,Liste_Grup,UrunGruplari
 from django.contrib.auth.models import auth
 from django.contrib.auth.decorators import login_required
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.utils import timezone
 from datetime import timedelta
 import random
@@ -316,16 +316,34 @@ def urun_ara_yeni_iki(request):
 
 @login_required(login_url='giris-yap')
 def Bayi_Listesi(request):
-    Musteri_Listesi = Musteri.objects.all()
-    first_name = request.user.first_name
-    last_name = request.user.last_name
-    email = request.user.email
+    """Musteri listesi: arama, siralama ve toplam borc."""
+    arama = (request.GET.get("q") or "").strip()
+    sirala = request.GET.get("sirala") or "borc"
 
-    context = {'name': f"{first_name} {last_name}",
-               'email':email,
-               'Musteri_Listesi':Musteri_Listesi,
-               }
-    return render(request, 'system/user/bayi_listesi.html',context)
+    musteriler = Musteri.objects.all()
+    if arama:
+        musteriler = musteriler.filter(
+            Q(isim_soyisim__icontains=arama) | Q(Cep_Telefonu__icontains=arama)
+        )
+
+    siralamalar = {
+        "borc": "-borc",
+        "ad": "isim_soyisim",
+        "yeni": "-Ekleme_Tarih",
+    }
+    musteriler = musteriler.order_by(siralamalar.get(sirala, "-borc"))
+
+    # Toplamlar aramadan bagimsiz: dukkanin genel durumu
+    borclu = Musteri.objects.filter(borc__gt=0)
+
+    return render(request, "system/user/bayi_listesi.html", {
+        "musteriler": musteriler,
+        "arama": arama,
+        "sirala": sirala,
+        "toplam_borc": borclu.aggregate(t=Sum("borc"))["t"] or 0,
+        "borclu_sayisi": borclu.count(),
+        "musteri_sayisi": Musteri.objects.count(),
+    })
 
 
 def sepete_ekle(request):

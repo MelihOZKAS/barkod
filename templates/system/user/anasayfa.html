@@ -1,4 +1,5 @@
 {% extends 'system/user/atlas_base.html' %}
+{% load static %}
 
 {% block baslik %}Atlas Kırtasiye{% endblock %}
 {% block aciklama %}Okul ve ofis malzemeleri, taze kahve. Barkodunu okut, fiyatı anında gör.{% endblock %}
@@ -18,13 +19,15 @@
   </div>
 </header>
 
-<section class="at-bolum" style="padding-bottom:var(--b2)">
-  <div class="at-kabuk">
+<section class="at-hero-alan">
+  <img class="at-hero-alan__foto" src="{% static 'stok/gorseller/hero.jpg' %}" alt="" aria-hidden="true">
+  <div class="at-hero-alan__perde" aria-hidden="true"></div>
+  <div class="at-kabuk at-hero-alan__ic">
     <p class="at-etiket">Atlas Kırtasiye</p>
     <h1 class="at-hero" style="margin-top:var(--b2);max-width:15ch">
       Tek dükkân,<br>iki tezgâh.
     </h1>
-    <p class="at-metin" style="margin-top:var(--b3);max-width:50ch;font-size:1.0625rem">
+    <p class="at-metin" style="margin-top:var(--b3);max-width:48ch;font-size:1.0625rem">
       Bir tarafta okul ve ofis malzemeleri, diğer tarafta taze demlenmiş kahve.
       Aynı kapıdan giriliyor.
     </p>
@@ -36,6 +39,7 @@
     <div class="at-tezgahlar">
 
       <div class="at-tezgah at-tezgah--kirtasiye">
+        <img class="at-tezgah__foto" src="{% static 'stok/gorseller/kirtasiye.jpg' %}" alt="Kırtasiye rafları" loading="lazy">
         <span class="at-tezgah__no">01 — TEZGÂH</span>
         <h2 class="at-tezgah__ad">Kırtasiye</h2>
         <p class="at-metin" style="font-size:.9375rem">
@@ -50,6 +54,7 @@
       </div>
 
       <div class="at-tezgah at-tezgah--kahve">
+        <img class="at-tezgah__foto" src="{% static 'stok/gorseller/kahve.jpg' %}" alt="Latte" loading="lazy">
         <span class="at-tezgah__no">02 — TEZGÂH</span>
         <h2 class="at-tezgah__ad">Atlas Kahve</h2>
         <p class="at-metin" style="font-size:.9375rem">

@@ -170,10 +170,14 @@
                         <h2 class="text-3xl font-bold text-gray-800">
                             GENEL TOPLAM: <span class="text-emerald-600 text-4xl">{{ total }} TL</span>
                         </h2>
+                        <button onclick="satisTamamlaPopup()" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition hover:shadow-xl hover:-translate-y-0.5">
+                            ✅ Satışı Tamamla
+                        </button>
                         <button onclick="borcaAktarPopup()" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition hover:shadow-xl hover:-translate-y-0.5">
                             💳 Borça Aktar
                         </button>
                     </div>
+                    {{ sepet_json|json_script:"sepet-verisi" }}
                 {% else %}
                     <h2 class="text-3xl font-bold text-center text-gray-500">Sepette Hiç Ürün Yok</h2>
                 {% endif %}
@@ -355,18 +359,153 @@
     }
 
     // ============ BORÇA AKTAR ============
+    // Sepet verisi json_script ile geliyor: urun adlari kullanici girdisi,
+    // sablona duz gomulmemeli.
     var sepetToplam = '{{ total|default:"0" }}';
+    var sepetSatirlari = JSON.parse(document.getElementById('sepet-verisi').textContent);
+
+    var bA = {   // modal icin kucuk stil sozlugu
+      kutu:   'border:1px solid #e5e7eb;border-radius:12px;background:#fff;',
+      baslik: 'font-size:11px;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:6px;',
+      girdi:  'width:100%;padding:10px 13px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;',
+    };
+
+    // ============ SATIŞI TAMAMLA ============
+    // Onceden sepet sadece siliniyordu; ne kadar nakit ne kadar kart girdigi
+    // hicbir yere yazilmiyordu. Kasa raporu bu kayda dayaniyor.
+    var satisOdemeTuru = 'nakit';
+
+    function satisTamamlaPopup() {
+        satisOdemeTuru = 'nakit';
+        Swal.fire({
+            title: 'Satışı tamamla',
+            html: '<div id="satis-icerik" style="text-align:left;"></div>',
+            showCancelButton: true,
+            confirmButtonText: 'Satışı bitir',
+            cancelButtonText: 'Vazgeç',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#6b7280',
+            width: '460px',
+            didOpen: satisIcerikOlustur,
+            preConfirm: function () {
+                if (satisOdemeTuru !== 'parcali') return { odeme_turu: satisOdemeTuru };
+                var nakit = parseFloat(document.getElementById('satis-nakit').value) || 0;
+                var kart = parseFloat(document.getElementById('satis-kart').value) || 0;
+                if (Math.abs(nakit + kart - parseFloat(sepetToplam)) > 0.009) {
+                    Swal.showValidationMessage('Nakit + kart toplamı ' + sepetToplam + ' TL olmalı.');
+                    return false;
+                }
+                return { odeme_turu: 'parcali', nakit: nakit.toFixed(2), kart: kart.toFixed(2) };
+            }
+        }).then(function (sonuc) {
+            if (sonuc.isConfirmed) satisGonder(sonuc.value);
+        });
+    }
+
+    function satisIcerikOlustur() {
+        var container = document.getElementById('satis-icerik');
+        container.textContent = '';
+
+        var ozetKutu = document.createElement('div');
+        ozetKutu.style.cssText = bA.kutu + 'padding:14px;background:#f8fafc;margin-bottom:14px;text-align:center;';
+        var tut = document.createElement('div');
+        tut.style.cssText = 'font-size:30px;font-weight:800;color:#0f172a;';
+        tut.textContent = sepetToplam + ' TL';
+        var alt = document.createElement('div');
+        alt.style.cssText = 'font-size:13px;color:#6b7280;margin-top:2px;';
+        alt.textContent = sepetSatirlari.length + ' kalem';
+        ozetKutu.appendChild(tut); ozetKutu.appendChild(alt);
+        container.appendChild(ozetKutu);
+
+        var baslik = document.createElement('div');
+        baslik.style.cssText = bA.baslik;
+        baslik.textContent = 'Ödeme türü';
+        container.appendChild(baslik);
+
+        var segment = document.createElement('div');
+        segment.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px;background:#f1f5f9;border-radius:12px;margin-bottom:12px;';
+        [['nakit', 'Nakit'], ['kart', 'Kredi kartı'], ['parcali', 'Parçalı']].forEach(function (secenek) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.odeme = secenek[0];
+            btn.textContent = secenek[1];
+            btn.style.cssText = 'padding:10px 4px;border:0;border-radius:9px;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s;';
+            btn.addEventListener('click', function () {
+                satisOdemeTuru = secenek[0];
+                satisSegmentiBoya();
+                var parcali = satisOdemeTuru === 'parcali';
+                document.getElementById('satis-parcali').style.display = parcali ? 'grid' : 'none';
+                if (parcali) {
+                    document.getElementById('satis-nakit').value = sepetToplam;
+                    document.getElementById('satis-kart').value = '0';
+                }
+            });
+            segment.appendChild(btn);
+        });
+        container.appendChild(segment);
+
+        var parcali = document.createElement('div');
+        parcali.id = 'satis-parcali';
+        parcali.style.cssText = 'display:none;grid-template-columns:1fr 1fr;gap:8px;';
+        [['satis-nakit', 'Nakit TL'], ['satis-kart', 'Kart TL']].forEach(function (alan) {
+            var sar = document.createElement('div');
+            var etiket = document.createElement('div');
+            etiket.style.cssText = 'font-size:12px;color:#6b7280;margin-bottom:4px;';
+            etiket.textContent = alan[1];
+            var girdi = document.createElement('input');
+            girdi.type = 'number'; girdi.step = '0.01'; girdi.min = '0';
+            girdi.id = alan[0]; girdi.value = '0';
+            girdi.style.cssText = bA.girdi + 'font-weight:700;';
+            girdi.addEventListener('input', function () {
+                if (alan[0] !== 'satis-nakit') return;
+                var kalan = parseFloat(sepetToplam) - (parseFloat(this.value) || 0);
+                document.getElementById('satis-kart').value = kalan > 0 ? kalan.toFixed(2) : '0';
+            });
+            sar.appendChild(etiket); sar.appendChild(girdi);
+            parcali.appendChild(sar);
+        });
+        container.appendChild(parcali);
+
+        satisSegmentiBoya();
+    }
+
+    function satisSegmentiBoya() {
+        document.querySelectorAll('#satis-icerik button[data-odeme]').forEach(function (b) {
+            var secili = b.dataset.odeme === satisOdemeTuru;
+            b.style.background = secili ? '#059669' : 'transparent';
+            b.style.color = secili ? '#fff' : '#475569';
+            b.style.boxShadow = secili ? '0 1px 3px rgba(5,150,105,.35)' : 'none';
+        });
+    }
+
+    function satisGonder(veri) {
+        $.post('/api/satis-tamamla/', veri, function (cevap) {
+            if (cevap.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Satış tamam',
+                    html: escapeHtml(cevap.satis.toplam) + ' TL — ' + escapeHtml(cevap.satis.odeme),
+                    confirmButtonText: 'Tamam',
+                    confirmButtonColor: '#059669',
+                }).then(function () { window.location.href = '/modern-urun-ara/'; });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Hata', text: cevap.error, confirmButtonColor: '#dc2626' });
+            }
+        }).fail(function () {
+            Swal.fire({ icon: 'error', title: 'Hata', text: 'Sunucu hatası oluştu.', confirmButtonColor: '#dc2626' });
+        });
+    }
 
     function borcaAktarPopup() {
         Swal.fire({
-            title: '💳 Borça Aktar',
+            title: 'Borça aktar',
             html: '<div id="borca-aktar-icerik" style="text-align:left;"></div>',
             showCancelButton: true,
-            confirmButtonText: '💳 Borça Aktar',
-            cancelButtonText: 'İptal',
+            confirmButtonText: 'Borca aktar',
+            cancelButtonText: 'Vazgeç',
             confirmButtonColor: '#0d9488',
             cancelButtonColor: '#6b7280',
-            width: '500px',
+            width: '540px',
             didOpen: function() {
                 borcaAktarIcerikOlustur();
                 musterileriYukle();
@@ -375,120 +514,155 @@
                 var secili = document.querySelector('input[name="swal-musteri"]:checked');
                 var tutar = document.getElementById('swal-tutar').value;
                 if (!secili) {
-                    Swal.showValidationMessage('Lütfen bir müşteri seçin.');
+                    Swal.showValidationMessage('Önce bir müşteri seçin.');
                     return false;
                 }
                 if (!tutar || parseFloat(tutar) <= 0) {
                     Swal.showValidationMessage('Geçerli bir tutar girin.');
                     return false;
                 }
-                return { musteri_id: secili.value, tutar: tutar };
+                if (parseFloat(tutar) > parseFloat(sepetToplam) + 0.001) {
+                    Swal.showValidationMessage('Tutar sepet toplamından büyük olamaz.');
+                    return false;
+                }
+                return {
+                    musteri_id: secili.value,
+                    tutar: tutar,
+                    not: document.getElementById('swal-not').value.trim()
+                };
             }
         }).then(function(result) {
             if (result.isConfirmed) {
-                borcaAktarGonder(result.value.musteri_id, result.value.tutar);
+                borcaAktarGonder(result.value.musteri_id, result.value.tutar, result.value.not);
             }
         });
+    }
+
+    function bolum(baslikMetni) {
+        var d = document.createElement('div');
+        d.style.marginBottom = '14px';
+        if (baslikMetni) {
+            var b = document.createElement('div');
+            b.style.cssText = bA.baslik;
+            b.textContent = baslikMetni;
+            d.appendChild(b);
+        }
+        return d;
     }
 
     function borcaAktarIcerikOlustur() {
         var container = document.getElementById('borca-aktar-icerik');
         container.textContent = '';
 
-        // Müşteri arama
-        var araDiv = document.createElement('div');
-        araDiv.style.marginBottom = '12px';
+        // --- 1) Sepet ozeti: neyin borca yazildigi gorunur olsun ---
+        var ozet = bolum('Bu satış');
+        var ozetKutu = document.createElement('div');
+        ozetKutu.style.cssText = bA.kutu + 'padding:12px 14px;background:#f8fafc;';
+
+        var ust = document.createElement('div');
+        ust.style.cssText = 'display:flex;align-items:baseline;justify-content:space-between;gap:10px;';
+        var adet = document.createElement('span');
+        adet.style.cssText = 'font-size:13px;color:#6b7280;';
+        adet.textContent = sepetSatirlari.length + ' kalem';
+        var tut = document.createElement('span');
+        tut.style.cssText = 'font-size:22px;font-weight:800;color:#0f172a;';
+        tut.textContent = sepetToplam + ' TL';
+        ust.appendChild(adet); ust.appendChild(tut);
+        ozetKutu.appendChild(ust);
+
+        if (sepetSatirlari.length) {
+            var liste = document.createElement('div');
+            liste.style.cssText = 'margin-top:8px;max-height:78px;overflow-y:auto;font-size:13px;color:#475569;line-height:1.6;';
+            liste.textContent = sepetSatirlari.map(function (s) {
+                return s.miktar + '× ' + s.ad;
+            }).join(', ');
+            ozetKutu.appendChild(liste);
+
+            var bilgi = document.createElement('div');
+            bilgi.style.cssText = 'margin-top:8px;font-size:12px;color:#94a3b8;';
+            bilgi.textContent = 'Bu liste borç hareketinin açıklamasına da yazılır.';
+            ozetKutu.appendChild(bilgi);
+        }
+        ozet.appendChild(ozetKutu);
+        container.appendChild(ozet);
+
+        // --- 2) Musteri ---
+        var musteriBolum = bolum('Müşteri');
+
         var araInput = document.createElement('input');
         araInput.type = 'text';
         araInput.id = 'swal-musteri-ara';
-        araInput.placeholder = 'Müşteri Ara...';
-        araInput.style.cssText = 'width:100%;padding:10px 14px;border:2px solid #d1d5db;border-radius:10px;font-size:15px;outline:none;';
+        araInput.placeholder = 'İsim veya telefon ara…';
+        araInput.style.cssText = bA.girdi + 'margin-bottom:8px;';
         araInput.addEventListener('input', function() { musteriFiltrele(this.value); });
-        araDiv.appendChild(araInput);
-        container.appendChild(araDiv);
+        araInput.addEventListener('focus', function() { this.style.borderColor = '#0d9488'; });
+        araInput.addEventListener('blur', function() { this.style.borderColor = '#d1d5db'; });
+        musteriBolum.appendChild(araInput);
 
-        // Müşteri listesi container
         var listeDiv = document.createElement('div');
         listeDiv.id = 'swal-musteri-listesi';
-        listeDiv.style.cssText = 'max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;';
+        listeDiv.style.cssText = bA.kutu + 'max-height:196px;overflow-y:auto;';
         var yukleniyorDiv = document.createElement('div');
-        yukleniyorDiv.style.cssText = 'text-align:center;padding:20px;color:#9ca3af;';
-        yukleniyorDiv.textContent = 'Yükleniyor...';
+        yukleniyorDiv.style.cssText = 'text-align:center;padding:22px;color:#9ca3af;font-size:14px;';
+        yukleniyorDiv.textContent = 'Yükleniyor…';
         listeDiv.appendChild(yukleniyorDiv);
-        container.appendChild(listeDiv);
+        musteriBolum.appendChild(listeDiv);
 
-        // Yeni müşteri butonu
-        var yeniDiv = document.createElement('div');
-        yeniDiv.style.marginBottom = '12px';
         var yeniBtn = document.createElement('button');
         yeniBtn.type = 'button';
-        yeniBtn.textContent = '+ Yeni Müşteri Ekle';
-        yeniBtn.style.cssText = 'width:100%;padding:10px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;';
+        yeniBtn.textContent = '+ Yeni müşteri ekle';
+        yeniBtn.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#fff;color:#0d9488;border:1px dashed #99f6e4;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px;';
         yeniBtn.addEventListener('click', yeniMusteriFormuGoster);
-        yeniDiv.appendChild(yeniBtn);
+        musteriBolum.appendChild(yeniBtn);
 
-        // Yeni müşteri formu (gizli)
         var formDiv = document.createElement('div');
         formDiv.id = 'yeni-musteri-form';
-        formDiv.style.cssText = 'display:none;margin-top:8px;padding:12px;background:#f0f9ff;border-radius:10px;border:1px solid #bfdbfe;';
+        formDiv.style.cssText = 'display:none;margin-top:8px;padding:12px;background:#f0fdfa;border-radius:10px;border:1px solid #99f6e4;';
         var isimInput = document.createElement('input');
         isimInput.type = 'text';
         isimInput.id = 'yeni-musteri-isim';
-        isimInput.placeholder = 'İsim Soyisim';
-        isimInput.style.cssText = 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:6px;font-size:14px;';
+        isimInput.placeholder = 'İsim soyisim';
+        isimInput.style.cssText = bA.girdi + 'margin-bottom:6px;';
         formDiv.appendChild(isimInput);
         var telInput = document.createElement('input');
         telInput.type = 'text';
         telInput.id = 'yeni-musteri-tel';
         telInput.placeholder = 'Telefon (isteğe bağlı)';
-        telInput.style.cssText = 'width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;margin-bottom:8px;font-size:14px;';
+        telInput.style.cssText = bA.girdi + 'margin-bottom:8px;';
         formDiv.appendChild(telInput);
         var kaydetBtn = document.createElement('button');
         kaydetBtn.type = 'button';
         kaydetBtn.textContent = 'Kaydet';
-        kaydetBtn.style.cssText = 'width:100%;padding:8px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;';
+        kaydetBtn.style.cssText = 'width:100%;padding:9px;background:#0d9488;color:#fff;border:none;border-radius:9px;font-weight:600;cursor:pointer;';
         kaydetBtn.addEventListener('click', yeniMusteriKaydet);
         formDiv.appendChild(kaydetBtn);
-        yeniDiv.appendChild(formDiv);
-        container.appendChild(yeniDiv);
+        musteriBolum.appendChild(formDiv);
+        container.appendChild(musteriBolum);
 
-        // Tutar bölümü
-        var tutarBolum = document.createElement('div');
-        tutarBolum.style.cssText = 'border-top:1px solid #e5e7eb;padding-top:12px;';
+        // --- 3) Ne kadari borca yazilacak ---
+        var tutarBolum = bolum('Ne kadarı borca yazılsın');
 
-        var radioDiv = document.createElement('div');
-        radioDiv.style.cssText = 'display:flex;gap:12px;margin-bottom:8px;';
-        // Tümünü Aktar
-        var tamLabel = document.createElement('label');
-        tamLabel.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer;font-weight:600;';
-        var tamRadio = document.createElement('input');
-        tamRadio.type = 'radio';
-        tamRadio.name = 'swal-aktar-tip';
-        tamRadio.value = 'tam';
-        tamRadio.checked = true;
-        tamRadio.addEventListener('change', aktarTipDegisti);
-        tamLabel.appendChild(tamRadio);
-        tamLabel.appendChild(document.createTextNode(' Tümünü Aktar'));
-        radioDiv.appendChild(tamLabel);
-        // Parçalı Aktar
-        var parcaliLabel = document.createElement('label');
-        parcaliLabel.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer;font-weight:600;';
-        var parcaliRadio = document.createElement('input');
-        parcaliRadio.type = 'radio';
-        parcaliRadio.name = 'swal-aktar-tip';
-        parcaliRadio.value = 'parcali';
-        parcaliRadio.addEventListener('change', aktarTipDegisti);
-        parcaliLabel.appendChild(parcaliRadio);
-        parcaliLabel.appendChild(document.createTextNode(' Parçalı Aktar'));
-        radioDiv.appendChild(parcaliLabel);
-        tutarBolum.appendChild(radioDiv);
+        var segment = document.createElement('div');
+        segment.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;background:#f1f5f9;border-radius:12px;margin-bottom:10px;';
+        [['tam', 'Tümü'], ['parcali', 'Parçalı']].forEach(function (secenek, i) {
+            var lbl = document.createElement('label');
+            lbl.style.cssText = 'display:block;text-align:center;padding:9px;border-radius:9px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;';
+            var r = document.createElement('input');
+            r.type = 'radio';
+            r.name = 'swal-aktar-tip';
+            r.value = secenek[0];
+            r.checked = i === 0;
+            r.style.display = 'none';
+            r.addEventListener('change', aktarTipDegisti);
+            lbl.appendChild(r);
+            lbl.appendChild(document.createTextNode(secenek[1]));
+            lbl.dataset.tip = secenek[0];
+            segment.appendChild(lbl);
+        });
+        tutarBolum.appendChild(segment);
 
         var tutarRow = document.createElement('div');
-        tutarRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
-        var tutarSpan = document.createElement('span');
-        tutarSpan.style.cssText = 'font-weight:600;font-size:16px;';
-        tutarSpan.textContent = 'Tutar:';
-        tutarRow.appendChild(tutarSpan);
+        tutarRow.style.cssText = 'position:relative;';
         var tutarInput = document.createElement('input');
         tutarInput.type = 'number';
         tutarInput.step = '0.01';
@@ -496,14 +670,42 @@
         tutarInput.id = 'swal-tutar';
         tutarInput.value = sepetToplam;
         tutarInput.readOnly = true;
-        tutarInput.style.cssText = 'flex:1;padding:10px 14px;border:2px solid #d1d5db;border-radius:10px;font-size:16px;font-weight:700;outline:none;';
+        tutarInput.style.cssText = bA.girdi + 'font-size:18px;font-weight:700;padding-right:44px;background:#f8fafc;';
         tutarRow.appendChild(tutarInput);
         var tlSpan = document.createElement('span');
-        tlSpan.style.cssText = 'font-weight:700;font-size:16px;';
+        tlSpan.style.cssText = 'position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:700;color:#6b7280;';
         tlSpan.textContent = 'TL';
         tutarRow.appendChild(tlSpan);
         tutarBolum.appendChild(tutarRow);
+
+        var kalanNot = document.createElement('div');
+        kalanNot.id = 'swal-kalan';
+        kalanNot.style.cssText = 'margin-top:6px;font-size:13px;color:#6b7280;display:none;';
+        tutarBolum.appendChild(kalanNot);
         container.appendChild(tutarBolum);
+
+        // --- 4) Not ---
+        var notBolum = bolum('Not (isteğe bağlı)');
+        var notAlan = document.createElement('textarea');
+        notAlan.id = 'swal-not';
+        notAlan.rows = 2;
+        notAlan.placeholder = 'Örn. cumartesi ödeyecek';
+        notAlan.style.cssText = bA.girdi + 'resize:vertical;font-family:inherit;';
+        notAlan.addEventListener('focus', function() { this.style.borderColor = '#0d9488'; });
+        notAlan.addEventListener('blur', function() { this.style.borderColor = '#d1d5db'; });
+        notBolum.appendChild(notAlan);
+        container.appendChild(notBolum);
+
+        segmentiBoya();
+    }
+
+    function segmentiBoya() {
+        document.querySelectorAll('label[data-tip]').forEach(function (lbl) {
+            var secili = lbl.querySelector('input').checked;
+            lbl.style.background = secili ? '#0d9488' : 'transparent';
+            lbl.style.color = secili ? '#fff' : '#475569';
+            lbl.style.boxShadow = secili ? '0 1px 3px rgba(13,148,136,.35)' : 'none';
+        });
     }
 
     var tumMusteriler = [];
@@ -554,8 +756,11 @@
             label.appendChild(infoDiv);
 
             var borcDiv = document.createElement('div');
-            borcDiv.style.cssText = 'font-weight:700;color:#dc2626;';
-            borcDiv.textContent = 'Borç: ' + m.borc + ' TL';
+            // Borcu olmayan musteri kirmizi yazilmasin; kirmizi bir durum rengi.
+            var borcVar = parseFloat(m.borc) > 0;
+            borcDiv.style.cssText = 'font-weight:700;white-space:nowrap;color:'
+                + (borcVar ? '#dc2626' : '#94a3b8') + ';';
+            borcDiv.textContent = borcVar ? (m.borc + ' TL borç') : 'borcu yok';
             label.appendChild(borcDiv);
 
             container.appendChild(label);
@@ -602,18 +807,39 @@
     function aktarTipDegisti() {
         var tip = document.querySelector('input[name="swal-aktar-tip"]:checked').value;
         var tutarInput = document.getElementById('swal-tutar');
+        segmentiBoya();
         if (tip === 'tam') {
             tutarInput.value = sepetToplam;
             tutarInput.readOnly = true;
+            tutarInput.style.background = '#f8fafc';
+            tutarInput.removeEventListener('input', kalaniGoster);
+            document.getElementById('swal-kalan').style.display = 'none';
         } else {
             tutarInput.readOnly = false;
+            tutarInput.style.background = '#fff';
             tutarInput.value = '';
+            tutarInput.addEventListener('input', kalaniGoster);
             tutarInput.focus();
+            kalaniGoster();
         }
     }
 
-    function borcaAktarGonder(musteri_id, tutar) {
-        $.post('/api/borca-aktar/', { musteri_id: musteri_id, tutar: tutar }, function(data) {
+    function kalaniGoster() {
+        var girilen = parseFloat(document.getElementById('swal-tutar').value) || 0;
+        var kalan = parseFloat(sepetToplam) - girilen;
+        var not = document.getElementById('swal-kalan');
+        not.style.display = 'block';
+        if (kalan < -0.001) {
+            not.textContent = 'Sepet toplamını aşıyor.';
+            not.style.color = '#dc2626';
+        } else {
+            not.textContent = 'Kasaya kalan: ' + kalan.toFixed(2) + ' TL';
+            not.style.color = '#6b7280';
+        }
+    }
+
+    function borcaAktarGonder(musteri_id, tutar, notMetni) {
+        $.post('/api/borca-aktar/', { musteri_id: musteri_id, tutar: tutar, not: notMetni || '' }, function(data) {
             if (data.success) {
                 Swal.fire({
                     icon: 'success',

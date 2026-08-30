@@ -15,7 +15,8 @@ from .disa_aktarma import hazir_sorgu, urunleri_yaz
 
 # Register your models here.
 
-from .models import UrunGruplari,SepetUrun,Stok,Liste_Grup,Musteri
+from .models import (UrunGruplari, SepetUrun, Stok, Liste_Grup, Musteri,
+                     BorcHareketi, Satis, SatisSatiri, StokHareketi)
 
 class GrupCsvKarisimi:
     """Grup tablolari icin ortak CSV indirme eylemi."""
@@ -49,9 +50,9 @@ admin.site.register(Liste_Grup, ListFavoriAdmin)
 
 
 class StokAdmin(admin.ModelAdmin):
-    list_display = ("Urun_Adi","Barkod","Tutar","Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi",)
+    list_display = ("Urun_Adi","Barkod","Tutar","stok_adedi","Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi",)
     list_filter = ("Grup","Stok_Durumu",)
-    list_editable = ("Favori","Tutar",)
+    list_editable = ("Favori","Tutar","stok_adedi",)
     search_fields = ("Urun_Adi","Barkod",)
 
     formfield_overrides = {
@@ -135,3 +136,43 @@ class MusteriAdmin(admin.ModelAdmin):
     list_filter = ("Ekleme_Tarih",)
 
 admin.site.register(Musteri, MusteriAdmin)
+
+
+class SatisSatiriSatiri(admin.TabularInline):
+    model = SatisSatiri
+    extra = 0
+    readonly_fields = ("urun", "urun_adi", "birim_fiyat", "miktar")
+    can_delete = False
+
+
+@admin.register(Satis)
+class SatisAdmin(admin.ModelAdmin):
+    list_display = ("tarih", "toplam", "odeme_turu", "nakit_tutar", "kart_tutar",
+                    "borc_tutar", "borc_musteri", "kalem_adedi", "kasiyer")
+    list_filter = ("odeme_turu", "tarih")
+    search_fields = ("borc_musteri__isim_soyisim", "kasiyer")
+    date_hierarchy = "tarih"
+    inlines = [SatisSatiriSatiri]
+    readonly_fields = ("tarih",)
+
+
+@admin.register(StokHareketi)
+class StokHareketiAdmin(admin.ModelAdmin):
+    list_display = ("tarih", "urun", "tur", "miktar", "onceki_adet", "sonraki_adet",
+                    "aciklama", "kullanici")
+    list_filter = ("tur", "tarih")
+    search_fields = ("urun__Urun_Adi", "urun__Barkod")
+    date_hierarchy = "tarih"
+
+
+@admin.register(BorcHareketi)
+class BorcHareketiAdmin(admin.ModelAdmin):
+    list_display = ("tarih", "musteri", "tutar", "onceki_borc", "kisa_aciklama")
+    list_filter = ("tarih",)
+    search_fields = ("musteri__isim_soyisim", "aciklama")
+    date_hierarchy = "tarih"
+
+    @admin.display(description="Açıklama")
+    def kisa_aciklama(self, nesne):
+        metin = (nesne.aciklama or "").replace("\n", " · ")
+        return metin[:90] + ("…" if len(metin) > 90 else "")

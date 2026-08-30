@@ -31,10 +31,16 @@
       Bir tarafta okul ve ofis malzemeleri, diğer tarafta taze demlenmiş kahve.
       Aynı kapıdan giriliyor.
     </p>
+
+    <div class="at-hero-alan__dugmeler">
+      <a class="at-btn at-btn--amber" href="{% url 'kahve:menu' %}">Kahve menüsü</a>
+      <a class="at-btn at-btn--cizgi" href="#tezgahlar">Dükkânı gez</a>
+    </div>
+
   </div>
 </section>
 
-<section class="at-bolum--dar">
+<section class="at-bolum--dar" id="tezgahlar">
   <div class="at-kabuk">
     <div class="at-tezgahlar">
 
@@ -51,12 +57,13 @@
             {% for g in gruplar %}<li>{{ g.Grup_Adi }}</li>{% endfor %}
           </ul>
         {% endif %}
+        <a class="at-tezgah__ok" href="{% url 'fiyat-monitor' %}" style="text-decoration:none">Barkodunu okut, fiyatı gör →</a>
       </div>
 
       <div class="at-tezgah at-tezgah--kahve">
         <img class="at-tezgah__foto" src="{% static 'stok/gorseller/kahve.jpg' %}" alt="Latte" loading="lazy">
         <span class="at-tezgah__no">02 — TEZGÂH</span>
-        <h2 class="at-tezgah__ad">Atlas Kahve</h2>
+        <h2 class="at-tezgah__ad">Atlas Coffee</h2>
         <p class="at-metin" style="font-size:.9375rem">
           Türk kahvesinden flat white'a. Her kahve kartına bir damga bırakır;
           <strong class="at-veri" style="color:var(--amber-acik)">{{ hediye_icin_kahve }}</strong>
@@ -70,6 +77,33 @@
 </section>
 
 {% if kahveler %}
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
+    <div class="at-serit">
+      <div>
+        <p class="at-etiket at-etiket--amber">Sadakat kartı</p>
+        <h2 class="at-h1" style="margin-top:6px">{{ hediye_icin_kahve }} kahve içenin altıncısı bizden.</h2>
+        <p class="at-metin" style="margin-top:var(--b2);max-width:46ch">
+          Kasada kartını okuttur, her kahve bir damga bıraksın. Sayaç dolunca
+          sıradaki kahveyi biz ısmarlıyoruz. Kart telefonunda; plastik yok,
+          kaybolmuyor.
+        </p>
+      </div>
+      <div>
+        <div class="at-halkalar">
+          {% for damga in damga_gosterimi %}
+            <span class="at-halka{% if damga %} at-halka--dolu{% endif %}">{{ forloop.counter }}</span>
+          {% endfor %}
+          <span class="at-halka at-halka--hedef" title="hediye kahve">★</span>
+        </div>
+        <p class="at-kucuk" style="margin-top:var(--b2)">
+          Damgalar {{ gecerlilik_gun }} gün geçerli.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="at-bolum--dar">
   <div class="at-kabuk">
     <div class="at-bolum__baslik">

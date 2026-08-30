@@ -310,12 +310,41 @@
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; object-position: center;
 }
+/* Iki katmanli perde: yazinin altini tamamen kapat, sag tarafta fotograf nefes alsin,
+   alt kenar sayfa zeminine erisin - hero "serit" gibi kesilmesin. */
 .at-hero-alan__perde {
   position: absolute; inset: 0;
-  background: linear-gradient(105deg,
-    rgba(18,21,26,.96) 0%, rgba(18,21,26,.90) 38%, rgba(18,21,26,.55) 68%, rgba(18,21,26,.35) 100%);
+  background:
+    linear-gradient(180deg, rgba(18,21,26,.55) 0%, rgba(18,21,26,0) 22%,
+                            rgba(18,21,26,.35) 72%, var(--murekkep) 100%),
+    linear-gradient(100deg, rgba(18,21,26,.985) 0%, rgba(18,21,26,.95) 34%,
+                            rgba(18,21,26,.72) 58%, rgba(18,21,26,.38) 100%);
 }
-.at-hero-alan__ic { position: relative; padding: var(--b7) 0 var(--b6); }
+/* Kahraman alan gercek bir "kapak" olsun: ince serit gibi durmasin. */
+.at-hero-alan { min-height: min(76vh, 680px); display: flex; align-items: center; }
+.at-hero-alan__ic { position: relative; padding: var(--b7) 0; width: 100%; }
+.at-hero-alan__dugmeler { display: flex; flex-wrap: wrap; gap: var(--b2); margin-top: var(--b4); }
+
+/* Damga kartini anlatan serit */
+.at-serit {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--b5);
+  align-items: center; padding: var(--b5);
+  border-radius: var(--r-l); background: var(--murekkep-2);
+  border: 1px solid rgba(214, 154, 76, .22);
+}
+.at-halkalar { display: flex; gap: var(--b2); flex-wrap: wrap; }
+.at-halka {
+  width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid rgba(214, 154, 76, .3); color: rgba(242, 241, 238, .25);
+  font-family: var(--f-veri); font-size: .8125rem;
+}
+.at-halka--dolu {
+  border-color: var(--amber); background: rgba(214, 154, 76, .14); color: var(--amber-acik);
+}
+.at-halka--hedef {
+  border-style: dashed; border-color: var(--cini-acik); color: var(--cini-acik);
+}
+@media (max-width: 860px) { .at-serit { grid-template-columns: 1fr; gap: var(--b3); padding: var(--b3); } }
 
 /* tezgah kartlarinda kare fotograf */
 .at-tezgah { padding-top: 0; overflow: hidden; }

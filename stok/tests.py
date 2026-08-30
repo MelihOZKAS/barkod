@@ -8,15 +8,22 @@ Calistirmak icin:
     python manage.py test stok
 """
 
+from decimal import Decimal
 import shutil
 import tempfile
 from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
+from django.utils import timezone
 
-from .models import Liste_Grup, SepetUrun, Stok, UrunGruplari
+from kahve.models import KahveSatis
+
+from . import rapor
+from .models import (BorcHareketi, Liste_Grup, Musteri, Satis, SatisSatiri,
+                     SepetUrun, Stok, StokHareketi, UrunGruplari)
 
 
 class MiktarGuncellemeTesti(TestCase):
@@ -299,3 +306,223 @@ class AdminCsvIndirmeTesti(TestCase):
         govde = cevap.content.decode("utf-8")
         self.assertEqual(govde.count("\ufeff"), 1)
         self.assertIn("Kırtasiye", govde)
+
+
+class SatisKaydiTesti(TestCase):
+    """Satisi tamamlama: kayit, stok dusumu, borc.
+
+    Onceden sepet sadece siliniyordu; hicbir yere ne satildigi yazilmiyordu.
+    """
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        # takip edilen urun (adedi girilmis) ve edilmeyen (adedi bos)
+        self.takipli = Stok.objects.create(Urun_Adi="Defter", Barkod=1001,
+                                           Tutar=Decimal("50.00"), stok_adedi=10)
+        self.takipsiz = Stok.objects.create(Urun_Adi="Silgi", Barkod=1002,
+                                            Tutar=Decimal("10.00"))
+        self.musteri = Musteri.objects.create(isim_soyisim="Veresiye Müşteri",
+                                              Cep_Telefonu=5551112233, borc=Decimal("0.00"))
+
+    def _sepete(self, urun, miktar=1):
+        SepetUrun.objects.create(user=self.kullanici, urun=urun, miktar=miktar)
+
+    def test_nakit_satis_kaydedilir_ve_sepet_temizlenir(self):
+        self._sepete(self.takipli, 2)
+
+        cevap = self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        self.assertTrue(cevap.json()["success"])
+        satis = Satis.objects.get()
+        self.assertEqual(satis.toplam, Decimal("100.00"))
+        self.assertEqual(satis.nakit_tutar, Decimal("100.00"))
+        self.assertEqual(satis.kart_tutar, Decimal("0.00"))
+        self.assertEqual(satis.satirlar.count(), 1)
+        self.assertEqual(SepetUrun.objects.count(), 0, "sepet temizlenmeli")
+
+    def test_satirlar_o_anki_fiyati_saklar(self):
+        """Sonradan zam yapilsa da gecmis satis bozulmamali."""
+        self._sepete(self.takipli, 1)
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        self.takipli.Tutar = Decimal("80.00")
+        self.takipli.save()
+
+        satir = SatisSatiri.objects.get()
+        self.assertEqual(satir.birim_fiyat, Decimal("50.00"))
+        self.assertEqual(satir.urun_adi, "Defter")
+
+    def test_adedi_girilmis_urunun_stogu_duser(self):
+        self._sepete(self.takipli, 3)
+
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "kart"})
+
+        self.takipli.refresh_from_db()
+        self.assertEqual(self.takipli.stok_adedi, 7)
+        hareket = StokHareketi.objects.get(urun=self.takipli)
+        self.assertEqual(hareket.miktar, -3)
+        self.assertEqual(hareket.onceki_adet, 10)
+        self.assertEqual(hareket.sonraki_adet, 7)
+        self.assertEqual(hareket.tur, StokHareketi.Tur.SATIS)
+
+    def test_adedi_bos_urun_takip_edilmez(self):
+        """Binlerce urunun sayimi yok; adedi bos olan urune dokunulmamali."""
+        self._sepete(self.takipsiz, 5)
+
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        self.takipsiz.refresh_from_db()
+        self.assertIsNone(self.takipsiz.stok_adedi)
+        self.assertEqual(StokHareketi.objects.count(), 0)
+
+    def test_parcali_tutarlar_tutmuyorsa_reddedilir(self):
+        self._sepete(self.takipli, 2)   # 100 TL
+
+        cevap = self.client.post(reverse("api-satis-tamamla"),
+                                 {"odeme_turu": "parcali", "nakit": "40", "kart": "30"})
+
+        self.assertFalse(cevap.json()["success"])
+        self.assertEqual(Satis.objects.count(), 0, "hatali satis kaydedilmemeli")
+        self.assertEqual(SepetUrun.objects.count(), 1, "sepet durmali")
+
+    def test_bos_sepet_satilamaz(self):
+        cevap = self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        self.assertFalse(cevap.json()["success"])
+        self.assertEqual(Satis.objects.count(), 0)
+
+    def test_anonim_satis_yapamaz(self):
+        anonim = Client()
+
+        cevap = anonim.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        self.assertEqual(cevap.status_code, 302)
+
+
+class BorcaAktarmaTesti(TestCase):
+    """Borca aktarma: borc hanesi, aciklama ve satis kaydi birlikte."""
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.urun = Stok.objects.create(Urun_Adi="Defter", Barkod=2001, Tutar=Decimal("50.00"))
+        self.kalem = Stok.objects.create(Urun_Adi="Kalem", Barkod=2002, Tutar=Decimal("20.00"))
+        self.musteri = Musteri.objects.create(isim_soyisim="Veresiye Müşteri",
+                                              Cep_Telefonu=5551112233, borc=Decimal("30.00"))
+        SepetUrun.objects.create(user=self.kullanici, urun=self.urun, miktar=2)
+        SepetUrun.objects.create(user=self.kullanici, urun=self.kalem, miktar=1)
+
+    def test_tumu_borca_yazilir(self):
+        cevap = self.client.post(reverse("api-borca-aktar"),
+                                 {"musteri_id": self.musteri.id, "tutar": "120"})
+
+        self.assertTrue(cevap.json()["success"])
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("150.00"), "30 + 120")
+
+    def test_aciklama_alinanlari_ve_notu_yazar(self):
+        self.client.post(reverse("api-borca-aktar"), {
+            "musteri_id": self.musteri.id, "tutar": "120", "not": "cumartesi ödeyecek",
+        })
+
+        hareket = BorcHareketi.objects.get()
+        self.assertIn("2x Defter", hareket.aciklama)
+        self.assertIn("1x Kalem", hareket.aciklama)
+        self.assertIn("cumartesi ödeyecek", hareket.aciklama)
+        self.assertEqual(hareket.onceki_borc, Decimal("30.00"))
+
+    def test_parcali_aktarmada_kalan_kasaya_yazilir(self):
+        self.client.post(reverse("api-borca-aktar"),
+                         {"musteri_id": self.musteri.id, "tutar": "50"})
+
+        satis = Satis.objects.get()
+        self.assertEqual(satis.toplam, Decimal("120.00"))
+        self.assertEqual(satis.borc_tutar, Decimal("50.00"))
+        self.assertEqual(satis.nakit_tutar, Decimal("70.00"), "kalan kasaya nakit")
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("80.00"), "30 + 50")
+        self.assertIn("Parçalı", BorcHareketi.objects.get().aciklama)
+
+    def test_sepetten_buyuk_tutar_reddedilir(self):
+        cevap = self.client.post(reverse("api-borca-aktar"),
+                                 {"musteri_id": self.musteri.id, "tutar": "500"})
+
+        self.assertFalse(cevap.json()["success"])
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("30.00"), "borç değişmemeli")
+        self.assertEqual(Satis.objects.count(), 0)
+
+    def test_borca_aktarma_satis_kaydi_da_uretir(self):
+        """Kasa raporu ancak boyle 'ne kadari borca yazildi' diyebiliyor."""
+        self.client.post(reverse("api-borca-aktar"),
+                         {"musteri_id": self.musteri.id, "tutar": "120"})
+
+        satis = Satis.objects.get()
+        self.assertEqual(satis.odeme_turu, Satis.Odeme.BORC)
+        self.assertEqual(satis.borc_musteri, self.musteri)
+        self.assertEqual(satis.satirlar.count(), 2)
+
+
+class KasaRaporuTesti(TestCase):
+    """Iki tezgahin parasi tek raporda."""
+
+    def setUp(self):
+        User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.musteri = Musteri.objects.create(isim_soyisim="Veresiye",
+                                              Cep_Telefonu=5551112233, borc=0)
+        Satis.objects.create(toplam=Decimal("100"), nakit_tutar=Decimal("100"),
+                             odeme_turu=Satis.Odeme.NAKIT)
+        Satis.objects.create(toplam=Decimal("60"), kart_tutar=Decimal("60"),
+                             odeme_turu=Satis.Odeme.KART)
+        Satis.objects.create(toplam=Decimal("40"), borc_tutar=Decimal("40"),
+                             odeme_turu=Satis.Odeme.BORC, borc_musteri=self.musteri)
+        KahveSatis.objects.create(toplam=Decimal("80"), nakit_tutar=Decimal("80"),
+                                  odeme_turu=KahveSatis.Odeme.NAKIT)
+
+    def test_gunluk_ozet_iki_tezgahi_toplar(self):
+        bugun = timezone.localtime().date()
+
+        ozet = rapor.ozet(bugun, bugun)
+
+        self.assertEqual(ozet["toplam"]["ciro"], Decimal("280"))
+        self.assertEqual(ozet["toplam"]["nakit"], Decimal("180"))
+        self.assertEqual(ozet["toplam"]["kart"], Decimal("60"))
+        self.assertEqual(ozet["toplam"]["borc"], Decimal("40"))
+        self.assertEqual(ozet["kirtasiye"]["ciro"], Decimal("200"))
+        self.assertEqual(ozet["kahve"]["ciro"], Decimal("80"))
+
+    def test_borc_kasaya_para_olarak_girmez(self):
+        bugun = timezone.localtime().date()
+
+        ozet = rapor.ozet(bugun, bugun)
+
+        kasaya = ozet["toplam"]["nakit"] + ozet["toplam"]["kart"]
+        self.assertEqual(kasaya, Decimal("240"))
+        self.assertEqual(ozet["toplam"]["ciro"] - kasaya, ozet["toplam"]["borc"])
+
+    def test_rapor_sayfasi_acilir(self):
+        for donem in ("gun", "ay", "yil"):
+            with self.subTest(donem=donem):
+                cevap = self.client.get(reverse("kasa-raporu"), {"donem": donem})
+
+                self.assertEqual(cevap.status_code, 200)
+                self.assertContains(cevap, "Toplam ciro")
+
+    def test_anonim_rapor_goremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.get(reverse("kasa-raporu")).status_code, 302)
+
+    def test_kritik_stok_sadece_adedi_girilmisleri_listeler(self):
+        Stok.objects.create(Urun_Adi="Azalan", Barkod=3001, Tutar=1, stok_adedi=2)
+        Stok.objects.create(Urun_Adi="Bol", Barkod=3002, Tutar=1, stok_adedi=99)
+        Stok.objects.create(Urun_Adi="Takipsiz", Barkod=3003, Tutar=1)
+
+        adlar = [u.Urun_Adi for u in rapor.kritik_stok()]
+
+        self.assertEqual(adlar, ["Azalan"])

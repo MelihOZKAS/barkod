@@ -1,0 +1,254 @@
+{% extends "system/user/atlas_base.html" %}
+{% load static humanize %}
+
+{% block baslik %}Kasa raporu — Atlas{% endblock %}
+{% block alt_bilgi %}{% endblock %}
+
+{% block ek_stil %}
+<style>
+  .at-donem { display:inline-flex; gap:4px; padding:4px; background:rgba(242,241,238,.06); border-radius:var(--r-tam); }
+  .at-donem a {
+    padding:8px 18px; border-radius:var(--r-tam); text-decoration:none; font-weight:600;
+    font-size:.875rem; color:rgba(242,241,238,.6); transition:background var(--gecis), color var(--gecis);
+  }
+  .at-donem a:hover { color:var(--kagit); }
+  .at-donem a[aria-current="page"] { background:var(--cini); color:#EAF6F8; }
+
+  /* Kahraman rakam: baslik yuzu degil, govde yazi tipiyle - okunakli kalsin */
+  .at-kahraman { font-size:clamp(2.6rem,6.5vw,4rem); font-weight:800; line-height:1;
+                 letter-spacing:-.035em; color:var(--kagit); }
+  .at-kahraman__birim { font-size:.36em; font-weight:600; color:rgba(242,241,238,.5); margin-left:.12em; }
+
+  .at-kutular { display:grid; grid-template-columns:repeat(auto-fit,minmax(172px,1fr)); gap:var(--b3); }
+  .at-olcum { padding:var(--b3); border-radius:var(--r-m); background:var(--murekkep-2);
+              border:1px solid rgba(242,241,238,.08); }
+  .at-olcum__deger { font-size:1.75rem; font-weight:700; letter-spacing:-.02em; margin-top:8px; }
+  .at-olcum__alt { font-size:.75rem; color:rgba(242,241,238,.42); margin-top:4px; }
+  .at-nokta { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+
+  /* Gun gun ciro: iki tezgah ust uste, aralarinda 2px yuzey boslugu */
+  .at-grafik { display:flex; align-items:flex-end; gap:3px; height:172px; overflow-x:auto; }
+  .at-cubuk { flex:1 0 13px; display:flex; flex-direction:column; justify-content:flex-end;
+              height:100%; gap:2px; min-width:13px; }
+  .at-cubuk__parca { border-radius:3px; }
+  .at-cubuk__kirtasiye { background:var(--cini-acik); }
+  .at-cubuk__kahve { background:var(--amber); }
+
+  .at-tablo { width:100%; border-collapse:collapse; font-size:.875rem; }
+  .at-tablo th { text-align:left; font-size:.6875rem; letter-spacing:.08em; text-transform:uppercase;
+                 color:rgba(242,241,238,.42); font-weight:600; padding:0 var(--b2) 10px 0; }
+  .at-tablo td { padding:11px var(--b2) 11px 0; border-top:1px solid rgba(242,241,238,.07); vertical-align:top; }
+  .at-tablo td.sag, .at-tablo th.sag { text-align:right; font-variant-numeric:tabular-nums;
+                                       font-family:var(--f-veri); padding-right:0; }
+  .at-sarma { overflow-x:auto; }
+  /* Odeme turu bir "durum" degil; kart icin notr rozet. */
+  .at-rozet--notr { background:rgba(139,149,163,.16); color:#B6BFCB; border:1px solid rgba(139,149,163,.32); }
+
+  .at-ikili { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:var(--b3); }
+</style>
+{% endblock %}
+
+{% block icerik %}
+<header class="at-ust">
+  <div class="at-kabuk at-ust__ic">
+    <a class="at-marka" href="{% url 'panel' %}">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
+    <nav class="at-nav">
+      <a href="{% url 'modern-urun-ara' %}">Kırtasiye kasası<kbd class="at-tus">F2</kbd></a>
+      <a href="{% url 'kahve:kasa' %}">Kahve kasası<kbd class="at-tus">F8</kbd></a>
+      <a href="{% url 'musteri-listesi' %}">Müşteriler<kbd class="at-tus">F4</kbd></a>
+      <a href="/admin/">Yönetim</a>
+      <a href="{% url 'cikis-yap' %}">Çıkış</a>
+    </nav>
+  </div>
+</header>
+
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
+
+    <div class="at-bolum__baslik" style="margin-bottom:var(--b3);align-items:center">
+      <div>
+        <p class="at-etiket">Kasa raporu</p>
+        <h1 class="at-h1" style="margin-top:6px">
+          {% if donem == 'gun' %}Bugün{% elif donem == 'ay' %}Bu ay{% else %}Bu yıl{% endif %}
+        </h1>
+        <p class="at-kucuk at-veri" style="margin-top:6px">
+          {{ baslangic|date:"j F Y" }}{% if baslangic != bitis %} – {{ bitis|date:"j F Y" }}{% endif %}
+        </p>
+      </div>
+      <div class="at-donem">
+        <a href="?donem=gun" {% if donem == 'gun' %}aria-current="page"{% endif %}>Gün</a>
+        <a href="?donem=ay"  {% if donem == 'ay'  %}aria-current="page"{% endif %}>Ay</a>
+        <a href="?donem=yil" {% if donem == 'yil' %}aria-current="page"{% endif %}>Yıl</a>
+      </div>
+    </div>
+
+    <!-- Donemin cirosu -->
+    <div class="at-yuzey" style="padding:var(--b4);margin-bottom:var(--b3)">
+      <div style="display:flex;flex-wrap:wrap;gap:var(--b5);align-items:flex-end">
+        <div>
+          <p class="at-etiket">Toplam ciro</p>
+          <p class="at-kahraman" style="margin-top:var(--b1)">
+            {{ ozet.toplam.ciro|floatformat:0|intcomma }}<span class="at-kahraman__birim">₺</span>
+          </p>
+          <p class="at-kucuk" style="margin-top:8px">{{ ozet.toplam.satis }} satış</p>
+        </div>
+        <div style="flex:1;min-width:220px">
+          <p class="at-etiket">Kasaya giren</p>
+          <p style="font-size:1.6rem;font-weight:700;margin-top:var(--b1)">
+            {{ kasaya_giren|floatformat:0|intcomma }} ₺
+          </p>
+          <p class="at-kucuk" style="margin-top:6px">
+            Borca yazılan {{ ozet.toplam.borc|floatformat:0|intcomma }} ₺ ciroya dahil, kasaya girmedi.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Odeme kirilimi -->
+    <div class="at-kutular" style="margin-bottom:var(--b3)">
+      <div class="at-olcum">
+        <span class="at-etiket"><span class="at-nokta" style="background:var(--cini-acik)"></span>Nakit</span>
+        <p class="at-olcum__deger">{{ ozet.toplam.nakit|floatformat:0|intcomma }} ₺</p>
+      </div>
+      <div class="at-olcum">
+        <span class="at-etiket"><span class="at-nokta" style="background:var(--kursun)"></span>Kredi kartı</span>
+        <p class="at-olcum__deger">{{ ozet.toplam.kart|floatformat:0|intcomma }} ₺</p>
+      </div>
+      <div class="at-olcum">
+        <span class="at-etiket"><span class="at-nokta" style="background:var(--kritik)"></span>Borca yazılan</span>
+        <p class="at-olcum__deger">{{ ozet.toplam.borc|floatformat:0|intcomma }} ₺</p>
+        <p class="at-olcum__alt">Tahsil edilmedi</p>
+      </div>
+      <div class="at-olcum">
+        <span class="at-etiket">Kırtasiye · Kahve</span>
+        <p class="at-olcum__deger">{{ ozet.kirtasiye.ciro|floatformat:0|intcomma }} · {{ ozet.kahve.ciro|floatformat:0|intcomma }} ₺</p>
+        <p class="at-olcum__alt">{{ ozet.kirtasiye.satis }} · {{ ozet.kahve.satis }} satış</p>
+      </div>
+    </div>
+
+    <!-- Gun gun ciro -->
+    {% if seri|length > 1 %}
+      <div class="at-yuzey" style="padding:var(--b3);margin-bottom:var(--b3)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--b3);flex-wrap:wrap;margin-bottom:var(--b3)">
+          <h2 class="at-h2">Gün gün ciro</h2>
+          <p class="at-kucuk">
+            <span class="at-nokta" style="background:var(--cini-acik)"></span>Kırtasiye
+            <span class="at-nokta" style="background:var(--amber);margin-left:var(--b2)"></span>Kahve
+          </p>
+        </div>
+        <div class="at-grafik">
+          {% for gun in seri %}
+            <div class="at-cubuk" title="{{ gun.gun|date:'j F' }} — {{ gun.toplam|floatformat:0 }} ₺">
+              {% if gun.kirtasiye_yuzde %}
+                <div class="at-cubuk__parca at-cubuk__kirtasiye" style="height:{{ gun.kirtasiye_yuzde }}%"></div>
+              {% endif %}
+              {% if gun.kahve_yuzde %}
+                <div class="at-cubuk__parca at-cubuk__kahve" style="height:{{ gun.kahve_yuzde }}%"></div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <p class="at-kucuk at-veri" style="margin-top:var(--b2)">
+          {{ seri.0.gun|date:"j M" }} – {{ bitis|date:"j M" }} · en yüksek gün {{ en_yuksek|floatformat:0|intcomma }} ₺
+        </p>
+      </div>
+    {% endif %}
+
+    <!-- Satis hareketleri -->
+    <div class="at-yuzey" style="padding:var(--b3);margin-bottom:var(--b3)">
+      <h2 class="at-h2" style="margin-bottom:var(--b3)">Satış hareketleri</h2>
+      {% if hareketler %}
+        <div class="at-sarma">
+          <table class="at-tablo">
+            <thead>
+              <tr><th>Saat</th><th>Tezgâh</th><th>Ne satıldı</th><th>Ödeme</th><th class="sag">Tutar</th></tr>
+            </thead>
+            <tbody>
+              {% for h in hareketler %}
+                <tr>
+                  <td class="at-veri" style="white-space:nowrap">{{ h.tarih|date:"j M H:i" }}</td>
+                  <td>{{ h.tezgah }}</td>
+                  <td>
+                    {{ h.urunler|default:"—" }}
+                    {% if h.musteri %}<div class="at-kucuk">{{ h.musteri }}</div>{% endif %}
+                  </td>
+                  <td>
+                    {% if h.odeme_kodu == 'borc' %}
+                      <span class="at-rozet at-rozet--kritik"><span class="at-rozet__nokta"></span>{{ h.odeme }}</span>
+                    {% elif h.odeme_kodu == 'nakit' %}
+                      <span class="at-rozet at-rozet--iyi"><span class="at-rozet__nokta"></span>{{ h.odeme }}</span>
+                    {% else %}
+                      <span class="at-rozet at-rozet--notr"><span class="at-rozet__nokta"></span>{{ h.odeme }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="sag">{{ h.toplam|floatformat:2 }} ₺</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="at-bos-durum">Bu dönemde satış yok.</p>
+      {% endif %}
+    </div>
+
+    <div class="at-ikili">
+      <div class="at-yuzey" style="padding:var(--b3)">
+        <h2 class="at-h2" style="margin-bottom:var(--b3)">Stok hareketleri</h2>
+        {% if stok_hareketleri %}
+          <div class="at-sarma">
+            <table class="at-tablo">
+              <thead><tr><th>Saat</th><th>Ürün</th><th class="sag">Değişim</th><th class="sag">Kalan</th></tr></thead>
+              <tbody>
+                {% for h in stok_hareketleri %}
+                  <tr>
+                    <td class="at-veri" style="white-space:nowrap">{{ h.tarih|date:"j M H:i" }}</td>
+                    <td>{{ h.urun.Urun_Adi }}<div class="at-kucuk">{{ h.get_tur_display }}</div></td>
+                    <td class="sag">{{ h.miktar }}</td>
+                    <td class="sag">{{ h.sonraki_adet }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="at-bos-durum">Bu dönemde stok hareketi yok.</p>
+          <p class="at-kucuk">
+            Takip için ürünün <strong>Stok adedi</strong> alanını doldurun — boş bırakılan ürünler
+            eskisi gibi, adetsiz çalışır.
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="at-yuzey" style="padding:var(--b3)">
+        <h2 class="at-h2" style="margin-bottom:var(--b3)">Azalan ürünler</h2>
+        {% if kritik_stok %}
+          <table class="at-tablo">
+            <thead><tr><th>Ürün</th><th class="sag">Kalan</th></tr></thead>
+            <tbody>
+              {% for urun in kritik_stok %}
+                <tr>
+                  <td>{{ urun.Urun_Adi }}</td>
+                  <td class="sag">
+                    {% if urun.stok_adedi > 0 %}
+                      <span class="at-rozet at-rozet--uyari"><span class="at-rozet__nokta"></span>{{ urun.stok_adedi }} kaldı</span>
+                    {% else %}
+                      <span class="at-rozet at-rozet--kritik"><span class="at-rozet__nokta"></span>tükendi</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="at-bos-durum">Adedi girilmiş ürünlerde azalan yok.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

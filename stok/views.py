@@ -16,6 +16,9 @@ from django.db import IntegrityError
 #import requests
 from django.http import JsonResponse
 
+from . import rapor
+from . import satis as satis_modulu
+
 
 
 
@@ -26,11 +29,14 @@ def anasayfa(request):
     yeni urun eklendikce sayfa kendiliginden zenginlesir.
     """
     hediye_icin_kahve = 5
+    gecerlilik_gun = 30
     kahveler = []
     try:
         from kahve.models import Kahve, KahveAyar
 
-        hediye_icin_kahve = KahveAyar.al().hediye_icin_kahve
+        ayar = KahveAyar.al()
+        hediye_icin_kahve = ayar.hediye_icin_kahve
+        gecerlilik_gun = ayar.gecerlilik_gun
         kahveler = list(Kahve.objects.filter(aktif=True)[:4])
     except Exception:
         # Kahve modulunde bir sorun olsa bile ana sayfa acilmali.
@@ -41,6 +47,9 @@ def anasayfa(request):
         "system/user/anasayfa.html",
         {
             "hediye_icin_kahve": hediye_icin_kahve,
+            "gecerlilik_gun": gecerlilik_gun,
+            # Serittteki halkalar: ucu dolu, kalani bos - kart nasil isliyor gorunsun.
+            "damga_gosterimi": [i < 3 for i in range(hediye_icin_kahve)],
             "kahveler": kahveler,
             "gruplar": UrunGruplari.objects.order_by("Grup_Adi")[:12],
             "urun_sayisi": Stok.objects.filter(Stok_Durumu=True).count(),
@@ -683,6 +692,7 @@ def modern_urun_ara(request):
                         'Favoriler': Stok.objects.filter(Favori=True),
                         'AnaKategoriler': Liste_Grup.objects.all(),
                         'sepet_urunleri': sepet_urunleri,
+                        'sepet_json': sepet_json(sepet_urunleri),
                         'son_eklenen_urun': son_eklenen_urun,
                         'farkli_urun_sayisi': farkli_urun_sayisi,
                         'toplam_adet': toplam_adet,
@@ -721,6 +731,7 @@ def modern_urun_ara(request):
         'Favoriler': Favoriler,
         'AnaKategoriler': AnaKategoriler,
         'sepet_urunleri': sepet_urunleri,
+        'sepet_json': sepet_json(sepet_urunleri),
         'son_eklenen_urun': son_eklenen_urun,
         'farkli_urun_sayisi': farkli_urun_sayisi,
         'toplam_adet': toplam_adet,
@@ -847,35 +858,111 @@ def hizli_musteri_ekle(request):
     return JsonResponse({'success': False, 'error': 'POST gerekli.'})
 
 
+def sepet_json(sepet_urunleri):
+    """Sepeti sablona JSON olarak verir; borca aktarma penceresi bunu gosterir."""
+    return [{"ad": s.urun.Urun_Adi, "miktar": s.miktar} for s in sepet_urunleri]
+
+
+def sepet_ozeti(satirlar, en_fazla=8):
+    """Sepeti "2x Defter, 1x Kalem" gibi tek satira dokur.
+
+    Borc hareketinin aciklamasina giriyor: musteri "ne almistim?" diye
+    sordugunda cevap kayitta dursun.
+    """
+    parcalar = [f"{s.miktar}x {s.urun.Urun_Adi}" for s in satirlar[:en_fazla]]
+    kalan = len(satirlar) - en_fazla
+    if kalan > 0:
+        parcalar.append(f"+{kalan} ürün daha")
+    return ", ".join(parcalar)
+
+
 @csrf_exempt
 @login_required(login_url='giris-yap')
 def modern_borca_aktar(request):
-    if request.method == 'POST':
-        musteri_id = request.POST.get('musteri_id')
-        tutar_str = request.POST.get('tutar', '0').replace(',', '.')
-        try:
-            tutar = Decimal(tutar_str)
-        except Exception:
-            return JsonResponse({'success': False, 'error': 'Geçersiz tutar.'})
-        if tutar <= 0:
-            return JsonResponse({'success': False, 'error': 'Tutar 0\'dan büyük olmalı.'})
-        try:
-            musteri = Musteri.objects.get(id=musteri_id)
-        except Musteri.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Müşteri bulunamadı.'})
-        onceki_borc = musteri.borc
-        musteri.borc += tutar
-        musteri.save()
-        BorcHareketi.objects.create(
-            musteri=musteri,
-            tutar=tutar,
-            aciklama=f'Sepetten borça aktarıldı',
-            onceki_borc=onceki_borc
+    """Sepeti musterinin borcuna yazar.
+
+    Artik satis kaydi da aciliyor: kasa raporu "ne kadari borca yazildi"
+    sorusunu ancak boyle cevaplayabiliyor.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST gerekli.'})
+    try:
+        satis = satis_modulu.satisi_tamamla(
+            request.user,
+            odeme_turu='borc',
+            borc_musteri_id=request.POST.get('musteri_id'),
+            borc_tutar=request.POST.get('tutar', '0'),
+            not_metni=(request.POST.get('not') or '').strip(),
         )
-        SepetUrun.objects.filter(user=request.user).delete()
-        return JsonResponse({
-            'success': True,
-            'yeni_borc': str(musteri.borc),
-            'musteri_adi': musteri.isim_soyisim,
-        })
-    return JsonResponse({'success': False, 'error': 'POST gerekli.'})
+    except satis_modulu.SatisHatasi as hata:
+        return JsonResponse({'success': False, 'error': str(hata)})
+
+    return JsonResponse({
+        'success': True,
+        'yeni_borc': str(satis.borc_musteri.borc),
+        'musteri_adi': satis.borc_musteri.isim_soyisim,
+    })
+
+
+
+# --------------------------------------------------------------------------
+# Satisi tamamlama + kasa raporu
+# --------------------------------------------------------------------------
+
+@csrf_exempt
+@login_required(login_url='giris-yap')
+def modern_satis_tamamla(request):
+    """Sepeti satisa cevirir: kayit acar, stogu duser, gerekirse borca yazar."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST gerekli.'})
+    try:
+        satis = satis_modulu.satisi_tamamla(
+            request.user,
+            odeme_turu=request.POST.get('odeme_turu', 'nakit'),
+            nakit=request.POST.get('nakit'),
+            kart=request.POST.get('kart'),
+            borc_musteri_id=request.POST.get('borc_musteri_id'),
+            not_metni=(request.POST.get('not') or '').strip(),
+        )
+    except satis_modulu.SatisHatasi as hata:
+        return JsonResponse({'success': False, 'error': str(hata)})
+
+    return JsonResponse({
+        'success': True,
+        'satis': {
+            'id': satis.id,
+            'toplam': str(satis.toplam),
+            'odeme': satis.get_odeme_turu_display(),
+            'musteri': satis.borc_musteri.isim_soyisim if satis.borc_musteri else None,
+            'yeni_borc': str(satis.borc_musteri.borc) if satis.borc_musteri else None,
+        },
+    })
+
+
+@login_required(login_url='giris-yap')
+def kasa_raporu(request):
+    donem = request.GET.get('donem', 'gun')
+    if donem not in ('gun', 'ay', 'yil'):
+        donem = 'gun'
+    baslangic, bitis = rapor.aralik(donem)
+
+    seri = rapor.gunluk_seri(baslangic, bitis)
+    en_yuksek = max((g['toplam'] for g in seri), default=Decimal('0'))
+    for gun in seri:
+        # Cubuk yuksekligi en yuksek gune gore; parcalar tezgahlara boluniyor.
+        gun['kirtasiye_yuzde'] = int(gun['kirtasiye'] / en_yuksek * 100) if en_yuksek else 0
+        gun['kahve_yuzde'] = int(gun['kahve'] / en_yuksek * 100) if en_yuksek else 0
+
+    ozet = rapor.ozet(baslangic, bitis)
+    return render(request, 'system/user/kasa_raporu.html', {
+        'donem': donem,
+        'baslangic': baslangic,
+        'bitis': bitis,
+        'ozet': ozet,
+        'kasaya_giren': ozet['toplam']['nakit'] + ozet['toplam']['kart'],
+        'en_yuksek': en_yuksek,
+        'seri': seri,
+        'hareketler': rapor.hareketler(baslangic, bitis),
+        'stok_hareketleri': rapor.stok_hareketleri(baslangic, bitis),
+        'kritik_stok': rapor.kritik_stok(),
+    })

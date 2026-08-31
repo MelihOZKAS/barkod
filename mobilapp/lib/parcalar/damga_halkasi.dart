@@ -195,7 +195,10 @@ class DamgaSirasi extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, kisit) {
         final sigan = (kisit.maxWidth - (aralik * (damgalar.length - 1))) / damgalar.length;
-        return _siraCiz(context, olcu ?? sigan.clamp(enKucuk, enBuyuk));
+        // enKucuk bir ALT SINIR degil, tercih edilen en kucuk olcu. Sigmiyorsa
+        // ona zorlamak satiri tasiriyor ve halkalar okunmaz dilimlere donuyordu.
+        final tercih = olcu ?? sigan.clamp(enKucuk, enBuyuk);
+        return _siraCiz(context, sigan > 0 ? tercih.clamp(0.0, sigan) : tercih);
       },
     );
   }

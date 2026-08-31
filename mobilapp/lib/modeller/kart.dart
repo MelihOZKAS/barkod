@@ -53,6 +53,15 @@ class Kart {
       );
 }
 
+/// Sunucu http:// donerse https'e cevirir.
+///
+/// Android release derlemesi duz HTTP'yi engelliyor; TLS'i Cloudflare
+/// sonlandirdigi icin Django bir donem "http://" adresler uretiyordu ve
+/// urun fotograflarinin hicbiri yuklenmiyordu. Sunucu tarafi duzeltildi,
+/// bu da ikinci emniyet: ayni hata tekrarlarsa uygulama etkilenmesin.
+String _guvenliAdres(String adres) =>
+    adres.startsWith('http://') ? adres.replaceFirst('http://', 'https://') : adres;
+
 class KahveUrun {
   const KahveUrun({
     required this.ad,
@@ -81,7 +90,7 @@ class KahveUrun {
         fiyat: (j['fiyat'] as num?)?.toDouble() ?? 0,
         aciklama: j['aciklama'] as String? ?? '',
         icindekiler: ((j['icindekiler'] as List?) ?? []).map((e) => e.toString()).toList(),
-        gorsel: j['gorsel'] as String? ?? '',
+        gorsel: _guvenliAdres(j['gorsel'] as String? ?? ''),
         hediyeGecerli: j['hediye_gecerli'] as bool? ?? true,
         kategori: j['kategori'] as String? ?? '',
       );

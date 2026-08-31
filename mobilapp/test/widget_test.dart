@@ -8,6 +8,7 @@ import 'package:mobilapp/ekranlar/menu_sekmesi.dart';
 import 'package:mobilapp/ekranlar/profil_sekmesi.dart';
 import 'package:mobilapp/main.dart';
 import 'package:mobilapp/modeller/kart.dart';
+import 'package:mobilapp/parcalar/damga_halkasi.dart';
 
 void main() {
   testWidgets('Giris ekrani acilir ve butona basinca ana ekrana gecer', (tester) async {
@@ -126,5 +127,75 @@ void main() {
 
     expect(find.text('Sıradaki kahven bizden.'), findsOneWidget);
     expect(find.text('1 HEDİYE'), findsOneWidget);
+  });
+
+  test('http gorsel adresi https ye cevrilir', () {
+    // Android release derlemesi duz HTTP'yi engelliyor; sunucu bir donem
+    // http:// adresler uretiyordu ve hicbir fotograf yuklenmiyordu.
+    final urun = KahveUrun.jsondan({
+      'id': 1,
+      'ad': 'Espresso',
+      'fiyat': 70,
+      'gorsel': 'http://site.com/media/kahve/a.png',
+    });
+
+    expect(urun.gorsel, 'https://site.com/media/kahve/a.png');
+  });
+
+  test('https adres oldugu gibi kalir', () {
+    final urun = KahveUrun.jsondan({
+      'id': 1,
+      'ad': 'Latte',
+      'fiyat': 80,
+      'gorsel': 'https://site.com/media/kahve/b.png',
+    });
+
+    expect(urun.gorsel, 'https://site.com/media/kahve/b.png');
+  });
+
+  testWidgets('Cok damgada menu seridi tasmaz', (tester) async {
+    // Esik 10'a cikinca 11 halka 118px'e sigmiyor ve okunmaz dilimlere
+    // donuyordu; o durumda halkalarin yerini ince cubuk aliyor.
+    final k = DemoVeri.kartUret(10);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MenuSekmesi(
+            kart: k,
+            kahveler: DemoVeri.menu,
+            yukleniyor: false,
+            karta: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull, reason: 'tasma olmamali');
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('${k.aktifKahve}/10'), findsOneWidget);
+  });
+
+  testWidgets('Az damgada halkalar korunur', (tester) async {
+    final k = DemoVeri.kartUret(5);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MenuSekmesi(
+            kart: k,
+            kahveler: DemoVeri.menu,
+            yukleniyor: false,
+            karta: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byType(DamgaSirasi), findsWidgets);
   });
 }

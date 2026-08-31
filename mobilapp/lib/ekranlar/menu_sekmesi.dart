@@ -131,6 +131,42 @@ class MenuSekmesi extends StatelessWidget {
   }
 }
 
+/// Damga sayisi cok oldugunda seritteki halkalarin yerini alan ince cubuk.
+class _MiniIlerleme extends StatelessWidget {
+  const _MiniIlerleme({required this.dolu, required this.esik, required this.hediyeVar});
+
+  final int dolu;
+  final int esik;
+  final bool hediyeVar;
+
+  @override
+  Widget build(BuildContext context) {
+    final oran = esik > 0 ? (dolu / esik).clamp(0.0, 1.0) : 0.0;
+    final renk = hediyeVar ? KahveRenk.ciniAcik : KahveRenk.crema;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: hediyeVar ? 1.0 : oran,
+            minHeight: 8,
+            backgroundColor: KahveRenk.porselen.withValues(alpha: .10),
+            valueColor: AlwaysStoppedAnimation(renk),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          hediyeVar ? 'hazır' : '$dolu/$esik',
+          style: veriStili(boyut: 11, renk: KahveRenk.kabuk),
+        ),
+      ],
+    );
+  }
+}
+
 /// Menunun ustundeki ince kart ozeti.
 class _IlerlemeSeridi extends StatelessWidget {
   const _IlerlemeSeridi({required this.kart, required this.karta});
@@ -169,15 +205,24 @@ class _IlerlemeSeridi extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // Dar seritte 11 halka okunmaz dilimlere donuyordu. Halkalar
+              // ancak sigdiginda; sigmiyorsa ince bir ilerleme cubugu.
+              // Tam halka sirasi zaten Kartim sekmesinde duruyor.
               SizedBox(
                 width: 118,
-                child: DamgaSirasi(
-                  aralik: 4,
-                  enKucuk: 12,
-                  enBuyuk: 17,
-                  canlandir: false,
-                  damgalar: damgalar,
-                ),
+                child: damgalar.length <= 7
+                    ? DamgaSirasi(
+                        aralik: 4,
+                        enKucuk: 12,
+                        enBuyuk: 17,
+                        canlandir: false,
+                        damgalar: damgalar,
+                      )
+                    : _MiniIlerleme(
+                        dolu: kart.aktifKahve,
+                        esik: kart.esik,
+                        hediyeVar: hediyeVar,
+                      ),
               ),
               const SizedBox(width: Aralik.b2),
               Expanded(

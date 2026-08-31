@@ -34,6 +34,12 @@ ALLOWED_HOSTS = env('ALLOWED_HOSTS',cast=list)
 
 CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS',cast=list)
 
+# TLS'i Cloudflare sonlandiriyor; Django istegi duz http saniyordu ve
+# request.build_absolute_uri() "http://..." adresler uretiyordu. Mobil
+# uygulama release derlemesinde duz HTTP'yi engelledigi icin urun
+# fotograflarinin HICBIRI yuklenmiyordu.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Application definition
 
 INSTALLED_APPS = [

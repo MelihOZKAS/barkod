@@ -106,7 +106,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 196 test (73 stok + 123 kahve)
+python3 manage.py test stok kahve     # 202 test (73 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -286,10 +286,22 @@ güncellenir. İşaretlenmiş "+1" kutusu, yüklenen görsel ve yazılan açıkl
 > menü bir kere yüklendi, tekrar gerekmiyor. `MenuYuklemeTesti` geri gelmemesini
 > kilitliyor.
 
-#### Görseller 1:1
+#### Görseller 1:1 ve JPEG
 Menü, ana sayfa ve mobil uygulama görselleri **kare** gösteriyor. Yüklenen fotoğraf
-merkezden kare kırpılıp en fazla 1200px'e küçültülüyor (`Kahve._gorseli_kucult`),
-böylece kırpma bir kez yapılıyor ve her ekranda aynı kare görünüyor.
+merkezden kare kırpılıp en fazla 1200px'e küçültülüyor **ve JPEG'e çevriliyor**
+(`Kahve._gorseli_kucult`), böylece kırpma bir kez yapılıyor ve her ekranda aynı
+kare görünüyor.
+
+**JPEG şart:** menü fotoğrafları PNG olarak ~1,7 MB geliyordu; 30 ürünlük menü
+mobil uygulamada **50 MB** indiriyordu. Aynı görsel JPEG olarak ~150 KB.
+Saydamlık varsa beyaza yatırılıyor (JPEG alfa taşımıyor), uzantı `.jpg` olarak
+güncelleniyor ve eski dosya siliniyor.
+
+Yüklenmiş eski fotoğrafları toplu sıkıştırmak için:
+```bash
+python manage.py kahve_gorsel_sikistir            # ne olacağını gösterir
+python manage.py kahve_gorsel_sikistir --uygula   # gerçekten uygular
+```
 
 #### Ürün bayrakları (`Kahve` modeli) — karıştırma, ikisi ayrı eksen
 | Alan | Admin etiketi | Varsayılan | Ne yapar |
@@ -498,6 +510,18 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-08-31 (devam)
+- **Mobilde hiçbir fotoğraf yüklenmiyordu** — TLS'i Cloudflare sonlandırıyor,
+  Django isteği düz http sanıp `http://` görsel adresleri dönüyordu; Android
+  release derlemesi düz HTTP'yi engelliyor. `SECURE_PROXY_SSL_HEADER` eklendi,
+  mobil tarafta da http→https güvencesi var.
+- **Fotoğraflar 1,7 MB PNG'ydi** — `_gorseli_kucult` "zaten kare ve küçük" diye
+  erken dönüyor, dosyaya hiç dokunmuyordu. Artık her zaman JPEG'e çeviriyor;
+  `kahve_gorsel_sikistir` komutu eskileri de sıkıştırıyor.
+- **Damga şeridi 10 damgada taşıyordu** — `DamgaSirasi`'nda `enKucuk` artık alt
+  sınır değil tercih; menü şeridi 7'den fazla damgada ince ilerleme çubuğuna
+  geçiyor.
 
 ### 2026-08-31
 - **Özel indirim** — **iki kasada da** sepete TL ya da yüzde indirim. Satış, borç

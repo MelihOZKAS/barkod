@@ -1,3 +1,4 @@
+import os
 import secrets
 import uuid
 from datetime import timedelta
@@ -180,10 +181,16 @@ class Kahve(models.Model):
         self._gorseli_kucult()
 
     def _gorseli_kucult(self, en_fazla_genislik=1200):
-        """Yuklenen fotografi kare kirpar ve kucultur.
+        """Yuklenen fotografi kare kirpar, kucultur ve JPEG'e cevirir.
 
         Menu ve mobil uygulama gorselleri 1:1 gosteriyor; kirpmayi burada bir
         kez yaparsak her ekranda ayni kare gorunur. Kare kirpma merkezden.
+
+        JPEG'e cevirmek sart: menu fotograflari fotografik icerik ve PNG olarak
+        ~1,7 MB geliyorlardi. 30 urunluk menu mobilde 50 MB indiriyordu; ayni
+        gorsel JPEG olarak ~150 KB. Eskiden "zaten kare ve yeterince kucuk"
+        diye erken donuyordu, dosyaya hic dokunmuyordu.
+
         Hata olursa sessizce vazgecer: admin kaydi asla bu yuzden basarisiz olmasin.
         """
         if not self.gorsel:
@@ -202,31 +209,48 @@ class Kahve(models.Model):
             return  # bozuk ya da desteklenmeyen dosya
 
         try:
-            bicim = (resim.format or "JPEG").upper()
             kenar = min(resim.width, resim.height)
+            hedef = min(kenar, en_fazla_genislik)
 
-            zaten_kare = resim.width == resim.height
-            if zaten_kare and resim.width <= en_fazla_genislik:
-                return
-
-            # merkezden kare kirp
             sol = (resim.width - kenar) // 2
             ust = (resim.height - kenar) // 2
-            kare = resim.crop((sol, ust, sol + kenar, ust + kenar))
+            kucuk = resim.crop((sol, ust, sol + kenar, ust + kenar))
+            if kenar != hedef:
+                kucuk = kucuk.resize((hedef, hedef), Image.LANCZOS)
 
-            hedef = min(kenar, en_fazla_genislik)
-            kucuk = kare.resize((hedef, hedef), Image.LANCZOS)
-
-            secenekler = {"optimize": True}
-            if bicim in ("JPEG", "JPG"):
+            # Saydamlik varsa beyaza yatir; JPEG alfa tasimiyor.
+            if kucuk.mode in ("RGBA", "LA", "P"):
+                kucuk = kucuk.convert("RGBA")
+                zemin = Image.new("RGB", kucuk.size, (255, 255, 255))
+                zemin.paste(kucuk, mask=kucuk.split()[-1])
+                kucuk = zemin
+            else:
                 kucuk = kucuk.convert("RGB")
-                secenekler["quality"] = 82
-
-            kucuk.save(yol, format=bicim, **secenekler)
         except (OSError, ValueError):
             return
         finally:
             resim.close()
+
+        yeni_yol = os.path.splitext(yol)[0] + ".jpg"
+        try:
+            kucuk.save(yeni_yol, format="JPEG", quality=82, optimize=True, progressive=True)
+        except (OSError, ValueError):
+            return
+
+        if yeni_yol == yol:
+            return
+
+        # Uzanti degisti: alan degerini guncelle, eski dosyayi sil.
+        # save() yerine update(): tekrar buraya girip yeniden sikistirmasin,
+        # gorsel degisimi sinyali de bosuna tetiklenmesin.
+        yeni_ad = os.path.splitext(self.gorsel.name)[0] + ".jpg"
+        self.gorsel.name = yeni_ad
+        if self.pk:
+            Kahve.objects.filter(pk=self.pk).update(gorsel=yeni_ad)
+        try:
+            os.remove(yol)
+        except OSError:
+            pass
 
 
 class KahveMusteri(models.Model):

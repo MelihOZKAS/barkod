@@ -5,11 +5,12 @@ Calistirmak icin:
 """
 
 import json
+import os
 import shutil
 import tempfile
 from datetime import timedelta
 from decimal import Decimal
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 
 from django.contrib.auth.models import User
@@ -1293,3 +1294,82 @@ class KahveIndirimTesti(TestCase):
         anonim = Client()
 
         self.assertEqual(anonim.post(reverse("kahve:kasa-indirim")).status_code, 302)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class GorselSikistirmaTesti(TestCase):
+    """Fotograflar JPEG'e cevrilip kucultuluyor mu.
+
+    Eskiden "zaten kare ve yeterince kucuk" diye erken donuyordu: 1024x1024
+    PNG'ler oldugu gibi kaliyordu, 30 urunluk menu mobilde 50 MB indiriyordu.
+    """
+
+    def _png(self, ad="foto.png", olcu=(1024, 1024), duz=True):
+        """Duz renk ya da fotografa benzer gradyan uretir.
+
+        Duz renkli sentetik gorselde PNG zaten kucuk; boyut kazancini olcmek
+        icin gercek fotograflar gibi gecisli bir gorsel gerekiyor.
+        """
+        resim = Image.new("RGB", olcu, (120, 80, 40))
+        if not duz:
+            en, boy = olcu
+            pik = resim.load()
+            for y in range(boy):
+                for x in range(en):
+                    pik[x, y] = ((x * 255) // en, (y * 255) // boy, ((x + y) * 255) // (en + boy))
+        tampon = BytesIO()
+        resim.save(tampon, format="PNG")
+        return SimpleUploadedFile(ad, tampon.getvalue(), content_type="image/png")
+
+    def test_kare_png_de_jpeg_e_cevrilir(self):
+        """Asil hata buydu: kare ve kucuk olan dosyaya hic dokunulmuyordu."""
+        kahve = Kahve.objects.create(ad="Espresso", fiyat=70, gorsel=self._png())
+
+        kahve.refresh_from_db()
+        self.assertTrue(kahve.gorsel.name.endswith(".jpg"))
+        with Image.open(kahve.gorsel.path) as resim:
+            self.assertEqual(resim.format, "JPEG")
+
+    def test_fotografta_dosya_kucuyor(self):
+        kaynak = self._png(duz=False)
+        onceki = len(kaynak.read())
+        kaynak.seek(0)
+
+        kahve = Kahve.objects.create(ad="Latte", fiyat=80, gorsel=kaynak)
+
+        self.assertLess(os.path.getsize(kahve.gorsel.path), onceki)
+
+    def test_eski_png_dosyasi_siliniyor(self):
+        kahve = Kahve.objects.create(ad="Mocha", fiyat=100, gorsel=self._png("mocha.png"))
+
+        klasor = Path(kahve.gorsel.path).parent
+        kalanlar = [d.name for d in klasor.iterdir() if d.name.startswith("mocha")]
+        self.assertTrue(all(d.endswith(".jpg") for d in kalanlar), kalanlar)
+
+    def test_dikdortgen_kare_kirpiliyor(self):
+        kahve = Kahve.objects.create(
+            ad="Americano", fiyat=70, gorsel=self._png("genis.png", olcu=(1600, 900))
+        )
+
+        with Image.open(kahve.gorsel.path) as resim:
+            self.assertEqual(resim.width, resim.height)
+            self.assertLessEqual(resim.width, 1200)
+
+    def test_saydam_gorsel_beyaza_yatiyor(self):
+        tampon = BytesIO()
+        Image.new("RGBA", (800, 800), (255, 0, 0, 0)).save(tampon, format="PNG")
+        saydam = SimpleUploadedFile("saydam.png", tampon.getvalue(), content_type="image/png")
+
+        kahve = Kahve.objects.create(ad="Çay", fiyat=20, gorsel=saydam)
+
+        with Image.open(kahve.gorsel.path) as resim:
+            self.assertEqual(resim.mode, "RGB")
+            self.assertEqual(resim.getpixel((10, 10)), (255, 255, 255))
+
+    def test_komut_kuru_calisma_dosyaya_dokunmaz(self):
+        kahve = Kahve.objects.create(ad="Filtre", fiyat=60, gorsel=self._png())
+        onceki = os.path.getsize(kahve.gorsel.path)
+
+        call_command("kahve_gorsel_sikistir", verbosity=0, stdout=StringIO())
+
+        self.assertEqual(os.path.getsize(kahve.gorsel.path), onceki)

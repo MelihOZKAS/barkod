@@ -135,7 +135,13 @@ class Satis(models.Model):
         PARCALI = "parcali", "Parçalı"
         BORC = "borc", "Borca yazıldı"
 
+    # toplam = indirim DUSULDUKTEN sonraki tutar; kasaya giren para bu.
+    # Ara toplami gormek icin: toplam + indirim_tutari
     toplam = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Toplam")
+    indirim_tutari = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name="İndirim",
+        help_text="Kasada elle verilen özel indirim. Ara toplam = toplam + indirim.",
+    )
     nakit_tutar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Nakit")
     kart_tutar = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Kredi kartı")
     # Borca yazilan kisim. Parcali aktarmada tutarin bir kismi nakit alinip
@@ -156,6 +162,11 @@ class Satis(models.Model):
         ordering = ("-tarih",)
         verbose_name = "Kırtasiye satışı"
         verbose_name_plural = "Kırtasiye satışları"
+
+    @property
+    def ara_toplam(self):
+        """Indirim uygulanmadan onceki tutar."""
+        return self.toplam + self.indirim_tutari
 
     def __str__(self):
         return f"{self.toplam} ₺ — {self.get_odeme_turu_display()}"

@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/hizli-musteri-ekle/", views.hizli_musteri_ekle, name='api-hizli-musteri-ekle'),
     path("api/borca-aktar/", views.modern_borca_aktar, name='api-borca-aktar'),
     path("api/satis-tamamla/", views.modern_satis_tamamla, name='api-satis-tamamla'),
+    path("api/indirim-uygula/", views.modern_indirim_uygula, name='api-indirim-uygula'),
     path("kasa-raporu/", views.kasa_raporu, name='kasa-raporu'),
 
     # Müşteri Fiyat Monitörü (Public - Login Gerektirmez)

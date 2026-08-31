@@ -791,3 +791,145 @@ class SepettekiStokGostergesiTesti(TestCase):
         govde = self._sepete(urun)
 
         self.assertIn("Stokta yok", govde)
+
+
+class OzelIndirimTesti(TestCase):
+    """Kasada elle verilen indirim: TL ya da yuzde.
+
+    Indirim satisin her yerine dokunuyor - kayit, borc ve kasa raporu.
+    """
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.urun = Stok.objects.create(Urun_Adi="Defter", Barkod=6001, Tutar=Decimal("50.00"))
+        SepetUrun.objects.create(user=self.kullanici, urun=self.urun, miktar=4)   # 200 TL
+        self.musteri = Musteri.objects.create(isim_soyisim="Veresiye",
+                                              Cep_Telefonu=5551112233, borc=Decimal("0"))
+
+    def _indirim(self, tur, deger):
+        return self.client.post(reverse("api-indirim-uygula"), {"tur": tur, "deger": deger})
+
+    def test_tl_indirimi_toplamdan_duser(self):
+        cevap = self._indirim("tl", "30")
+
+        veri = cevap.json()["indirim"]
+        self.assertEqual(veri["ara_toplam"], "200.00")
+        self.assertEqual(veri["tutar"], "30.00")
+        self.assertEqual(veri["odenecek"], "170.00")
+
+    def test_yuzde_indirimi_hesaplanir(self):
+        veri = self._indirim("yuzde", "10").json()["indirim"]
+
+        self.assertEqual(veri["tutar"], "20.00")
+        self.assertEqual(veri["odenecek"], "180.00")
+
+    def test_satis_indirimli_tutarla_kaydedilir(self):
+        self._indirim("tl", "30")
+
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        satis = Satis.objects.get()
+        self.assertEqual(satis.indirim_tutari, Decimal("30.00"))
+        self.assertEqual(satis.toplam, Decimal("170.00"), "kasaya giren indirimli tutar")
+        self.assertEqual(satis.nakit_tutar, Decimal("170.00"))
+        self.assertEqual(satis.ara_toplam, Decimal("200.00"))
+
+    def test_satis_bitince_indirim_temizlenir(self):
+        """Yarim kalan indirim bir sonraki musteriye tasinmamali."""
+        self._indirim("tl", "30")
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        SepetUrun.objects.create(user=self.kullanici, urun=self.urun, miktar=1)
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        ikinci = Satis.objects.order_by("id").last()
+        self.assertEqual(ikinci.indirim_tutari, Decimal("0.00"))
+        self.assertEqual(ikinci.toplam, Decimal("50.00"))
+
+    def test_borca_aktarmada_da_indirim_gecerli(self):
+        self._indirim("yuzde", "25")     # 200 -> 150
+
+        self.client.post(reverse("api-borca-aktar"),
+                         {"musteri_id": self.musteri.id, "tutar": "150"})
+
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("150.00"))
+        satis = Satis.objects.get()
+        self.assertEqual(satis.indirim_tutari, Decimal("50.00"))
+        self.assertIn("İndirim", BorcHareketi.objects.get().aciklama)
+
+    def test_sepetten_buyuk_indirim_kabul_edilmez(self):
+        """Toplami asan indirim eksi tutar uretmemeli."""
+        self._indirim("tl", "500")
+
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+
+        satis = Satis.objects.get()
+        self.assertEqual(satis.toplam, Decimal("0.00"), "eksiye düşmemeli")
+        self.assertEqual(satis.indirim_tutari, Decimal("200.00"), "en fazla ara toplam kadar")
+
+    def test_yuzde_yuzden_buyuk_olamaz(self):
+        cevap = self._indirim("yuzde", "150")
+
+        self.assertFalse(cevap.json()["success"])
+
+    def test_eksi_indirim_reddedilir(self):
+        cevap = self._indirim("tl", "-50")
+
+        self.assertFalse(cevap.json()["success"])
+
+    def test_sifir_indirim_kaldirir(self):
+        self._indirim("tl", "30")
+
+        veri = self._indirim("tl", "0").json()["indirim"]
+
+        self.assertFalse(veri["var"])
+        self.assertEqual(veri["odenecek"], "200.00")
+
+    def test_raporda_ciro_indirimli_tutar(self):
+        self._indirim("tl", "30")
+        self.client.post(reverse("api-satis-tamamla"), {"odeme_turu": "nakit"})
+        bugun = timezone.localtime().date()
+
+        ozet = rapor.ozet(bugun, bugun)
+
+        self.assertEqual(ozet["toplam"]["ciro"], Decimal("170.00"))
+
+    def test_kasa_sayfasi_indirimi_gosterir(self):
+        """Uc dogru cevap verse de sayfa gostermezse ise yaramaz.
+
+        Ilk yazimda context iki render yolundan sadece birine eklenmisti;
+        duz GET'te GENEL TOPLAM bos cikiyordu.
+        """
+        self._indirim("tl", "30")
+
+        cevap = self.client.get(reverse("modern-urun-ara"))
+        govde = cevap.content.decode()
+
+        self.assertIn("Özel indirim", govde)
+        # Site Turkce yerellestirmede: ondalik ayrac virgul
+        self.assertIn("170,00 TL", govde, "genel toplam indirimli olmalı")
+        self.assertIn("30,00 TL", govde, "indirim tutarı görünmeli")
+        self.assertIn('id="indirim-kaldir"', govde, "kaldır düğmesi çıkmalı")
+
+    def test_js_e_giden_tutar_noktali(self):
+        """parseFloat virgullu sayida kurusu yutuyor; JS'e nokta gitmeli."""
+        self._indirim("tl", "30.50")
+
+        govde = self.client.get(reverse("modern-urun-ara")).content.decode()
+
+        self.assertIn("var sepetToplam = '169.50'", govde)
+
+    def test_indirim_yokken_toplam_bozulmaz(self):
+        govde = self.client.get(reverse("modern-urun-ara")).content.decode()
+
+        self.assertIn("200,00 TL", govde)
+        self.assertNotIn('id="indirim-kaldir"', govde)
+
+    def test_anonim_indirim_veremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.post(reverse("api-indirim-uygula"),
+                                     {"tur": "tl", "deger": "50"}).status_code, 302)

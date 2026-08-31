@@ -9,6 +9,7 @@ from datetime import timedelta
 import random
 from decimal import Decimal
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.db import IntegrityError
 
 
@@ -16,6 +17,7 @@ from django.db import IntegrityError
 #import requests
 from django.http import JsonResponse
 
+from . import indirim as indirim_modulu
 from . import rapor
 from . import satis as satis_modulu
 
@@ -723,6 +725,7 @@ def modern_urun_ara(request):
                     farkli_urun_sayisi = sepet_urunleri.count()
                     toplam_adet = sepet_urunleri.aggregate(toplam=Sum('miktar'))['toplam'] or 0
                     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+                    ara_toplam = (total or Decimal('0.00')).quantize(Decimal('0.01'))
                     if total != None:
                         total = '{:.2f}'.format(total)
 
@@ -732,6 +735,7 @@ def modern_urun_ara(request):
                         'AnaKategoriler': Liste_Grup.objects.all(),
                         'sepet_urunleri': sepet_urunleri,
                         'sepet_json': sepet_json(sepet_urunleri),
+                        'indirim': indirim_modulu.ozet(request, ara_toplam),
                         'son_eklenen_urun': son_eklenen_urun,
                         'farkli_urun_sayisi': farkli_urun_sayisi,
                         'toplam_adet': toplam_adet,
@@ -753,6 +757,7 @@ def modern_urun_ara(request):
     toplam_adet = sepet_urunleri.aggregate(toplam=Sum('miktar'))['toplam'] or 0
 
     total = SepetUrun.objects.filter(user=request.user).aggregate(total=Sum(F('urun__Tutar') * F('miktar')))['total']
+    ara_toplam = (total or Decimal('0.00')).quantize(Decimal('0.01'))
     if total != None:
         total = '{:.2f}'.format(total)
 
@@ -771,6 +776,7 @@ def modern_urun_ara(request):
         'AnaKategoriler': AnaKategoriler,
         'sepet_urunleri': sepet_urunleri,
         'sepet_json': sepet_json(sepet_urunleri),
+        'indirim': indirim_modulu.ozet(request, ara_toplam),
         'son_eklenen_urun': son_eklenen_urun,
         'farkli_urun_sayisi': farkli_urun_sayisi,
         'toplam_adet': toplam_adet,
@@ -901,6 +907,41 @@ def hizli_musteri_ekle(request):
     return JsonResponse({'success': False, 'error': 'POST gerekli.'})
 
 
+def _sepet_ara_toplami(kullanici):
+    toplam = SepetUrun.objects.filter(user=kullanici).aggregate(
+        t=Sum(F('urun__Tutar') * F('miktar'))
+    )['t']
+    return (toplam or Decimal('0.00')).quantize(Decimal('0.01'))
+
+
+def _sepet_indirimi(request):
+    """Oturumdaki indirimin sepete uygulanan TL karsiligi."""
+    return indirim_modulu.hesapla(
+        _sepet_ara_toplami(request.user), indirim_modulu.oku(request)
+    )
+
+
+@login_required(login_url='giris-yap')
+@require_POST
+def modern_indirim_uygula(request):
+    """Sepete ozel indirim uygular ya da kaldirir."""
+    try:
+        indirim_modulu.yaz(request, request.POST.get('tur', 'tl'), request.POST.get('deger', '0'))
+    except indirim_modulu.IndirimHatasi as hata:
+        return JsonResponse({'success': False, 'error': str(hata)})
+
+    ozet = indirim_modulu.ozet(request, _sepet_ara_toplami(request.user))
+    return JsonResponse({
+        'success': True,
+        'indirim': {
+            'var': ozet['var'],
+            'tutar': f"{ozet['tutar']:.2f}",
+            'ara_toplam': f"{ozet['ara_toplam']:.2f}",
+            'odenecek': f"{ozet['odenecek']:.2f}",
+        },
+    })
+
+
 def sepet_json(sepet_urunleri):
     """Sepeti sablona JSON olarak verir; borca aktarma penceresi bunu gosterir."""
     return [{"ad": s.urun.Urun_Adi, "miktar": s.miktar} for s in sepet_urunleri]
@@ -935,10 +976,12 @@ def modern_borca_aktar(request):
             borc_musteri_id=request.POST.get('musteri_id'),
             borc_tutar=request.POST.get('tutar', '0'),
             not_metni=(request.POST.get('not') or '').strip(),
+            indirim_tutari=_sepet_indirimi(request),
         )
     except satis_modulu.SatisHatasi as hata:
         return JsonResponse({'success': False, 'error': str(hata)})
 
+    indirim_modulu.temizle(request)
     return JsonResponse({
         'success': True,
         'yeni_borc': str(satis.borc_musteri.borc),
@@ -964,15 +1007,18 @@ def modern_satis_tamamla(request):
             kart=request.POST.get('kart'),
             borc_musteri_id=request.POST.get('borc_musteri_id'),
             not_metni=(request.POST.get('not') or '').strip(),
+            indirim_tutari=_sepet_indirimi(request),
         )
     except satis_modulu.SatisHatasi as hata:
         return JsonResponse({'success': False, 'error': str(hata)})
 
+    indirim_modulu.temizle(request)   # satis bitti, indirim bir sonrakine tasinmasin
     return JsonResponse({
         'success': True,
         'satis': {
             'id': satis.id,
             'toplam': str(satis.toplam),
+            'indirim': str(satis.indirim_tutari),
             'odeme': satis.get_odeme_turu_display(),
             'musteri': satis.borc_musteri.isim_soyisim if satis.borc_musteri else None,
             'yeni_borc': str(satis.borc_musteri.borc) if satis.borc_musteri else None,

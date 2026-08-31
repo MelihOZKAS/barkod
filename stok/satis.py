@@ -36,7 +36,8 @@ def _para(deger):
 
 @transaction.atomic
 def satisi_tamamla(kullanici, odeme_turu, nakit=None, kart=None,
-                   borc_musteri_id=None, not_metni="", borc_tutar=None):
+                   borc_musteri_id=None, not_metni="", borc_tutar=None,
+                   indirim_tutari=None):
     satirlar = list(
         SepetUrun.objects.filter(user=kullanici).select_related("urun")
     )
@@ -47,8 +48,16 @@ def satisi_tamamla(kullanici, odeme_turu, nakit=None, kart=None,
     if odeme_turu not in gecerli:
         raise SatisHatasi("Ödeme türü geçersiz.")
 
-    toplam = sum((s.urun.Tutar * s.miktar for s in satirlar), Decimal("0.00"))
-    toplam = toplam.quantize(Decimal("0.01"))
+    ara_toplam = sum((s.urun.Tutar * s.miktar for s in satirlar), Decimal("0.00"))
+    ara_toplam = ara_toplam.quantize(Decimal("0.01"))
+
+    # Indirim sepetin tamamina uygulanir; kasaya giren para indirimli tutar.
+    indirim = _para(indirim_tutari or 0)
+    if indirim < 0:
+        raise SatisHatasi("İndirim eksi olamaz.")
+    if indirim > ara_toplam:
+        raise SatisHatasi("İndirim sepet toplamından büyük olamaz.")
+    toplam = ara_toplam - indirim
 
     borc_musteri = None
     if odeme_turu == Satis.Odeme.NAKIT:
@@ -78,6 +87,7 @@ def satisi_tamamla(kullanici, odeme_turu, nakit=None, kart=None,
 
     satis = Satis.objects.create(
         toplam=toplam,
+        indirim_tutari=indirim,
         nakit_tutar=nakit_tutar,
         kart_tutar=kart_tutar,
         borc_tutar=(toplam - nakit_tutar - kart_tutar),
@@ -117,6 +127,8 @@ def satisi_tamamla(kullanici, odeme_turu, nakit=None, kart=None,
         alinanlar = sepet_ozeti(satirlar)
         if alinanlar:
             metin.append(f"Alınanlar: {alinanlar}")
+        if indirim:
+            metin.append(f"İndirim: {indirim:.2f} ₺ (ara toplam {ara_toplam:.2f} ₺)")
         if not_metni:
             metin.append(f"Not: {not_metni}")
         if satis.nakit_tutar:

@@ -166,9 +166,42 @@
         <div class="glass-effect rounded-3xl shadow-2xl p-8">
             <div class="mb-6">
                 {% if total %}
+                    {# Ozel indirim: bazi musterilere elle indirim veriliyor. #}
+                    <div class="mb-5 mx-auto max-w-xl rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-4">
+                      <div class="flex items-center justify-center gap-2 flex-wrap">
+                        <span class="font-bold text-gray-700">🏷️ Özel indirim:</span>
+                        <input type="number" id="indirim-deger" step="0.01" min="0"
+                               value="{{ indirim.deger }}" placeholder="0"
+                               class="w-28 text-center border-2 border-amber-300 rounded-lg px-3 py-2 font-bold focus:border-amber-500 focus:outline-none">
+                        <div class="inline-flex rounded-lg bg-white border-2 border-amber-300 overflow-hidden">
+                          <button type="button" data-tur="tl"
+                                  class="indirim-tur px-4 py-2 font-bold transition">TL</button>
+                          <button type="button" data-tur="yuzde"
+                                  class="indirim-tur px-4 py-2 font-bold transition">%</button>
+                        </div>
+                        <button type="button" id="indirim-uygula"
+                                class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg font-bold shadow transition">
+                          Uygula
+                        </button>
+                        {% if indirim.var %}
+                          <button type="button" id="indirim-kaldir"
+                                  class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold transition">
+                            Kaldır
+                          </button>
+                        {% endif %}
+                      </div>
+                      {% if indirim.var %}
+                        <div class="mt-3 text-center text-gray-700">
+                          Ara toplam <strong>{{ indirim.ara_toplam|floatformat:2 }} TL</strong>
+                          <span class="mx-2 text-amber-600">−</span>
+                          İndirim <strong class="text-amber-700">{{ indirim.tutar|floatformat:2 }} TL</strong>
+                        </div>
+                      {% endif %}
+                    </div>
+
                     <div class="flex items-center justify-center gap-4 flex-wrap">
                         <h2 class="text-3xl font-bold text-gray-800">
-                            GENEL TOPLAM: <span class="text-emerald-600 text-4xl">{{ total }} TL</span>
+                            GENEL TOPLAM: <span class="text-emerald-600 text-4xl">{{ indirim.odenecek|floatformat:2 }} TL</span>
                         </h2>
                         <button onclick="satisTamamlaPopup()" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition hover:shadow-xl hover:-translate-y-0.5">
                             ✅ Satışı Tamamla
@@ -382,7 +415,8 @@
     // ============ BORÇA AKTAR ============
     // Sepet verisi json_script ile geliyor: urun adlari kullanici girdisi,
     // sablona duz gomulmemeli.
-    var sepetToplam = '{{ total|default:"0" }}';
+    // Indirim dusulmus tutar; satis ve borca aktarma pencereleri bunu kullaniyor.
+    var sepetToplam = '{{ indirim.odenecek|stringformat:".2f"|default:"0" }}';
     var sepetSatirlari = JSON.parse(document.getElementById('sepet-verisi').textContent);
 
     var bA = {   // modal icin kucuk stil sozlugu
@@ -411,6 +445,48 @@
                 }
             }
         });
+    })();
+
+    // ============ ÖZEL İNDİRİM ============
+    (function () {
+        var alan = document.getElementById('indirim-deger');
+        if (!alan) return;                      // sepet bossa bolum basilmiyor
+        var secilenTur = '{{ indirim.tur|default:"tl" }}';
+
+        function turuBoya() {
+            document.querySelectorAll('.indirim-tur').forEach(function (b) {
+                var secili = b.dataset.tur === secilenTur;
+                b.style.background = secili ? '#f59e0b' : '#fff';
+                b.style.color = secili ? '#fff' : '#78716c';
+            });
+        }
+        document.querySelectorAll('.indirim-tur').forEach(function (b) {
+            b.addEventListener('click', function () { secilenTur = b.dataset.tur; turuBoya(); });
+        });
+        turuBoya();
+
+        function gonder(tur, deger) {
+            $.post('/api/indirim-uygula/', { tur: tur, deger: deger }, function (cevap) {
+                if (cevap.success) {
+                    window.location.href = '/modern-urun-ara/';
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Hata', text: cevap.error,
+                                confirmButtonColor: '#dc2626' });
+                }
+            }).fail(function () {
+                Swal.fire({ icon: 'error', title: 'Hata', text: 'Sunucu hatası oluştu.',
+                            confirmButtonColor: '#dc2626' });
+            });
+        }
+
+        document.getElementById('indirim-uygula').addEventListener('click', function () {
+            gonder(secilenTur, alan.value || '0');
+        });
+        alan.addEventListener('keydown', function (olay) {
+            if (olay.key === 'Enter') { olay.preventDefault(); gonder(secilenTur, this.value || '0'); }
+        });
+        var kaldir = document.getElementById('indirim-kaldir');
+        if (kaldir) kaldir.addEventListener('click', function () { gonder('tl', '0'); });
     })();
 
     // ============ SATIŞI TAMAMLA ============
@@ -456,7 +532,8 @@
         tut.textContent = sepetToplam + ' TL';
         var alt = document.createElement('div');
         alt.style.cssText = 'font-size:13px;color:#6b7280;margin-top:2px;';
-        alt.textContent = sepetSatirlari.length + ' kalem';
+        alt.textContent = sepetSatirlari.length + ' kalem'
+            + ({% if indirim.var %}' · {{ indirim.tutar|floatformat:2 }} TL indirim düşüldü'{% else %}''{% endif %});
         ozetKutu.appendChild(tut); ozetKutu.appendChild(alt);
         container.appendChild(ozetKutu);
 

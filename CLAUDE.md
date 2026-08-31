@@ -106,7 +106,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 144 test (40 stok + 104 kahve)
+python3 manage.py test stok kahve     # 184 test (73 stok + 111 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -190,6 +190,16 @@ nakit ne kadar kart girdiği hiçbir yerde yazmıyordu. Üç yeni model bunu kap
 edilmez** — binlerce ürünün sayımı bir günde yapılamaz. Sadece takip etmek
 istediğin ürüne adet gir; gerisi eskisi gibi çalışır. Adet doluysa satışta düşer
 ve `StokHareketi` yazılır.
+
+**Özel indirim** (`stok/indirim.py`): kasada sepetin tamamına TL ya da yüzde
+indirim verilebilir. Oturumda tutulur, **satış bitince temizlenir** — yarım kalan
+indirim bir sonraki müşteriye taşınmaz. Ara toplamı aşamaz, eksiye düşüremez.
+`Satis.indirim_tutari` kayda geçer; `toplam` indirim **düşülmüş** tutardır, yani
+raporda ciro gerçekte alınan paradır. `ara_toplam` özelliği ikisini toplar.
+
+> **Tuzak:** site Türkçe yerelleştirmede, `floatformat` ondalık ayracı **virgül**
+> basıyor. JS `parseFloat` virgüllü sayıda kuruşu yutuyor; `sepetToplam`
+> değişkenine `stringformat:".2f"` ile **noktalı** değer veriliyor.
 
 Kasada iki buton var (`/modern-urun-ara/`):
 - **Satışı Tamamla** → nakit / kredi kartı / parçalı. Parçalıda nakit+kart toplamı
@@ -483,6 +493,27 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-08-31
+- **Özel indirim** — kasada sepete TL ya da yüzde indirim. Satış, borç ve rapor
+  indirimli tutarı kullanıyor; satış bitince indirim temizleniyor.
+- **Sepette kalan stok** — adet alanının altında "Stok: 16"; yetersiz ve tükenmiş
+  durumlar kırmızı rozet. Adedi boş bırakılan ürün için hiçbir şey yazılmıyor.
+- **Borç ekranı Atlas'a taşındı** — `/bakiye/` ve `/bakiye-hareketi/` tek sayfa
+  oldu; her hareket +/- yönü ve işlem sonrası bakiyeyle görünüyor.
+- **`/bakiye-hareketi/` 500 veriyordu** — iki view de sadece POST'a cevap
+  veriyordu, GET'te `None` dönüyordu.
+- **Güvenlik: 16 view'da `login_required` yoktu** — `/borc-duzenle/` müşterinin
+  borcunu, `/fazlalik-sil/` ürünü dışarıdan gelen düz bir POST ile
+  değiştirebiliyordu. Dekoratör `@csrf_exempt`'in **altına** eklendi.
+- **Güvenlik: para uçlarında CSRF muafiyeti kaldırıldı** — `/api/satis-tamamla/`
+  ve `/api/borca-aktar/`. Sayfa artık `X-CSRFToken` gönderiyor.
+- **Sıralama** — kategori sırası + kategori içi ürün sırası zaten çalışıyordu,
+  testle kilitlendi. Sırası boş yeni ürün artık kategorinin **sonuna** gidiyor
+  (başa zıplıyordu); kategorisiz ürün için `nulls_last` yazıldı, SQLite ile
+  PostgreSQL farklı sıralıyordu.
+- **Kasa raporuna tezgâh dökümü** — nakit/kart/borç kırılımı kırtasiye ve kahve
+  için ayrı ayrı.
 
 ### 2026-08-30 (ikinci oturum)
 - **Kasa ekranı bozuktu, düzeltildi** — `templates/kahve/kasa.html` içinde

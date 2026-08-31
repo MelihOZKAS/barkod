@@ -616,6 +616,29 @@ class BakiyeEkranlariTesti(TestCase):
             aciklama="Sepetten borça aktarıldı.\nAlınanlar: 2x Defter\nNot: cumartesi",
         )
 
+    def test_iki_url_de_ayni_sayfayi_acar(self):
+        """Eskiden iki ayri ekrandi; artik ikisi de borc detay sayfasi."""
+        sayfalar = []
+        for ad in ("bakiye", "bakiye-hareketi"):
+            cevap = self.client.get(reverse(ad, args=[self.musteri.id]))
+            self.assertEqual(cevap.status_code, 200)
+            self.assertTemplateUsed(cevap, "system/user/musteri_borc.html")
+            sayfalar.append(cevap.status_code)
+
+        self.assertEqual(len(set(sayfalar)), 1)
+
+    def test_hareket_yonu_ve_bakiye_gosterilir(self):
+        BorcHareketi.objects.create(
+            musteri=self.musteri, tutar=Decimal("40.00"),
+            onceki_borc=Decimal("240.00"), aciklama="Borç düştü - nakit tahsilat",
+        )
+
+        govde = self.client.get(
+            reverse("bakiye", args=[self.musteri.id])).content.decode()
+
+        self.assertIn("−40,00 ₺", govde, "düşen borç eksi işaretiyle gösterilmeli")
+        self.assertIn("240 → 200 ₺", govde, "işlem sonrası bakiye yazmalı")
+
     def test_get_ile_acilir(self):
         for ad in ("bakiye", "bakiye-hareketi"):
             with self.subTest(ad=ad):
@@ -630,12 +653,17 @@ class BakiyeEkranlariTesti(TestCase):
         self.assertContains(cevap, "240")
         self.assertContains(cevap, "2x Defter")
 
-    def test_cok_satirli_aciklama_satir_satir_basilir(self):
-        """Borç açıklaması artık çok satırlı; tek satıra ezilmemeli."""
+    def test_cok_satirli_aciklama_ezilmiyor(self):
+        """Borç açıklaması artık çok satırlı; tek satıra ezilmemeli.
+
+        Sayfa bunu <br> uretmek yerine white-space:pre-line ile cozuyor;
+        satir sonlari metnin icinde oldugu gibi duruyor.
+        """
         govde = self.client.get(
             reverse("bakiye-hareketi", args=[self.musteri.id])).content.decode()
 
-        self.assertIn("<br>", govde)
+        self.assertIn("Alınanlar: 2x Defter\nNot: cumartesi", govde)
+        self.assertIn("white-space:pre-line", govde.replace(" ", ""))
 
     def test_anonim_musterinin_borcunu_goremez(self):
         anonim = Client()

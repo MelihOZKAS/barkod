@@ -157,8 +157,7 @@
                 </td>
                 <td class="at-gizle-mobil at-kucuk">{{ m.aciklama|default:""|truncatechars:40 }}</td>
                 <td class="at-tablo__islem">
-                  <a class="at-mini" href="{% url 'bakiye' m.id %}">Bakiye</a>
-                  <a class="at-mini" href="{% url 'bakiye-hareketi' m.id %}">Hareketler</a>
+                  <a class="at-mini" href="{% url 'bakiye' m.id %}">Borç detayı</a>
                 </td>
               </tr>
             {% endfor %}

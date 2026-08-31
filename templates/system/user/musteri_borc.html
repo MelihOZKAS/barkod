@@ -1,0 +1,159 @@
+{% extends "system/user/atlas_base.html" %}
+{% load static humanize %}
+
+{% block baslik %}{{ musteri.isim_soyisim }} — Borç | Atlas{% endblock %}
+{% block alt_bilgi %}{% endblock %}
+
+{% block ek_stil %}
+<style>
+  .at-borc-ust { display:grid; grid-template-columns: 1.15fr .85fr; gap:var(--b3); align-items:start; }
+  @media (max-width: 900px) { .at-borc-ust { grid-template-columns:1fr; } }
+
+  .at-borc-rakam {
+    font-size: clamp(2.4rem, 6vw, 3.4rem); font-weight:800; line-height:1;
+    letter-spacing:-.035em;
+  }
+  .at-borc-rakam--var { color: #E8A48F; }
+  .at-borc-rakam--yok { color: #7FCBAC; }
+  .at-borc-rakam__birim { font-size:.34em; font-weight:600; color:rgba(242,241,238,.5); margin-left:.12em; }
+
+  .at-form-satir { display:grid; gap:var(--b2); }
+  .at-form-satir label { display:block; font-size:.75rem; color:rgba(242,241,238,.5); margin-bottom:6px; }
+  .at-alan--metin { min-height:78px; resize:vertical; font-family:var(--f-metin); }
+  .at-dugmeler { display:grid; grid-template-columns:1fr 1fr; gap:var(--b1); margin-top:var(--b3); }
+  .at-btn--borc { background:rgba(201,86,59,.18); color:#E8A48F; border:1px solid rgba(201,86,59,.4); }
+  .at-btn--borc:hover { background:rgba(201,86,59,.3); }
+  .at-btn--tahsil { background:rgba(78,158,126,.18); color:#7FCBAC; border:1px solid rgba(78,158,126,.4); }
+  .at-btn--tahsil:hover { background:rgba(78,158,126,.3); }
+
+  .at-hareketler { list-style:none; margin:0; padding:0; }
+  .at-hareket {
+    display:grid; grid-template-columns:auto 1fr auto; gap:var(--b2);
+    padding:var(--b2) 0; border-bottom:1px solid rgba(242,241,238,.07);
+  }
+  .at-hareket:last-child { border-bottom:0; }
+  .at-hareket__isaret {
+    width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+    font-family:var(--f-veri); font-size:1rem; flex:none;
+  }
+  .at-hareket__isaret--arti { background:rgba(201,86,59,.16); color:#E8A48F; }
+  .at-hareket__isaret--eksi { background:rgba(78,158,126,.16); color:#7FCBAC; }
+  .at-hareket__aciklama { font-size:.9375rem; line-height:1.5; white-space:pre-line; }
+  .at-hareket__tarih { font-family:var(--f-veri); font-size:.75rem; color:rgba(242,241,238,.4); margin-top:4px; }
+  .at-hareket__sag { text-align:right; white-space:nowrap; }
+  .at-hareket__tutar { font-family:var(--f-veri); font-weight:600; }
+  .at-hareket__tutar--arti { color:#E8A48F; }
+  .at-hareket__tutar--eksi { color:#7FCBAC; }
+  .at-hareket__bakiye { font-family:var(--f-veri); font-size:.75rem; color:rgba(242,241,238,.4); margin-top:3px; }
+</style>
+{% endblock %}
+
+{% block icerik %}
+<header class="at-ust">
+  <div class="at-kabuk at-ust__ic">
+    <a class="at-marka" href="{% url 'panel' %}">
+      <span class="at-marka__isaret">A</span>
+      <span class="at-marka__ad">Atlas Kırtasiye</span>
+    </a>
+    <nav class="at-nav">
+      <a href="{% url 'modern-urun-ara' %}">Kırtasiye kasası<kbd class="at-tus">F2</kbd></a>
+      <a href="{% url 'kahve:kasa' %}">Kahve kasası<kbd class="at-tus">F8</kbd></a>
+      <a href="{% url 'musteri-listesi' %}">Müşteriler<kbd class="at-tus">F4</kbd></a>
+      <a href="{% url 'kasa-raporu' %}">Kasa raporu</a>
+      <a href="{% url 'cikis-yap' %}">Çıkış</a>
+    </nav>
+  </div>
+</header>
+
+<section class="at-bolum--dar">
+  <div class="at-kabuk">
+
+    <div class="at-bolum__baslik" style="margin-bottom:var(--b3)">
+      <div>
+        <p class="at-etiket">Müşteri</p>
+        <h1 class="at-h1" style="margin-top:6px">{{ musteri.isim_soyisim }}</h1>
+        {% if musteri.Cep_Telefonu %}
+          <p class="at-kucuk at-veri" style="margin-top:6px">{{ musteri.Cep_Telefonu }}</p>
+        {% endif %}
+      </div>
+      <a class="at-btn at-btn--cizgi" href="{% url 'musteri-listesi' %}">← Müşteri listesi</a>
+    </div>
+
+    <div class="at-borc-ust">
+
+      <!-- Guncel borc + gecmis -->
+      <div class="at-yuzey" style="padding:var(--b4)">
+        <p class="at-etiket">Güncel borç</p>
+        <p class="at-borc-rakam {% if musteri.borc > 0 %}at-borc-rakam--var{% else %}at-borc-rakam--yok{% endif %}"
+           style="margin-top:var(--b1)">
+          {{ musteri.borc|floatformat:0|intcomma }}<span class="at-borc-rakam__birim">₺</span>
+        </p>
+        <p class="at-kucuk" style="margin-top:8px">
+          {% if musteri.borc > 0 %}
+            {{ hareketler|length }} hareket kayıtlı.
+          {% else %}
+            Bu müşterinin açık borcu yok.
+          {% endif %}
+        </p>
+
+        <h2 class="at-h2" style="margin-top:var(--b5);margin-bottom:var(--b2)">Hareketler</h2>
+        {% if hareketler %}
+          <ul class="at-hareketler">
+            {% for h in hareketler %}
+              <li class="at-hareket">
+                <span class="at-hareket__isaret {% if h.azalma %}at-hareket__isaret--eksi{% else %}at-hareket__isaret--arti{% endif %}"
+                      aria-hidden="true">{% if h.azalma %}−{% else %}+{% endif %}</span>
+                <div>
+                  <div class="at-hareket__aciklama">{{ h.aciklama|default:"—" }}</div>
+                  <div class="at-hareket__tarih">{{ h.tarih|date:"j F Y, H:i" }}</div>
+                </div>
+                <div class="at-hareket__sag">
+                  <div class="at-hareket__tutar {% if h.azalma %}at-hareket__tutar--eksi{% else %}at-hareket__tutar--arti{% endif %}">
+                    {% if h.azalma %}−{% else %}+{% endif %}{{ h.tutar|floatformat:2 }} ₺
+                  </div>
+                  <div class="at-hareket__bakiye">
+                    {{ h.onceki_borc|floatformat:0 }} → {{ h.sonraki_borc|floatformat:0 }} ₺
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="at-bos-durum">Bu müşterinin borç hareketi yok.</p>
+        {% endif %}
+      </div>
+
+      <!-- Borc islemi -->
+      <div class="at-yuzey" style="padding:var(--b4);position:sticky;top:var(--b3)">
+        <h2 class="at-h2" style="margin-bottom:var(--b1)">Borç işlemi</h2>
+        <p class="at-kucuk" style="margin-bottom:var(--b3)">
+          Tutarı yazıp yönü seç. İşlem geçmişe kaydedilir, silinmez.
+        </p>
+
+        <form action="{% url 'borc-duzenle' musteri_id %}" method="POST" class="at-form-satir">
+          {% csrf_token %}
+          <div>
+            <label for="tutar">Tutar (₺)</label>
+            <input class="at-alan at-veri" type="number" step="0.01" min="0.01"
+                   name="tutar" id="tutar" required autofocus placeholder="0,00">
+          </div>
+          <div>
+            <label for="aciklama">Açıklama</label>
+            <textarea class="at-alan at-alan--metin" name="aciklama" id="aciklama"
+                      placeholder="Örn. nakit tahsilat, cumartesi ödeyecek"></textarea>
+          </div>
+          <div class="at-dugmeler">
+            <button class="at-btn at-btn--borc" type="submit" name="islem" value="borcekle">
+              Borç ekle
+            </button>
+            <button class="at-btn at-btn--tahsil" type="submit" name="islem" value="borcdus">
+              Borç düş
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

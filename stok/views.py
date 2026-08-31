@@ -525,37 +525,44 @@ def _kullanici_bilgisi(request):
     }
 
 
-@login_required(login_url='giris-yap')
-def bakiye(request, musteri_id):
-    """Musterinin borcunu duzenleme ekrani.
+def _borc_sayfasi(request, musteri_id):
+    """Musterinin borc ekrani: islem formu + hareket gecmisi tek sayfada.
 
-    Eskiden SADECE POST'a cevap veriyordu; GET ile acildiginda view None
-    donuyor ve Django "didn't return an HttpResponse" hatasi veriyordu.
+    /bakiye/<id>/ ve /bakiye-hareketi/<id>/ ayni sayfayi aciyor. Eskiden iki
+    ayri ekrandi, ikisi de eski Bootstrap temasindaydi ve ikisi de sadece
+    POST'a cevap veriyordu.
     """
     musteri = get_object_or_404(Musteri, pk=musteri_id)
-    return render(request, 'system/user/bakiye.html', {
+    hareketler = list(
+        BorcHareketi.objects.filter(musteri=musteri)
+        .select_related('musteri')
+        .order_by('-tarih')[:200]
+    )
+    for hareket in hareketler:
+        # Yon ayri bir alanda tutulmuyor; borc dusme islemi aciklamaya
+        # "Borç düştü - " diye yaziliyor, elimizdeki tek isaret bu.
+        hareket.azalma = (hareket.aciklama or '').startswith('Borç düştü')
+        hareket.sonraki_borc = (
+            hareket.onceki_borc - hareket.tutar if hareket.azalma
+            else hareket.onceki_borc + hareket.tutar
+        )
+
+    return render(request, 'system/user/musteri_borc.html', {
         **_kullanici_bilgisi(request),
-        'musteri_id': musteri.id,
         'musteri': musteri,
+        'musteri_id': musteri.id,
+        'hareketler': hareketler,
     })
+
+
+@login_required(login_url='giris-yap')
+def bakiye(request, musteri_id):
+    return _borc_sayfasi(request, musteri_id)
 
 
 @login_required(login_url='giris-yap')
 def bakiyeHareketi(request, musteri_id):
-    """Musterinin borc hareketleri. Bu da sadece POST'a cevap veriyordu."""
-    musteri = get_object_or_404(Musteri, pk=musteri_id)
-    hareketler = (
-        BorcHareketi.objects.filter(musteri=musteri)
-        .select_related('musteri')      # sablon her satirda musteri adini basiyor
-        .order_by('-tarih')
-    )
-    return render(request, 'system/user/bakiye-hareketi.html', {
-        **_kullanici_bilgisi(request),
-        'musteri': musteri,
-        'musterihareketi': hareketler,
-    })
-
-
+    return _borc_sayfasi(request, musteri_id)
 
 
 @csrf_exempt

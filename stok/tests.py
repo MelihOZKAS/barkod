@@ -594,3 +594,125 @@ class ParaUclariCsrfTesti(TestCase):
 
         self.assertIn("csrfmiddlewaretoken", govde)
         self.assertIn("X-CSRFToken", govde)
+
+
+class BakiyeEkranlariTesti(TestCase):
+    """Iki ekran da SADECE POST'a cevap veriyordu.
+
+    GET ile acilinca view None donuyor, Django "didn't return an HttpResponse"
+    diye 500 veriyordu — musteri listesindeki "Hareketler" baglantisi normal
+    bir link (GET) oldugu icin canlida patladi. Ustelik ikisinde de
+    login_required yoktu: id tahmin eden herkes musterinin borcunu gorebiliyordu.
+    """
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.musteri = Musteri.objects.create(isim_soyisim="Ahmet Yılmaz",
+                                              Cep_Telefonu=5551112233, borc=Decimal("240.00"))
+        BorcHareketi.objects.create(
+            musteri=self.musteri, tutar=Decimal("120.00"), onceki_borc=Decimal("120.00"),
+            aciklama="Sepetten borça aktarıldı.\nAlınanlar: 2x Defter\nNot: cumartesi",
+        )
+
+    def test_get_ile_acilir(self):
+        for ad in ("bakiye", "bakiye-hareketi"):
+            with self.subTest(ad=ad):
+                cevap = self.client.get(reverse(ad, args=[self.musteri.id]))
+
+                self.assertEqual(cevap.status_code, 200)
+
+    def test_hareket_sayfasi_musteriyi_ve_hareketi_gosterir(self):
+        cevap = self.client.get(reverse("bakiye-hareketi", args=[self.musteri.id]))
+
+        self.assertContains(cevap, "Ahmet Yılmaz")
+        self.assertContains(cevap, "240")
+        self.assertContains(cevap, "2x Defter")
+
+    def test_cok_satirli_aciklama_satir_satir_basilir(self):
+        """Borç açıklaması artık çok satırlı; tek satıra ezilmemeli."""
+        govde = self.client.get(
+            reverse("bakiye-hareketi", args=[self.musteri.id])).content.decode()
+
+        self.assertIn("<br>", govde)
+
+    def test_anonim_musterinin_borcunu_goremez(self):
+        anonim = Client()
+
+        for ad in ("bakiye", "bakiye-hareketi"):
+            with self.subTest(ad=ad):
+                cevap = anonim.get(reverse(ad, args=[self.musteri.id]))
+
+                self.assertEqual(cevap.status_code, 302)
+                self.assertNotIn("Ahmet", cevap.content.decode())
+
+    def test_olmayan_musteri_500_degil_404(self):
+        cevap = self.client.get(reverse("bakiye-hareketi", args=[999999]))
+
+        self.assertEqual(cevap.status_code, 404)
+
+
+class KorumasizUcTesti(TestCase):
+    """Veri degistiren hicbir uc anonim istekle calismamali.
+
+    Tarama sonucu: borc_duzenle musterinin borcunu degistiriyordu,
+    stok_sil urun siliyordu ve ikisinde de login_required yoktu; ustelik
+    csrf_exempt olduklari icin disaridan duz bir POST yeterliydi.
+    """
+
+    # (url adi, gerekirse argumanlar)
+    UCLAR = [
+        ("borc-duzenle", [1]),
+        ("stok_sil", []),
+        ("oto-ekle", []),
+        ("oto-grupla", []),
+        ("musteri-ekle", []),
+        ("manuel-tutar", []),
+        ("sepeti-sifirla", []),
+        ("modern-sepeti-sifirla", []),
+    ]
+
+    def test_anonim_hicbirine_erisemez(self):
+        anonim = Client()
+
+        for ad, argumanlar in self.UCLAR:
+            with self.subTest(uc=ad):
+                adres = reverse(ad, args=argumanlar)
+
+                self.assertEqual(anonim.get(adres).status_code, 302)
+                self.assertEqual(anonim.post(adres, {}).status_code, 302)
+
+    def test_anonim_borcu_degistiremez(self):
+        musteri = Musteri.objects.create(isim_soyisim="Kurban",
+                                         Cep_Telefonu=5551112233, borc=Decimal("100.00"))
+        anonim = Client()
+
+        anonim.post(reverse("borc-duzenle", args=[musteri.id]),
+                    {"tutar": "9999", "aciklama": "saldiri", "islem": "borcekle"})
+
+        musteri.refresh_from_db()
+        self.assertEqual(musteri.borc, Decimal("100.00"), "borç değişmemeli")
+        self.assertEqual(BorcHareketi.objects.count(), 0)
+
+    def test_anonim_urun_silemez(self):
+        Stok.objects.create(Urun_Adi="Silinmesin", Barkod=7001, Tutar=Decimal("10"))
+        anonim = Client()
+
+        anonim.post(reverse("stok_sil"), {})
+
+        self.assertEqual(Stok.objects.count(), 1)
+
+    def test_get_ile_acilinca_500_vermez(self):
+        """Bu view'lar sadece POST'a cevap veriyor, GET'te None donuyorlardi."""
+        kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        musteri = Musteri.objects.create(isim_soyisim="Ahmet",
+                                         Cep_Telefonu=5551112233, borc=Decimal("0"))
+        istemci = Client()
+        istemci.force_login(kullanici)
+
+        for ad, argumanlar in (("borc-duzenle", [musteri.id]), ("manuel-tutar", [])):
+            with self.subTest(uc=ad):
+                cevap = istemci.get(reverse(ad, args=argumanlar))
+
+                self.assertIn(cevap.status_code, (200, 302), "500 olmamali")

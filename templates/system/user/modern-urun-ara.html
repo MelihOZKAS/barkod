@@ -207,6 +207,21 @@
                                        data-urun-id="{{ urun.id }}"
                                        data-onceki="{{ urun.miktar }}"
                                        class="w-24 text-center border-2 border-amber-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none font-medium">
+                                {% comment %}
+                                  Stok adedi bos birakilan urun takip edilmiyor; o zaman
+                                  hicbir sey yazmiyoruz, yanlis bir "0" gostermektense sessiz kalmak iyi.
+                                {% endcomment %}
+                                {% if urun.urun.stok_adedi is not None %}
+                                  {% if urun.urun.stok_adedi <= 0 %}
+                                    <div class="mt-1 text-xs font-semibold text-red-600">Stokta yok</div>
+                                  {% elif urun.urun.stok_adedi < urun.miktar %}
+                                    <div class="mt-1 text-xs font-semibold text-red-600">
+                                      Stok: {{ urun.urun.stok_adedi }} — yetersiz
+                                    </div>
+                                  {% else %}
+                                    <div class="mt-1 text-xs text-gray-500">Stok: {{ urun.urun.stok_adedi }}</div>
+                                  {% endif %}
+                                {% endif %}
                             </td>
                             <td class="px-6 py-4 text-center font-bold text-emerald-600 text-lg">{{ urun.toplam_fiyat }} TL</td>
                             <td class="px-6 py-4 text-center text-gray-600 font-medium">{{ urun.urun.Tutar }} TL</td>

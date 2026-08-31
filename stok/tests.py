@@ -744,3 +744,50 @@ class KorumasizUcTesti(TestCase):
                 cevap = istemci.get(reverse(ad, args=argumanlar))
 
                 self.assertIn(cevap.status_code, (200, 302), "500 olmamali")
+
+
+class SepettekiStokGostergesiTesti(TestCase):
+    """Kasada adet alaninin altinda urunun kalan stogu yazsin."""
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+
+    def _sepete(self, urun, miktar=1):
+        SepetUrun.objects.create(user=self.kullanici, urun=urun, miktar=miktar)
+        return self.client.get(reverse("modern-urun-ara")).content.decode()
+
+    def test_adedi_girilmis_urunun_stogu_yazar(self):
+        urun = Stok.objects.create(Urun_Adi="Defter", Barkod=9001,
+                                   Tutar=Decimal("80"), stok_adedi=16)
+
+        govde = self._sepete(urun)
+
+        self.assertIn("Stok: 16", govde)
+
+    def test_adedi_bos_urun_icin_hicbir_sey_yazmaz(self):
+        """Takip edilmeyen urune yanlis bir '0' yazmaktansa sessiz kal."""
+        urun = Stok.objects.create(Urun_Adi="Silgi", Barkod=9002, Tutar=Decimal("10"))
+
+        govde = self._sepete(urun)
+
+        self.assertNotIn("Stok:", govde)
+        self.assertNotIn("Stokta yok", govde)
+
+    def test_stok_sepetteki_adetten_azsa_uyarir(self):
+        urun = Stok.objects.create(Urun_Adi="Kalem", Barkod=9003,
+                                   Tutar=Decimal("20"), stok_adedi=2)
+
+        govde = self._sepete(urun, miktar=5)
+
+        self.assertIn("yetersiz", govde)
+        self.assertIn("Stok: 2", govde)
+
+    def test_stok_bitmisse_ayri_yazar(self):
+        urun = Stok.objects.create(Urun_Adi="Cetvel", Barkod=9004,
+                                   Tutar=Decimal("30"), stok_adedi=0)
+
+        govde = self._sepete(urun)
+
+        self.assertIn("Stokta yok", govde)

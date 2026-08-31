@@ -987,7 +987,8 @@ class KasaSayfasiTesti(TestCase):
         "khKod", "khMusteri", "khSatirlar", "khBosSepet", "khToplam",
         "khOdemeAc", "khSifirla", "khOdemePanel", "khVazgec", "khOnayla",
         "khParcali", "khParcaliNot", "khNakit", "khKart",
-        "khGunSatis", "khGunCiro", "khGunNakit", "khGunKart", "khMenu",
+        "khIndirim", "khIndirimUygula", "khIndirimOzet",
+        "khGunSatis", "khGunCiro", "khGunNakit", "khGunKart", "khGunIndirim", "khMenu",
     ]
 
     def setUp(self):
@@ -1156,3 +1157,139 @@ class SiralamaTesti(TestCase):
         adlar = [k["ad"] for k in cevap.json()["kahveler"]]
         self.assertEqual(adlar[0], "Espresso")
         self.assertEqual(adlar[-1], "Sos")
+
+
+class KahveIndirimTesti(TestCase):
+    """Kahve kasasinda ozel indirim. Kirtasiyedekiyle ayni kural, ayri sepet."""
+
+    def setUp(self):
+        User.objects.create_superuser("kasiyer", "k@o.com", "gizli-sifre-123")
+        self.client = Client()
+        self.client.login(username="kasiyer", password="gizli-sifre-123")
+        self.kahve = Kahve.objects.create(ad="Latte", fiyat=100, damga_veriyor=True)
+        self.musteri = Musteri.objects.create(
+            isim_soyisim="Veresiye", Cep_Telefonu=5551112233, borc=Decimal("0")
+        )
+
+    def _uc(self, ad, **govde):
+        return self.client.post(
+            reverse(f"kahve:{ad}"), data=json.dumps(govde), content_type="application/json"
+        )
+
+    def _sepete(self, adet=1):
+        for _ in range(adet):
+            self._uc("kasa-sepete-ekle", kahve_id=self.kahve.id)
+
+    def test_tl_indirimi_toplami_duser(self):
+        self._sepete(2)                                  # 200 ₺
+
+        sepet = self._uc("kasa-indirim", tur="tl", deger="30").json()["sepet"]
+
+        self.assertEqual(sepet["ara_toplam"], 200.0)
+        self.assertEqual(sepet["indirim"], 30.0)
+        self.assertEqual(sepet["toplam"], 170.0)
+
+    def test_yuzde_indirimi(self):
+        self._sepete(2)
+
+        sepet = self._uc("kasa-indirim", tur="yuzde", deger="25").json()["sepet"]
+
+        self.assertEqual(sepet["toplam"], 150.0)
+
+    def test_satis_indirimli_kaydedilir(self):
+        self._sepete(2)
+        self._uc("kasa-indirim", tur="tl", deger="30")
+
+        self._uc("kasa-satis-tamamla", odeme_turu="nakit")
+
+        satis = KahveSatis.objects.get()
+        self.assertEqual(satis.toplam, Decimal("170.00"))
+        self.assertEqual(satis.indirim_tutari, Decimal("30.00"))
+        self.assertEqual(satis.nakit_tutar, Decimal("170.00"))
+        self.assertEqual(satis.ara_toplam, Decimal("200.00"))
+
+    def test_satis_bitince_indirim_temizlenir(self):
+        self._sepete(1)
+        self._uc("kasa-indirim", tur="tl", deger="30")
+        self._uc("kasa-satis-tamamla", odeme_turu="nakit")
+
+        self._sepete(1)
+        sepet = self._uc("kasa-durum").json()["sepet"]
+
+        self.assertEqual(sepet["indirim"], 0.0)
+        self.assertEqual(sepet["toplam"], 100.0)
+
+    def test_kasa_sifirlayinca_indirim_gider(self):
+        self._sepete(1)
+        self._uc("kasa-indirim", tur="tl", deger="30")
+
+        self._uc("kasa-sifirla")
+        self._sepete(1)
+        sepet = self._uc("kasa-durum").json()["sepet"]
+
+        self.assertEqual(sepet["indirim"], 0.0)
+
+    def test_indirim_hediyeden_sonra_uygulanir(self):
+        """Bedava verilen fincandan ayrica indirim yapilmaz."""
+        kart = KahveMusteri.objects.create(ad_soyad="Kart", firebase_uid="fb-9")
+        for _ in range(5):
+            sadakat.kahve_ekle(kart, self.kahve)
+        self._sepete(2)                                  # 200 ₺
+        self._uc("kasa-musteri-bul", kod=kart.kod)
+        self._uc("kasa-hediye", kahve_id=self.kahve.id, hediye_adet=1)   # 100 ₺ kaldi
+
+        sepet = self._uc("kasa-indirim", tur="yuzde", deger="10").json()["sepet"]
+
+        self.assertEqual(sepet["ara_toplam"], 100.0, "hediye düşülmüş tutar")
+        self.assertEqual(sepet["indirim"], 10.0)
+        self.assertEqual(sepet["toplam"], 90.0)
+
+    def test_borca_yazmada_indirimli_tutar(self):
+        self._sepete(2)
+        self._uc("kasa-indirim", tur="tl", deger="50")
+
+        self._uc("kasa-satis-tamamla", odeme_turu="borc", borc_musteri_id=self.musteri.id)
+
+        self.musteri.refresh_from_db()
+        self.assertEqual(self.musteri.borc, Decimal("150.00"))
+        self.assertIn("İndirim", BorcHareketi.objects.get().aciklama)
+
+    def test_toplami_asan_indirim_eksiye_dusurmez(self):
+        self._sepete(1)
+
+        sepet = self._uc("kasa-indirim", tur="tl", deger="500").json()["sepet"]
+
+        self.assertEqual(sepet["toplam"], 0.0)
+        self.assertEqual(sepet["indirim"], 100.0)
+
+    def test_yuzde_yuzden_buyuk_reddedilir(self):
+        self._sepete(1)
+
+        cevap = self._uc("kasa-indirim", tur="yuzde", deger="150")
+
+        self.assertEqual(cevap.status_code, 400)
+
+    def test_gunun_ozetinde_indirim_toplami(self):
+        self._sepete(2)
+        self._uc("kasa-indirim", tur="tl", deger="30")
+        self._uc("kasa-satis-tamamla", odeme_turu="nakit")
+
+        gun = kasa_sepeti.gunun_ozeti()
+
+        self.assertEqual(gun["indirim"], Decimal("30.00"))
+        self.assertEqual(gun["ciro"], Decimal("170.00"), "ciro gerçekte alınan para")
+
+    def test_iki_tezgahin_indirimi_birbirine_karismaz(self):
+        """Kirtasiye ve kahve ayri oturum kutusu kullaniyor."""
+        self._sepete(1)
+        self._uc("kasa-indirim", tur="tl", deger="40")
+
+        kirtasiye = self.client.get(reverse("modern-urun-ara"))
+
+        self.assertNotIn('id="indirim-kaldir"', kirtasiye.content.decode())
+        self.assertEqual(self._uc("kasa-durum").json()["sepet"]["indirim"], 40.0)
+
+    def test_personel_olmayan_indirim_veremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.post(reverse("kahve:kasa-indirim")).status_code, 302)

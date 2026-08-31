@@ -115,6 +115,23 @@
   .kh-mini--hediye { background:rgba(46,107,120,.24); color:var(--cini-acik); border-color:rgba(89,160,172,.35); }
   .kh-mini--sil:hover { background:rgba(201,86,59,.24); color:#E8A48F; }
 
+  /* ozel indirim */
+  .kh-indirim { margin-top:var(--b3); padding-top:var(--b2); border-top:1px solid rgba(242,241,238,.08); }
+  .kh-indirim__satir { display:flex; gap:6px; align-items:center; margin-top:8px; }
+  .kh-indirim__satir input {
+    flex:1; min-width:0; padding:9px var(--b2); border-radius:var(--r-s);
+    background:var(--espresso); border:1px solid rgba(242,241,238,.16);
+    color:var(--porselen); font-family:var(--f-veri);
+  }
+  .kh-indirim__satir input:focus { outline:none; border-color:var(--crema); }
+  .kh-indirim__tur { display:flex; border:1px solid rgba(242,241,238,.16); border-radius:var(--r-s); overflow:hidden; }
+  .kh-indirim__tur button {
+    padding:9px 12px; cursor:pointer; border:0; background:transparent;
+    color:rgba(242,241,238,.6); font-family:var(--f-veri); font-size:.875rem;
+  }
+  .kh-indirim__tur button[aria-pressed="true"] { background:var(--crema); color:#2A1B0C; }
+  .kh-indirim__ozet { margin-top:8px; font-size:.8125rem; color:var(--crema-soft); font-family:var(--f-veri); }
+
   /* toplam */
   .kh-toplam {
     display:flex; align-items:baseline; justify-content:space-between;
@@ -155,6 +172,7 @@
         <span>Nakit <strong id="khGunNakit">{{ gun.nakit|floatformat:0 }}</strong> ₺</span>
         <span>Kart <strong id="khGunKart">{{ gun.kart|floatformat:0 }}</strong> ₺</span>
         <span>Borç <strong id="khGunBorc">{{ gun.borc|floatformat:0 }}</strong> ₺</span>
+        <span>İndirim <strong id="khGunIndirim">{{ gun.indirim|floatformat:0 }}</strong> ₺</span>
       </div>
     </div>
 
@@ -215,6 +233,20 @@
 
           <ul class="kh-satirlar" id="khSatirlar" style="margin-top:var(--b2)"></ul>
           <p class="kh-bos-sepet" id="khBosSepet">Soldan kahve seçin.</p>
+
+          <!-- Ozel indirim: bazi musterilere elle indirim veriliyor -->
+          <div class="kh-indirim">
+            <label class="kh-etiket" for="khIndirim">Özel indirim</label>
+            <div class="kh-indirim__satir">
+              <input id="khIndirim" type="number" step="0.01" min="0" placeholder="0">
+              <div class="kh-indirim__tur">
+                <button type="button" data-itur="tl" aria-pressed="true">₺</button>
+                <button type="button" data-itur="yuzde" aria-pressed="false">%</button>
+              </div>
+              <button type="button" class="kh-mini" id="khIndirimUygula">UYGULA</button>
+            </div>
+            <div class="kh-indirim__ozet" id="khIndirimOzet" style="display:none"></div>
+          </div>
 
           <div class="kh-toplam">
             <span class="kh-etiket">Toplam</span>
@@ -353,6 +385,21 @@
     $('khBosSepet').style.display = veri.satirlar.length ? 'none' : 'block';
     $('khToplam').textContent = para(veri.toplam);
 
+    // indirim: sunucu ne diyorsa o
+    indirimTuru = veri.indirim_tur || 'tl';
+    indirimTurunuBoya();
+    if (document.activeElement !== $('khIndirim')) {
+      $('khIndirim').value = veri.indirim_deger || '';
+    }
+    const iOzet = $('khIndirimOzet');
+    if (veri.indirim_var) {
+      iOzet.style.display = 'block';
+      iOzet.textContent = 'Ara toplam ' + para(veri.ara_toplam)
+                        + ' ₺ — indirim ' + para(veri.indirim) + ' ₺';
+    } else {
+      iOzet.style.display = 'none';
+    }
+
     // Tutar 0 ise (hepsi hediye) odeme turu sormanin anlami yok.
     const bedava = veri.satirlar.length > 0 && veri.toplam === 0;
     $('khOdemeAc').disabled = veri.satirlar.length === 0;
@@ -440,6 +487,31 @@
       if (btn) gonder('{% url "kahve:kasa-sepete-ekle" %}', { kahve_id: btn.dataset.kahve });
     });
   }
+
+  // --- ozel indirim ---
+  let indirimTuru = 'tl';
+
+  function indirimTurunuBoya() {
+    document.querySelectorAll('.kh-indirim__tur button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.itur === indirimTuru));
+    });
+  }
+  document.querySelectorAll('.kh-indirim__tur button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      indirimTuru = b.dataset.itur;
+      indirimTurunuBoya();
+    });
+  });
+
+  function indirimGonder() {
+    gonder('{% url "kahve:kasa-indirim" %}', {
+      tur: indirimTuru, deger: $('khIndirim').value || '0',
+    });
+  }
+  $('khIndirimUygula').addEventListener('click', indirimGonder);
+  $('khIndirim').addEventListener('keydown', function (olay) {
+    if (olay.key === 'Enter') { olay.preventDefault(); indirimGonder(); }
+  });
 
   // --- musteri karti okut ---
   $('khKod').addEventListener('keydown', function (olay) {
@@ -638,6 +710,7 @@
     $('khGunNakit').textContent = Math.round(veri.gun.nakit);
     $('khGunKart').textContent = Math.round(veri.gun.kart);
     $('khGunBorc').textContent = Math.round(veri.gun.borc);
+    $('khGunIndirim').textContent = Math.round(veri.gun.indirim);
 
     let mesaj = para(veri.satis.toplam) + ' ₺ ' + veri.satis.odeme + ' — satış tamam.';
     if (veri.satis.borc_musteri) {

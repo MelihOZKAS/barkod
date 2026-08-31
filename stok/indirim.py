@@ -1,8 +1,11 @@
-"""Kasadaki ozel indirim.
+"""Kasadaki ozel indirim. Iki tezgah da bunu kullaniyor.
 
 Bazi musterilere elle indirim veriliyor. Indirim SEPETIN tamamina uygulanir,
 oturumda tutulur ve satis bitince temizlenir - yarim kalan bir satis bir
 sonraki musteriye indirim tasimasin.
+
+Iki tezgahin sepeti ayri oldugu icin oturum anahtari da ayri: kirtasiyede
+ANAHTAR, kahvede KAHVE_ANAHTAR. Ayni fonksiyonlar, farkli kutu.
 
 Oturumdaki bicim:
     {"tur": "tl" | "yuzde", "deger": "10.00"}
@@ -11,6 +14,7 @@ Oturumdaki bicim:
 from decimal import Decimal, InvalidOperation
 
 ANAHTAR = "stok_sepet_indirimi"
+KAHVE_ANAHTAR = "kahve_sepet_indirimi"
 
 
 class IndirimHatasi(Exception):
@@ -24,14 +28,14 @@ def _para(deger):
         raise IndirimHatasi("İndirim sayı olmalı.")
 
 
-def oku(request):
-    veri = request.session.get(ANAHTAR)
+def oku(request, anahtar=ANAHTAR):
+    veri = request.session.get(anahtar)
     if not isinstance(veri, dict) or veri.get("tur") not in ("tl", "yuzde"):
         return None
     return veri
 
 
-def yaz(request, tur, deger):
+def yaz(request, tur, deger, anahtar=ANAHTAR):
     if tur not in ("tl", "yuzde"):
         raise IndirimHatasi("İndirim türü geçersiz.")
     tutar = _para(deger)
@@ -40,14 +44,14 @@ def yaz(request, tur, deger):
     if tur == "yuzde" and tutar > 100:
         raise IndirimHatasi("Yüzde 100'den büyük olamaz.")
     if tutar == 0:
-        temizle(request)
+        temizle(request, anahtar)
         return None
-    request.session[ANAHTAR] = {"tur": tur, "deger": str(tutar)}
-    return request.session[ANAHTAR]
+    request.session[anahtar] = {"tur": tur, "deger": str(tutar)}
+    return request.session[anahtar]
 
 
-def temizle(request):
-    request.session.pop(ANAHTAR, None)
+def temizle(request, anahtar=ANAHTAR):
+    request.session.pop(anahtar, None)
 
 
 def hesapla(ara_toplam, veri):
@@ -62,9 +66,9 @@ def hesapla(ara_toplam, veri):
     return min(max(tutar, Decimal("0.00")), ara_toplam)
 
 
-def ozet(request, ara_toplam):
+def ozet(request, ara_toplam, anahtar=ANAHTAR):
     """Sablon ve JSON icin: ara toplam, indirim, odenecek."""
-    veri = oku(request)
+    veri = oku(request, anahtar)
     tutar = hesapla(ara_toplam, veri)
     return {
         "var": bool(veri) and tutar > 0,

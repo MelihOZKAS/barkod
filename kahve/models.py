@@ -337,7 +337,12 @@ class KahveSatis(models.Model):
         verbose_name="Müşteri",
         help_text="Kartsız satışta boş kalır.",
     )
+    # toplam = indirim DUSULDUKTEN sonraki tutar. Ara toplam icin: toplam + indirim_tutari
     toplam = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Toplam")
+    indirim_tutari = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name="İndirim",
+        help_text="Kasada elle verilen özel indirim.",
+    )
     nakit_tutar = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Nakit")
     kart_tutar = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Kredi kartı")
     odeme_turu = models.CharField(
@@ -359,6 +364,11 @@ class KahveSatis(models.Model):
     hediye_adedi = models.PositiveIntegerField(default=0, verbose_name="Hediye ile verilen")
     tarih = models.DateTimeField(default=timezone.now, verbose_name="Tarih")
     kasiyer = models.CharField(max_length=150, blank=True, verbose_name="Kasiyer")
+
+    @property
+    def ara_toplam(self):
+        """Indirim uygulanmadan onceki tutar."""
+        return self.toplam + self.indirim_tutari
 
     class Meta:
         ordering = ("-tarih",)

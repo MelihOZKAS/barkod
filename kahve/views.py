@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from stok import indirim as indirim_modulu
 from stok.models import Musteri
 
 from . import kasa as kasa_sepeti
@@ -222,6 +223,21 @@ def kasa_borc_musterileri(request):
 
 @staff_member_required
 @require_POST
+def kasa_indirim(request):
+    """Kahve sepetine ozel indirim uygular ya da kaldirir."""
+    veri = _govde(request)
+    try:
+        indirim_modulu.yaz(
+            request, veri.get("tur", "tl"), veri.get("deger", "0"),
+            indirim_modulu.KAHVE_ANAHTAR,
+        )
+    except indirim_modulu.IndirimHatasi as hata:
+        return JsonResponse({"ok": False, "hata": str(hata)}, status=400)
+    return _kasa_cevabi(request, "İndirim güncellendi.")
+
+
+@staff_member_required
+@require_POST
 def kasa_sepete_ekle(request):
     veri = _govde(request)
     kahve = Kahve.objects.filter(pk=veri.get("kahve_id"), aktif=True).first()
@@ -266,6 +282,7 @@ def kasa_hediye_degistir(request):
 @require_POST
 def kasa_sepeti_temizle(request):
     kasa_sepeti.sepeti_temizle(request)
+    kasa_sepeti.indirimi_temizle(request)   # kasa sifirlaninca indirim de gitsin
     return _kasa_cevabi(request, "Kasa sifirlandi.")
 
 
@@ -350,6 +367,7 @@ def kasa_satis_tamamla(request):
                 "odeme": satis.get_odeme_turu_display(),
                 "fincan": satis.fincan_adedi,
                 "hediye": satis.hediye_adedi,
+                "indirim": float(satis.indirim_tutari),
                 "borc_musteri": satis.borc_musteri.isim_soyisim if satis.borc_musteri else None,
                 "yeni_borc": float(satis.borc_musteri.borc) if satis.borc_musteri else None,
             },

@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from stok import indirim as indirim_modulu
 from stok.models import BorcHareketi, Musteri
 
 from . import sadakat
@@ -80,6 +81,11 @@ def satir_sil(request, kahve_id):
     return sepet
 
 
+def indirimi_temizle(request):
+    """Kasa sifirlaninca indirim de gitsin; bir sonraki musteriye tasinmasin."""
+    indirim_modulu.temizle(request, indirim_modulu.KAHVE_ANAHTAR)
+
+
 def sepeti_temizle(request, musteriyi_de=True):
     sepet = _sepeti_oku(request)
     sepet["satirlar"] = []
@@ -134,6 +140,11 @@ def _musteri(sepet):
 # Ekranin okudugu tek kaynak
 # ---------------------------------------------------------------------------
 
+def indirim_ozeti(request, ara_toplam):
+    """Kahve sepetindeki indirim. Kirtasiyeden ayri oturum kutusu kullanir."""
+    return indirim_modulu.ozet(request, ara_toplam, indirim_modulu.KAHVE_ANAHTAR)
+
+
 def ozet(request):
     sepet = _sepeti_oku(request)
     musteri = _musteri(sepet)
@@ -176,9 +187,19 @@ def ozet(request):
 
     _sepeti_yaz(request, sepet)
 
+    # Indirim hediyeler dusuldukten SONRAKI tutara uygulanir; bedava verilen
+    # fincandan ayrica indirim yapmanin anlami yok.
+    ind = indirim_ozeti(request, toplam)
+
     veri = {
         "satirlar": satirlar,
-        "toplam": float(toplam),
+        "ara_toplam": float(toplam),
+        "indirim": float(ind["tutar"]),
+        "indirim_tur": ind["tur"],
+        "indirim_deger": ind["deger"],
+        "indirim_var": ind["var"],
+        # toplam = odenecek tutar. Odeme dogrulamalari ve satis bunu kullaniyor.
+        "toplam": float(ind["odenecek"]),
         "fincan_adedi": fincan,
         "hediye_adedi": hediye,
         "damga_adedi": damga,
@@ -232,7 +253,8 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer="",
     if not veri["satirlar"]:
         raise SatisHatasi("Sepet boş.")
 
-    toplam = Decimal(str(veri["toplam"]))
+    toplam = Decimal(str(veri["toplam"]))          # indirim dusulmus
+    indirim = Decimal(str(veri["indirim"]))
     gecerli = {c[0] for c in KahveSatis.Odeme.choices}
     if odeme_turu not in gecerli:
         raise SatisHatasi("Ödeme türü geçersiz.")
@@ -273,6 +295,7 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer="",
         musteri=musteri,
         borc_musteri=borc_musteri,
         toplam=toplam,
+        indirim_tutari=indirim,
         nakit_tutar=nakit_tutar,
         kart_tutar=kart_tutar,
         odeme_turu=odeme_turu,
@@ -287,6 +310,10 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer="",
         alinanlar = satis_ozeti(veri["satirlar"])
         if alinanlar:
             satirlar_metni.append(f"Alınanlar: {alinanlar}")
+        if indirim:
+            satirlar_metni.append(
+                f"İndirim: {indirim:.2f} ₺ (ara toplam {toplam + indirim:.2f} ₺)"
+            )
         if not_metni:
             satirlar_metni.append(f"Not: {not_metni}")
         onceki_borc = borc_musteri.borc
@@ -311,6 +338,7 @@ def satisi_tamamla(request, odeme_turu, nakit=None, kart=None, kasiyer="",
                 kazanilan += len(sonuc["kazanilan_hediyeler"])
 
     sepeti_temizle(request)  # satis bitti, kasa sifirlanir
+    indirim_modulu.temizle(request, indirim_modulu.KAHVE_ANAHTAR)
     return {"satis": satis, "kazanilan_hediye": kazanilan}
 
 
@@ -325,6 +353,7 @@ def gunun_ozeti(kasiyer=None):
         ciro=Sum("toplam"), nakit=Sum("nakit_tutar"), kart=Sum("kart_tutar"),
         # Borca yazilan tutar kasaya girmedi; ayri gosterilmeli.
         borc=Sum("toplam", filter=Q(odeme_turu=KahveSatis.Odeme.BORC)),
+        indirim=Sum("indirim_tutari"),
         fincan=Sum("fincan_adedi"), satis=Count("id"),
     )
     return {anahtar: (deger or 0) for anahtar, deger in toplamlar.items()}

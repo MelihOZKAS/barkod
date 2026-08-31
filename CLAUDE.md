@@ -106,7 +106,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 184 test (73 stok + 111 kahve)
+python3 manage.py test stok kahve     # 196 test (73 stok + 123 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -191,7 +191,8 @@ edilmez** — binlerce ürünün sayımı bir günde yapılamaz. Sadece takip et
 istediğin ürüne adet gir; gerisi eskisi gibi çalışır. Adet doluysa satışta düşer
 ve `StokHareketi` yazılır.
 
-**Özel indirim** (`stok/indirim.py`): kasada sepetin tamamına TL ya da yüzde
+**Özel indirim** (`stok/indirim.py` — **iki tezgâh da bunu kullanıyor**, oturum
+anahtarları ayrı: `ANAHTAR` / `KAHVE_ANAHTAR`): kasada sepetin tamamına TL ya da yüzde
 indirim verilebilir. Oturumda tutulur, **satış bitince temizlenir** — yarım kalan
 indirim bir sonraki müşteriye taşınmaz. Ara toplamı aşamaz, eksiye düşüremez.
 `Satis.indirim_tutari` kayda geçer; `toplam` indirim **düşülmüş** tutardır, yani
@@ -320,14 +321,18 @@ geçmişte görünür, sayaca girmez.
 2. Müşteri kartı barkod/QR ile okutulur — **isteğe bağlı**, kartsız satış da olur.
 3. Bekleyen hediyesi varsa satırda "Hediye kullan" çıkar, tutardan düşer.
    `hediye_gecerli=False` olan kahveler hediye olarak verilemez.
-4. Ödeme: **nakit / kredi kartı / parçalı / borca yaz**. "Borca yaz" kırtasiye
+4. **Özel indirim** sepetin altında: TL ya da yüzde. **Hediyeler düşüldükten
+   sonraki** tutara uygulanır — bedava verilen fincandan ayrıca indirim yapılmaz.
+   Kasa sıfırlanınca ve satış bitince temizlenir. `KahveSatis.indirim_tutari`
+   kayda geçer, `toplam` indirimli tutardır.
+5. Ödeme: **nakit / kredi kartı / parçalı / borca yaz**. "Borca yaz" kırtasiye
    tarafındaki müşteri listesini açar (`/kahve/kasa/borc-musterileri/`); seçilen
    müşterinin **aynı borç hanesine** işler, `BorcHareketi` açıklamasına alınan
    kahveler ve varsa not yazılır. İki tezgâh tek müşteri kaydını paylaşıyor. Parçalıda nakit+kart toplamı tutara eşit
    olmak zorunda — **sunucu da doğruluyor**, sadece JS değil.
    Tutar 0 ise (müşteri sadece hediyesini alıyor) ödeme türü sorulmaz; buton
    "Hediyeyi ver ve bitir"e döner ve satış doğrudan kapanır.
-5. Satış bitince `KahveSatis` yazılır, müşteri varsa damgalar işlenir, **kasa sıfırlanır**.
+6. Satış bitince `KahveSatis` yazılır, müşteri varsa damgalar işlenir, **kasa sıfırlanır**.
 
 Kartsız satışta `KahveIcim` yazılmaz (müşteri yok), sadece `KahveSatis` kaydedilir.
 Günlük ciro/nakit/kart özeti ekranın sağ üstünde (`kasa.gunun_ozeti()`).
@@ -495,8 +500,9 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 > Her oturumda buraya ekle. Yeni kayıt en üste.
 
 ### 2026-08-31
-- **Özel indirim** — kasada sepete TL ya da yüzde indirim. Satış, borç ve rapor
-  indirimli tutarı kullanıyor; satış bitince indirim temizleniyor.
+- **Özel indirim** — **iki kasada da** sepete TL ya da yüzde indirim. Satış, borç
+  ve rapor indirimli tutarı kullanıyor; satış bitince ve kasa sıfırlanınca
+  temizleniyor. Kahvede indirim hediyeler düşüldükten sonraki tutara uygulanıyor.
 - **Sepette kalan stok** — adet alanının altında "Stok: 16"; yetersiz ve tükenmiş
   durumlar kırmızı rozet. Adedi boş bırakılan ürün için hiçbir şey yazılmıyor.
 - **Borç ekranı Atlas'a taşındı** — `/bakiye/` ve `/bakiye-hareketi/` tek sayfa

@@ -3,6 +3,7 @@ import uuid
 from datetime import timedelta
 
 from django.db import models
+from django.db.models import F
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -149,7 +150,10 @@ class Kahve(models.Model):
     eklenme_tarihi = models.DateTimeField(auto_now_add=True, verbose_name="Eklenme tarihi")
 
     class Meta:
-        ordering = ("kategori__sira", "sira", "ad")
+        # nulls_last SART: kategorisiz urunde SQLite NULL'u basa,
+        # PostgreSQL sona koyuyor. Acikca yazmazsak yereldeki sira
+        # canlidakiyle ayni olmuyor.
+        ordering = (F("kategori__sira").asc(nulls_last=True), "sira", "ad")
         verbose_name = "Kahve"
         verbose_name_plural = "Kahveler"
 
@@ -161,6 +165,17 @@ class Kahve(models.Model):
         return [s.strip() for s in self.icindekiler.splitlines() if s.strip()]
 
     def save(self, *args, **kwargs):
+        # Sira bos birakilmis yeni urun kategorisinin SONUNA gitsin.
+        # Varsayilan 0 oldugu icin admin'den eklenen her yeni urun listenin
+        # basina ziplayip mevcut sirayi bozuyordu.
+        if self._state.adding and not self.sira:
+            son = (
+                Kahve.objects.filter(kategori=self.kategori)
+                .order_by("-sira")
+                .values_list("sira", flat=True)
+                .first()
+            )
+            self.sira = (son or 0) + 1
         super().save(*args, **kwargs)
         self._gorseli_kucult()
 

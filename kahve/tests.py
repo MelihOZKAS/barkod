@@ -1079,3 +1079,80 @@ class MenuYuklemeTesti(TestCase):
         with self.assertRaises(NoReverseMatch):
             reverse("kahve:kasa-menu-yukle")
 
+
+class SiralamaTesti(TestCase):
+    """Once kategori sirasi, sonra kategori icinde urun sirasi.
+
+    Menu, kasa ekrani ve mobil API ayni sirayi kullaniyor; sira modelin
+    Meta.ordering'inden geliyor, her ekranda ayri ayri siralanmiyor.
+    """
+
+    def setUp(self):
+        self.sicak = KahveKategori.objects.create(ad="Sıcak", sira=0)
+        self.soguk = KahveKategori.objects.create(ad="Soğuk", sira=1)
+        self.ekstra = KahveKategori.objects.create(ad="Ekstra", sira=2)
+        # Bilerek karisik yaratiliyor: siralamayi kayit sirasi degil alanlar belirlemeli
+        Kahve.objects.create(ad="Sos", fiyat=10, kategori=self.ekstra, sira=1)
+        Kahve.objects.create(ad="Iced Latte", fiyat=80, kategori=self.soguk, sira=2)
+        Kahve.objects.create(ad="Latte", fiyat=80, kategori=self.sicak, sira=2)
+        Kahve.objects.create(ad="Espresso", fiyat=70, kategori=self.sicak, sira=1)
+        Kahve.objects.create(ad="Iced Americano", fiyat=70, kategori=self.soguk, sira=1)
+
+    def test_once_kategori_sirasi_sonra_urun_sirasi(self):
+        adlar = list(Kahve.objects.values_list("ad", flat=True))
+
+        self.assertEqual(
+            adlar,
+            ["Espresso", "Latte", "Iced Americano", "Iced Latte", "Sos"],
+        )
+
+    def test_kategori_sirasi_degisince_menu_de_degisir(self):
+        self.ekstra.sira = -1 if False else 0
+        self.sicak.sira = 5
+        self.sicak.save()
+        self.ekstra.save()
+
+        ilk = Kahve.objects.first()
+
+        self.assertEqual(ilk.ad, "Sos", "sırası öne alınan kategori başa geçmeli")
+
+    def test_yeni_urun_kategorisinin_sonuna_gider(self):
+        """Sira bos birakilinca urun listenin BASINA ziplamamali."""
+        yeni = Kahve.objects.create(ad="Mocha", fiyat=100, kategori=self.sicak)
+
+        self.assertEqual(yeni.sira, 3, "kategorideki en büyük sıra + 1")
+        sicak_adlari = [k.ad for k in Kahve.objects.filter(kategori=self.sicak)]
+        self.assertEqual(sicak_adlari, ["Espresso", "Latte", "Mocha"])
+
+    def test_elle_verilen_sira_korunur(self):
+        yeni = Kahve.objects.create(ad="Türk Kahvesi", fiyat=40, kategori=self.sicak, sira=1)
+
+        self.assertEqual(yeni.sira, 1, "açıkça yazılan sıraya dokunulmamalı")
+
+    def test_kategorisiz_urun_en_sonda(self):
+        """nulls_last olmadan SQLite basa, PostgreSQL sona koyuyordu.
+
+        Yereldeki sira canlidakiyle ayni olsun diye Meta.ordering'de
+        acikca yaziliyor.
+        """
+        Kahve.objects.create(ad="Kategorisiz", fiyat=5, sira=1)
+
+        self.assertEqual(Kahve.objects.last().ad, "Kategorisiz")
+
+    def test_menu_sayfasi_ayni_sirayi_gosterir(self):
+        govde = Client().get(reverse("kahve:menu")).content.decode()
+
+        self.assertLess(govde.index("Sıcak"), govde.index("Soğuk"))
+        self.assertLess(govde.index("Soğuk"), govde.index("Ekstra"))
+        self.assertLess(govde.index("Espresso"), govde.index("Latte"))
+
+    def test_mobil_api_ayni_sirayi_dondurur(self):
+        ayar = KahveAyar.al()
+        ayar.mobil_api_anahtari = "test-anahtari"
+        ayar.save()
+
+        cevap = Client().get(reverse("kahve:api-menu"), HTTP_X_KAHVE_KEY="test-anahtari")
+
+        adlar = [k["ad"] for k in cevap.json()["kahveler"]]
+        self.assertEqual(adlar[0], "Espresso")
+        self.assertEqual(adlar[-1], "Sos")

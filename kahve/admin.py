@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -62,13 +63,20 @@ class KahveAyarAdmin(admin.ModelAdmin):
 
 @admin.register(KahveKategori)
 class KahveKategoriAdmin(admin.ModelAdmin):
+    """Sira kucukten buyuge: 0 olan kategori menude en ustte cikar."""
+
     list_display = ("ad", "urun_sayisi", "sira", "aktif")
     list_editable = ("sira", "aktif")
     search_fields = ("ad",)
+    ordering = ("sira", "ad")
 
-    @admin.display(description="Ürün sayısı")
+    def get_queryset(self, request):
+        # urun_sayisi satir basina ayri sorgu aciyordu
+        return super().get_queryset(request).annotate(_urun_sayisi=Count("urunler"))
+
+    @admin.display(description="Ürün sayısı", ordering="_urun_sayisi")
     def urun_sayisi(self, obj):
-        return obj.urunler.count()
+        return obj._urun_sayisi
 
 
 @admin.register(Kahve)

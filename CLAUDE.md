@@ -30,10 +30,14 @@ Bu kadar. Sırasıyla:
    Sadece `git pull` yetmez: çalışan gunicorn eski kodu hafızasında tutar.
 3. `collectstatic` — `entrypoint.sh` bunu çalıştırmaz, elle gerekir (aşağıya bak).
 
-### ❌ `makemigrations` ÇALIŞTIRMA
+### Bekleyen migration'lar bu dosyalarda
+`kahve/0006`–`0010`, `stok/0009`–`0011`. Hepsi repoda; sunucu sadece `migrate`
+çalıştırıyor, `entrypoint.sh` bunu açılışta kendisi yapıyor.
+
+### ❌ Sunucuda `makemigrations` ÇALIŞTIRMA
 
 Migration dosyaları repoda; `migrate` onları zaten uyguluyor. `makemigrations`
-yazarsan Django `stok/0009_alter_musteri_cep_telefonu.py` üretir — canlı müşteri
+yazarsan Django `stok/0012_alter_musteri_cep_telefonu.py` üretir — canlı müşteri
 tablosuna dokunan, planlamadığın bir değişiklik.
 
 **Sebebi:** `stok/models.py` `Cep_Telefonu` alanını `null=True` diyor ama migration
@@ -41,8 +45,24 @@ tablosuna dokunan, planlamadığın bir değişiklik.
 Değişikliğin kendisi zararsız (PostgreSQL'de `DROP NOT NULL`, anlık, veri kaybı yok)
 ama bilerek ve ayrı bir zamanda yapılmalı.
 
-Yeni bir model alanı eklersen migration'ı **burada** üret (`makemigrations kahve`),
-commit'le, sunucu sadece `migrate` etsin.
+> **Canlıdaki izi:** telefon boş bırakılırsa `hizli_musteri_ekle`
+> (`stok/views.py`) `random.randint` ile **sahte bir numara** yazıyor — NOT NULL
+> kısıtı böyle atlatılmış. Müşteri listesinde gerçek numara gibi duruyorlar.
+> Drift düzeltilirse bu hile de kaldırılmalı.
+
+### Yeni migration üretirken (geliştirme makinesinde)
+
+Migration'ı **burada** üret, commit'le, sunucu sadece `migrate` etsin. Ama:
+
+> **`makemigrations kahve` bile yetmiyor.** `kahve` modelinden `stok.Musteri`'ye
+> FK eklendiği için Django yanına o `Cep_Telefonu` değişikliğini de koyuyor.
+> **Üretilen dosyayı aç, o `AlterField` operasyonunu elle sil.** `stok/0009`,
+> `0010`, `0011` ve `kahve/0007` böyle temizlendi; hepsinin docstring'inde yazıyor.
+
+Ürettikten sonra kontrol et — çıktıda sadece o bilinen drift kalmalı:
+```bash
+python3 manage.py makemigrations --dry-run -v 2
+```
 
 ### `collectstatic` neden şart
 `entrypoint.sh` sadece `migrate` çalıştırıyor. `kahve` sayfaları CSS'ini
@@ -56,6 +76,8 @@ commit'le, sunucu sadece `migrate` etsin.
    kutusunu işaretle — varsayılan kapalı gelir, işaretlenmezse damga vermez.
 3. **Stok takibi isteğe bağlı:** Admin → Stok ürünleri → takip etmek istediğin
    ürünün **Stok adedi** alanını doldur. Boş bırakılanlar eskisi gibi çalışır.
+4. **Eski fotoğrafları sıkıştır** (bir kere): `kahve_gorsel_sikistir --uygula`.
+   Yeni yüklemeler zaten JPEG kaydediliyor. Dosyaların üzerine yazar, önce yedek al.
 
 ### Ters giderse
 ```bash
@@ -73,6 +95,21 @@ Detay: aşağıdaki "Yedekleme / geri yükleme" bölümü.
 - Mevcut migration dosyalarını **asla** düzenleme veya silme. Sadece yeni ekle.
 - Yıkıcı migration (`RemoveField`, `DeleteModel`, alan daraltma) önce kullanıcıya sorulur.
 - `ali/settings.py` ve `ali/urls.py` değişiklikleri küçük ve geri alınabilir olsun.
+- **Para hareketi yazan her uç `login_required` ister ve `csrf_exempt` OLMAZ.**
+  Çevredeki eski kalıba bakıp kopyalama; `stok/views.py`'de hâlâ 9 tane
+  `@csrf_exempt` var, hepsi bizden önce vardı.
+- Yeni bir ekran ya da JS eklerken **sayfanın kendisini de test et**, sadece JSON
+  ucunu değil. Bu oturumda iki kez aynı hataya düşüldü: uç doğru cevap veriyordu
+  ama şablona hiç basılmamıştı (kasa sepet paneli, indirim özeti).
+
+### ⚠️ Açık kalan iki konu
+1. **Canlıda `DEBUG=True`.** Bir hata olduğunda Django'nun sarı hata sayfası
+   herkese açık: sunucu yolları, sürümler ve "Local vars" altında değişken
+   değerleri görünüyor. `ali/docker.env` içinde `DEBUG=False` yapılmalı
+   (sonrasında `collectstatic` şart).
+2. **`stok/views.py`'de 9 `@csrf_exempt`** — sepete ekle, sepeti sıfırla, toplu
+   ekle, hızlı müşteri ekle, stok sil… Hepsi artık `login_required` ama CSRF
+   muafiyeti duruyor. Hangi şablondan çağrıldıkları taranıp tek tek kapatılmalı.
 
 ---
 
@@ -125,9 +162,11 @@ template'ler `templates/system/user/` altında.
 | `/` | Halka açık ana sayfa ("tek dükkân, iki tezgâh") | Atlas (yeni) |
 | `/giris-yap/` | Personel girişi | Atlas (yeni) |
 | `/panel/` | Gösterge paneli — açık borç, bugünün özeti, listeler | Atlas (yeni) |
-| `/modern-urun-ara/` | Kırtasiye kasası | eski Bootstrap teması |
+| `/modern-urun-ara/` | Kırtasiye kasası — sepet, özel indirim, satış, borca aktar | eski Bootstrap teması |
 | `/musteri-listesi/` | Müşteriler — arama, borca/isme göre sıralama, toplam borç | Atlas (yeni) |
-| `/bakiye/...`, `/urun-ara*` | diğer ekranlar | eski Bootstrap teması |
+| `/bakiye/<id>/`, `/bakiye-hareketi/<id>/` | **Aynı sayfa:** müşterinin borcu, işlem formu, hareket geçmişi | Atlas (yeni) |
+| `/kasa-raporu/` | Gün / ay / yıl — iki tezgâhın nakit/kart/borç dökümü | Atlas (yeni) |
+| `/urun-ara*`, `yeni-sayfa` | eski ekranlar | eski Bootstrap teması |
 | `/fiyat-monitor/` | Halka açık fiyat sorgulama (login yok) | kendi tasarımı |
 
 **Ortak footer:** `templates/parcali/site_footer.html` — hem Atlas hem kahve
@@ -136,10 +175,15 @@ erkekbebekisimleri, yuksekteknoloji); eski footer'dan taşındı, silme.
 Uygulama ekranlarında (panel, giriş, kasa) `{% block alt_bilgi %}{% endblock %}`
 ile kapatılıyor.
 
-**Tasarım geçişi yarım:** `/`, `/giris-yap/`, `/panel/` ve `/musteri-listesi/` yeni **Atlas** tasarım
-sistemine geçti (`stok/static/stok/atlas.css`, `.at` sınıfı altında kapsanmış,
-`templates/system/user/atlas_base.html`'i genişletir). Kalan sayfalar hâlâ eski
-`userBase.html` + Bootstrap temasında. Sıradaki adım onları taşımak.
+**Tasarım geçişi yarım:** `/`, `/giris-yap/`, `/panel/`, `/musteri-listesi/`,
+`/kasa-raporu/` ve borç detay sayfası **Atlas** tasarım sistemine geçti
+(`stok/static/stok/atlas.css`, `.at` sınıfı altında kapsanmış,
+`templates/system/user/atlas_base.html`'i genişletir).
+
+**Geriye kalan tek önemli ekran `/modern-urun-ara/`** — kırtasiye kasası, hâlâ
+Tailwind CDN + SweetAlert2 ile eski temada. En çok kullanılan ekran olduğu için
+taşınması en riskli olan da o; taşınacaksa satış/borç/indirim akışlarının testleri
+(`SatisKaydiTesti`, `BorcaAktarmaTesti`, `OzelIndirimTesti`) koruma sağlıyor.
 
 Atlas, kahve modülünün kardeşi: aynı tipografi, aynı 8pt ızgara, aynı yuvarlaklık.
 Fark renkte — kahve sıcak amber ekseninde, kırtasiye serin çini mavisi ekseninde.
@@ -337,17 +381,19 @@ geçmişte görünür, sayaca girmez.
    sonraki** tutara uygulanır — bedava verilen fincandan ayrıca indirim yapılmaz.
    Kasa sıfırlanınca ve satış bitince temizlenir. `KahveSatis.indirim_tutari`
    kayda geçer, `toplam` indirimli tutardır.
-5. Ödeme: **nakit / kredi kartı / parçalı / borca yaz**. "Borca yaz" kırtasiye
-   tarafındaki müşteri listesini açar (`/kahve/kasa/borc-musterileri/`); seçilen
-   müşterinin **aynı borç hanesine** işler, `BorcHareketi` açıklamasına alınan
-   kahveler ve varsa not yazılır. İki tezgâh tek müşteri kaydını paylaşıyor. Parçalıda nakit+kart toplamı tutara eşit
-   olmak zorunda — **sunucu da doğruluyor**, sadece JS değil.
-   Tutar 0 ise (müşteri sadece hediyesini alıyor) ödeme türü sorulmaz; buton
-   "Hediyeyi ver ve bitir"e döner ve satış doğrudan kapanır.
+5. Ödeme: **nakit / kredi kartı / parçalı / borca yaz**.
+   - **Parçalı:** nakit + kart toplamı tutara eşit olmak zorunda — **sunucu da
+     doğruluyor**, sadece JS değil.
+   - **Borca yaz:** kırtasiye tarafındaki müşteri listesini açar
+     (`/kahve/kasa/borc-musterileri/`); seçilen müşterinin **aynı borç hanesine**
+     işler, `BorcHareketi` açıklamasına alınan kahveler ve varsa not yazılır.
+     İki tezgâh tek müşteri kaydını paylaşıyor.
+   - **Tutar 0 ise** (müşteri sadece hediyesini alıyor) ödeme türü sorulmaz;
+     buton "Hediyeyi ver ve bitir"e döner ve satış doğrudan kapanır.
 6. Satış bitince `KahveSatis` yazılır, müşteri varsa damgalar işlenir, **kasa sıfırlanır**.
 
 Kartsız satışta `KahveIcim` yazılmaz (müşteri yok), sadece `KahveSatis` kaydedilir.
-Günlük ciro/nakit/kart özeti ekranın sağ üstünde (`kasa.gunun_ozeti()`).
+Günlük ciro/nakit/kart/borç/indirim özeti ekranın sağ üstünde (`kasa.gunun_ozeti()`).
 Kasa uçlarının hepsi JSON döner — **sayfa hiç yenilenmez**.
 
 #### URL'ler
@@ -356,7 +402,8 @@ Kasa uçlarının hepsi JSON döner — **sayfa hiç yenilenmez**.
 | `/kahve/` | Halka açık menü |
 | `/kahve/k/<uuid>/` | **Personel** — admin'den bir müşterinin kartını açar |
 | `/kahve/kasa/` | **Personel** — kasa ekranı |
-| `/kahve/kasa/...` | **Personel** — sepet/müşteri/ödeme uçları, hepsi JSON |
+| `/kahve/kasa/...` | **Personel** — sepet/müşteri/indirim/ödeme uçları, hepsi JSON |
+| `/kahve/kasa/borc-musterileri/` | **Personel** — kırtasiye müşteri listesi (borca yazmak için) |
 | `/kahve/cron/gunluk-temizlik/?anahtar=...` | Cron (anahtarla) |
 | `/kahve/api/v1/...` | Mobil uygulama (`X-Kahve-Key`) |
 
@@ -387,13 +434,18 @@ Admin'deki Firebase alanları da mobil uygulamaya servis edilir.
 #### Görsel yönetimi
 | Ne olur | Sonuç |
 |---|---|
-| Büyük fotoğraf yüklenir | En fazla **1400px**'e küçültülür (4000px/1,8 MB → 1400px/88 KB) |
+| Fotoğraf yüklenir | Merkezden **kare** kırpılır, en fazla **1200px**, **JPEG** kalite 82 |
+| PNG yüklenir | `.jpg`'ye çevrilir, alan güncellenir, eski dosya silinir (~1,7 MB → ~150 KB) |
+| Saydam görsel yüklenir | Beyaza yatırılır — JPEG alfa taşımıyor |
 | Ürünün görseli değiştirilir | Eski dosya diskten **silinir** |
 | Ürün silinir | Görseli de **silinir** — toplu silmede de (`post_delete` sinyali) |
 
 ```bash
-python manage.py gorsel_temizle          # öksüz dosyaları listeler (güvenli)
-python manage.py gorsel_temizle --sil    # gerçekten siler
+python manage.py gorsel_temizle              # öksüz dosyaları listeler (güvenli)
+python manage.py gorsel_temizle --sil        # gerçekten siler
+
+python manage.py kahve_gorsel_sikistir           # yüklenmiş fotoğrafları listeler
+python manage.py kahve_gorsel_sikistir --uygula  # JPEG'e çevirip küçültür
 ```
 
 #### Yedekleme / geri yükleme
@@ -448,6 +500,12 @@ onu sadece debug/profile manifest'lerine koyuyor, release derlemesi internete
 `adb reverse tcp:8899 tcp:8899` ile bilgisayardaki yerel sunucuya bağlanıp test etmek
 için; release'e sızmaz.
 
+> **Görsel adresleri `https` olmalı.** Android release derlemesi düz HTTP'yi
+> engelliyor; TLS'i Cloudflare sonlandırdığı için Django bir dönem `http://`
+> adresler üretti ve **hiçbir fotoğraf yüklenmedi**. Sunucuda
+> `SECURE_PROXY_SSL_HEADER` bunu çözüyor; `modeller/kart.dart` içindeki
+> `_guvenliAdres` de ikinci emniyet.
+
 **Veri kaynağı:** menü ve ayarlar (hediye eşiği, işletme adı, geçerlilik günü)
 sunucudan gelir. Kart verisi Firebase bağlanana kadar demodur — ama eşiği
 sunucudaki gerçek kurala göre kurulur, yani damga sırası doğru sayıda çıkar.
@@ -463,11 +521,17 @@ sunucudaki gerçek kurala göre kurulur, yani damga sırası doğru sayıda çı
   kartlar. Bekleyen hediye varsa uygun kahveler "HEDİYENLE ALABİLİRSİN" rozeti alır.
   Kategoriler alt bara **konmaz** — navigasyon ile filtre ayrı şeyler, karıştırıldığında
   kullanıcı "alttaki navigasyon daha kötü oldu" diye geri bildirim verdi.
-- `profil_sekmesi` — sadakat kartı + "Kasada okut" + sayaçlar
+- `profil_sekmesi` — sadakat kartı (tam halka sırası burada) + "Kasada okut" + sayaçlar
 - `okut_sayfasi` — tam ekran beyaz QR/barkod. Akışın içine büyük beyaz panel koyma.
 
-**`DamgaSirasi`** genişliğe göre kendini ölçer ve **tek sırada** kalır. Dar yerlerde
-`enKucuk`/`enBuyuk` ile sınırla — sabit `olcu` verirsen taşar.
+**`DamgaSirasi`** genişliğe göre kendini ölçer ve **tek sırada** kalır.
+`enKucuk` bir alt sınır **değil**, tercih edilen en küçük ölçü: sığmazsa daha da
+küçülür. Eskiden alt sınır olduğu için eşik 10'a çıkınca satır taşıyor, halkalar
+okunmaz dilimlere dönüyordu.
+
+Menü şeridi **7'den fazla damgada halka çizmiyor**, ince bir ilerleme çubuğuna
+(`_MiniIlerleme`) geçiyor. Tam halka sırası zaten Kartım sekmesinde duruyor —
+orada yer var.
 
 **Firebase henüz bağlı değil.** `giris_ekrani.dart` içindeki `_girisYap` doğrudan ana
 ekrana geçiyor; Firebase eklenince orada token alınıp `KahveApi.oturumAc(idToken)`
@@ -511,7 +575,7 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
 
-### 2026-08-31 (devam)
+### 2026-08-31
 - **Mobilde hiçbir fotoğraf yüklenmiyordu** — TLS'i Cloudflare sonlandırıyor,
   Django isteği düz http sanıp `http://` görsel adresleri dönüyordu; Android
   release derlemesi düz HTTP'yi engelliyor. `SECURE_PROXY_SSL_HEADER` eklendi,
@@ -522,8 +586,6 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 - **Damga şeridi 10 damgada taşıyordu** — `DamgaSirasi`'nda `enKucuk` artık alt
   sınır değil tercih; menü şeridi 7'den fazla damgada ince ilerleme çubuğuna
   geçiyor.
-
-### 2026-08-31
 - **Özel indirim** — **iki kasada da** sepete TL ya da yüzde indirim. Satış, borç
   ve rapor indirimli tutarı kullanıyor; satış bitince ve kasa sıfırlanınca
   temizleniyor. Kahvede indirim hediyeler düşüldükten sonraki tutara uygulanıyor.

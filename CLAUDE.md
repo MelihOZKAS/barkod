@@ -312,9 +312,19 @@ proje kuralı yeni bağımlılık eklememek. Seçim şöyle:
 (`SAG = SOL_TEK`'in tersi, `SOL_CIFT = SAG`'ın ters çevrilmişi); tabloya elle
 dokunulup bir hane yanlış yazılırsa oradan yakalanır.
 
-> **Tuzak:** etikette `grid-template-rows` **`minmax(0,1fr)`** olmalı. Düz `1fr`
+> **Tuzak 1:** etikette `grid-template-rows` **`minmax(0,1fr)`** olmalı. Düz `1fr`
 > satırı içeriğe kilitliyor; 39 mm'ye sığmadığı anda barkod aşağı taşıp
 > kırpılıyor ve etiket sessizce okunmaz hale geliyor.
+>
+> **Tuzak 2:** etiketler **blok seviyesinde** olmalı (`display:grid` + flex öğesi,
+> `inline-grid` değil). `break-inside` ve `break-after` satır-içi kutulara
+> **uygulanmıyor**; `inline-grid` olduğu sürece yazıcı sayfa sonlarını hiç
+> görmüyor, etiketler ruloda kayarak basılıyor ve üstleri kırpılıyor. Ekranda
+> hiçbir sorun görünmüyor, sadece kâğıda çıkınca anlaşılıyor.
+>
+> **Tuzak 3:** etiket yüksekliği sayfa boyuyla **tam eşit olmasın** — yazıcının
+> yuvarlaması yüzünden her etiketin ardına boş bir sayfa düşüyor, rulonun yarısı
+> boşa gidiyor. Baskıda yarım milim pay bırakılıyor.
 
 Etiketin CSS'i **şablonun içinde** (`templates/system/user/etiket.html`), ayrı bir
 static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
@@ -325,6 +335,11 @@ static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
 | `birim` | Etiketteki "Birim:" — varsayılan `AD`, admin listesinden toplu düzenlenebilir |
 | `uretim_yeri` | Etiketteki "Üretim Yeri:" — boş bırakılırsa satır boş çıkar |
 | `fiyat_tarihi` | Etiketteki **F.D.T.** — `Tutar` her değiştiğinde kendiliğinden bugüne çekilir |
+
+> **Tuzak:** `StokAdmin.formfield_overrides` bütün `CharField`'leri **90 karakter**
+> genişliğinde yapıyor. `birim` liste içinde düzenlenebilir olduğu için her satıra
+> 90 karakterlik bir kutu düşüyor, ürün listesi ekrana sığmaz hale geliyordu.
+> `KISA_ALANLAR` + `formfield_for_dbfield` bu iki yeni alanı dar tutuyor.
 
 `guncelleme_tarihi` F.D.T.'nin yerine geçemez: **stok adedi değişince o da
 ilerliyor**, fiyatı yıllardır sabit ürüne dünün tarihini basardı. `Stok.save()`

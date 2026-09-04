@@ -64,6 +64,17 @@ class StokAdmin(admin.ModelAdmin):
         models.CharField: {'widget': forms.TextInput(attrs={'size':'90'})},
     }
 
+    # Ustteki override butun CharField'leri 90 karakter genisliginde yapiyor.
+    # "birim" liste icinde duzenlenebilir oldugu icin her satira 90 karakterlik
+    # bir kutu dusuyor, tablo ekrana sigmaz hale geliyordu.
+    KISA_ALANLAR = {"birim": 6, "uretim_yeri": 24}
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        genislik = self.KISA_ALANLAR.get(db_field.name)
+        if genislik:
+            kwargs["widget"] = forms.TextInput(attrs={"size": str(genislik)})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
 
 
 

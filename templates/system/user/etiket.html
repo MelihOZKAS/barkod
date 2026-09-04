@@ -46,17 +46,21 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 /* ---------- kagit ---------- */
 .et-kagit{background:#fff;color:#000;margin:var(--b3) auto;padding:6mm;
   width:210mm;box-shadow:var(--golge-yuksek)}
-.et-dizi{font-size:0;line-height:0}
+/* Etiketler flex ogesi: break-inside/break-after satir-ici kutulara
+   uygulanmiyor, blok seviyesindeki kutulara ve flex/grid ogelerine uygulaniyor.
+   inline-grid oldugu surece yazici sayfa sonlarini gormuyordu. */
+.et-dizi{display:flex;flex-wrap:wrap;align-content:flex-start}
 
 /* ---------- etiketin kendisi ---------- */
 .etiket,.etiket-bos{
+  flex:0 0 auto;
   width:var(--et-g);height:var(--et-y);
-  box-sizing:border-box;overflow:hidden;vertical-align:top;
+  box-sizing:border-box;overflow:hidden;
   break-inside:avoid;page-break-inside:avoid;
   background:#fff;color:#000}
-.etiket-bos{display:inline-block}
+.etiket-bos{display:block}
 .etiket{
-  display:inline-grid;
+  display:grid;
   grid-template-columns:40% 60%;
   /* minmax(0,1fr) sart: duz "1fr" satiri icerige kilitliyor, etiketin yuksekligi
      yetmedigi anda barkod asagi tasip kirpiliyor. */
@@ -151,7 +155,13 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
   .et-kagit{margin:0;padding:0;width:auto;box-shadow:none}
 {% if duzen == 'tek' %}
   .et-tek .et-kagit{padding:0;max-width:none}
-  .et-tek .etiket{margin:0;box-shadow:none;outline:0;
+  /* Blok akisi: her etiket blok seviyesinde olmali ki break-after gecerli olsun. */
+  .et-tek .et-dizi{display:block}
+  /* Yarim milimlik pay: etiket sayfa boyuyla TAM esitse yazicinin yuvarlamasi
+     yuzunden her etiketin ardina bos bir sayfa dusebiliyor, rulonun yarisi
+     bosa gidiyor. */
+  .et-tek .etiket{display:grid;margin:0;box-shadow:none;outline:0;
+    height:calc(var(--et-y) - .5mm);
     break-after:page;page-break-after:always}
   /* Son etiketten sonra bos bir sayfa cikmasin. */
   .et-tek .etiket:last-child{break-after:auto;page-break-after:auto}
@@ -278,8 +288,18 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 // anda idare edemiyor.
 (function () {
   function sigdir() {
-    document.querySelectorAll('.et-ad').forEach(function (baslik) {
-      baslik.style.fontSize = '';
+    var basliklar = Array.prototype.slice.call(document.querySelectorAll('.et-ad'));
+
+    // Once hepsi sifirlanir, SONRA hepsi olculur. Yazma ve okuma ic ice
+    // girerse tarayici her etiket icin bastan yerlesim hesabi yapiyor;
+    // 600 etikette sayfa saniyelerce kilitleniyordu.
+    basliklar.forEach(function (baslik) { baslik.style.fontSize = ''; });
+
+    var tasanlar = basliklar.filter(function (baslik) {
+      return baslik.firstElementChild.scrollHeight > baslik.clientHeight;
+    });
+
+    tasanlar.forEach(function (baslik) {
       var punto = parseFloat(getComputedStyle(baslik).fontSize);
       var metin = baslik.firstElementChild;
       var sinir = 0;

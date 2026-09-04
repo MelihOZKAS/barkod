@@ -83,7 +83,10 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .etiket .et-ad{grid-area:ad;margin:0;display:flex;align-items:center;
   justify-content:center;overflow:hidden;text-align:center;
   font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;
-  font-weight:700;letter-spacing:0;line-height:1.1}
+  /* 1.18: Turkce buyuk harflerin noktali/serifli tepeleri (I, U, O) dar bir
+     satir kutusunda serit ustunden tasip kirpiliyordu -- punto sigdirma JS'i
+     "sigdi" diyor cunku satir kutusunu olcuyor, murekkebi degil. */
+  font-weight:700;letter-spacing:0;line-height:1.18}
 .etiket .et-ad span{display:block;width:100%}
 .et-seritli .etiket .et-ad{background:#000;color:#fff}
 .et-cizgili .etiket .et-ad{background:#fff;color:#000;border-bottom:.3mm solid #000}
@@ -122,19 +125,31 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .et-kucuk .et-barkod .barkod-svg{height:7mm}
 .et-kucuk .et-barkod figcaption{font-size:5pt;margin-top:.3mm}
 
-/* 95 x 39 mm rulo: dort bilgi satiri + fiyat + barkod tam sigmali.
-   Yukseklikler buyutulurse barkod asagi tasar ve kirpilir.
+/* 95 x 39 mm rulo. Yazi boylari 82 x 38,5 mm'lik tasarimi DOLDURACAK
+   sekilde secildi: 2026-09-04'te basilmis etikette dort bilgi satiri
+   6,4 punto ile sol sutunun ortasinda kucucuk duruyordu, etiketin sol
+   yarisi bos gorunuyordu. Dikey butce (38,5 mm):
+     ad 8,6 + cizgi 0,3               =  8,9
+     fiyat 1,4 + 24pt satir 9,7       = 11,1
+     barkod 11,4 + rakamlar 2,8 + 2,1 = 16,3
+   toplam 36,3 mm; kalan 2,2 mm fiyat satirina pay olarak kaliyor.
+   Yukseklikler bundan fazla buyutulurse barkod asagi tasar ve kirpilir.
+   Genislik: bilgi sutunu 32,8 - 3 = 29,8 mm; en uzun satir "F.D.T:
+   03.09.2026" JetBrains Mono ile 17 x 0,6 em = 27,4 mm, sigiyor.
    Modul genisligi 0,375 mm = 203 dpi kafada TAM 3 nokta. Kusuratli bir
    modul (0,45 mm = 3,6 nokta) yuvarlanirken cubuklari bir kalin bir ince
    basiyor. 113 modul x 0,375 = 42,4 mm; 82 mm'lik tasarimda barkod sutunu
    43,2 mm, yani barkod hala sutuna esnetilmeden sigiyor. */
 .et-termal{--et-mw:.375mm}
-.et-termal .etiket .et-ad{height:7.4mm;padding:0 3mm;font-size:11.5pt}
-.et-termal .et-bilgi{padding:1.4mm 0 1.4mm 3mm;font-size:6.4pt}
+.et-termal .etiket .et-ad{height:8.6mm;padding:0 3mm;font-size:13pt}
+.et-termal .et-bilgi{padding:1.6mm 0 1.6mm 3mm;font-size:7.6pt;
+  /* Ortalamak yerine sutunun tamamina yay: dort satir ortada toplaninca
+     bilgi sutununun alti da ustu de bos kaliyordu. */
+  justify-content:space-evenly;gap:0}
 .et-termal .et-fiyat{padding:1.4mm 3mm 0 0;font-size:24pt}
 .et-termal .et-barkod{padding:0 3mm 1.6mm}
-.et-termal .et-barkod .barkod-svg{height:9.6mm}
-.et-termal .et-barkod figcaption{font-size:6.4pt;margin-top:.4mm}
+.et-termal .et-barkod .barkod-svg{height:11.4mm}
+.et-termal .et-barkod figcaption{font-size:7pt;margin-top:.5mm}
 
 .et-orta{--et-mw:.3mm}
 .et-orta .etiket .et-ad{height:7mm;padding:0 2mm;font-size:9.5pt}
@@ -228,7 +243,8 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
   <div class="et-cubuk-ic">
     <h1>Raf etiketi
-      <small>Ayarlar hatırlanıyor — bir kere doğru kurulunca her baskı öyle çıkar.{% if duzen == 'tek' %} Kağıt boyu {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm, ölçek %100.{% endif %}</small>
+      <small>Ayarlar hatırlanıyor — bir kere doğru kurulunca her baskı öyle çıkar.{% if duzen == 'tek' %} Kağıt boyu {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm, ölçek %100.<br>
+        <b>Tasarım boyuna dokunmanız gerekmez</b> — 82 mm basılmış etiketten ölçüldü. Yazıcı sayfayı etiketin ~19 mm ilerisinden başlatıyor, tarayıcı bunu göremediği için etiketin başı boş kalıyor; telafisi tasarımı kısaltmak. Baskı yine de kayarsa <b>Ölçü baskısı</b>nı basın.{% endif %}</small>
     </h1>
 
     <div class="et-alan">

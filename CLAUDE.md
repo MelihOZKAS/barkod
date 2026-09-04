@@ -152,7 +152,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 256 test (127 stok + 129 kahve)
+python3 manage.py test stok kahve     # 259 test (130 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -387,6 +387,28 @@ oraya sığmıyor, kuyruğu kesim deliğine ve bir sonraki etikete taşıyordu.
 
 Düzeltme `OLCULER["termal"]["basim"] = 82.0`: kâğıt (`@page`) 95 × 39 mm
 kalıyor, tasarım 82 mm'ye kuruluyor ve sayfanın **başına** yaslanıyor.
+
+**82 mm doğrulandı (2026-09-04, dördüncü baskı).** Aynı yöntemle ölçüldü:
+etiket **102,8 mm**, tasarım etiketin **19,1.** mm'sinde başlıyor ve
+**103,5.** mm'sinde bitiyor — yani tam etiketin sonuna kadar gidiyor, hiçbir
+şey kırpılmıyor. `basim` daha fazla büyütülemez; büyütülürse fiyatın sonu
+kesim deliğine düşer.
+
+> **Etiketin ilk ~19 mm'si boş kalıyor ve bunu tasarımla kapatmak mümkün
+> değil** — orası sayfanın *dışı*. Tarayıcı sayfanın 95 mm olduğunu biliyor
+> ama o 95 mm'nin etiketin neresine denk geldiğini **göremiyor**; o bilgi
+> sadece basılmış etiketi ölçünce çıkıyor. Telafi edilecek tek yer bu yüzden
+> tasarımın boyu, ve o sayı koda gömülü — kullanıcının araç çubuğundaki
+> "Tasarım boyu" alanına dokunması gerekmiyor.
+>
+> **Bu 19 mm Chrome'un kenar boşluğu DEĞİL, yazıcının başlangıç noktası.**
+> Ayırt eden ölçü: mürekkep etiketin **103.** mm'sine kadar gidiyor. Chrome
+> ~17 mm sol boşluk koyuyor olsaydı sayfa etiketin 2. mm'sinde başlayıp
+> 97. mm'de biterdi, 103'e mürekkep basılamazdı. Yani yazdırma penceresinde
+> "Kenar boşlukları → Yok" seçmek bunu düzeltmez; bir önceki oturumun
+> "Yok ile sayfa 3. mm'de başlıyordu" ölçümü, o baskının enine ~22 mm kaymış
+> olması yüzünden güvenilir değil. Gerçek çözüm yazıcı tarafında: sürücüdeki
+> kâğıt boyunu 95 yerine gerçek ~102,8 mm yapmak ya da yazıcıyı kalibre etmek.
 
 > **Kaydırma (`kaydirma_x`) bunun çözümü değil — artık 0.** `position:relative`
 > ile sola kaydırılan tasarımın sayfa dışında kalan kısmını yazıcı hiç basmıyor.
@@ -745,6 +767,25 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04 (beşinci oturum)
+- **Etiketin içi dolduruldu.** Basılan etikette dört bilgi satırı 6,4 punto
+  ile sol sütunun ortasında toplanıyor, etiketin sol yarısı bomboş
+  görünüyordu. Yeni ölçüler: ürün adı 11,5 → **13 pt** (şerit 7,4 → 8,6 mm),
+  bilgi satırları 6,4 → **7,6 pt** ve `space-evenly` ile sütunun tamamına
+  yayıldı, barkod 9,6 → **11,4 mm**, rakamları 6,4 → 7 pt. Dikey bütçe
+  36,3 / 38,5 mm — barkodun taşmasına 2,2 mm pay kaldı.
+- **Ürün adının tepesi kırpılıyordu** — `line-height: 1.1` çok dardı; punto
+  sığdırma JS'i satır *kutusunu* ölçtüğü için "sığdı" diyor ama İ/Ü/Ö
+  harflerinin tepesi şeridin dışında kalıyordu. `1.18` yapıldı.
+- **`basim = 82` ölçümle doğrulandı** — basılmış etiketten: etiket 102,8 mm,
+  tasarım 19,1. mm'de başlayıp 103,5. mm'de bitiyor. Yerleşim doğru,
+  büyütülecek yer yok.
+- **Baştaki ~19 mm'nin yazıcının başlangıç noktası olduğu kanıtlandı** —
+  Chrome'un kenar boşluğu değil: mürekkep etiketin 103. mm'sine kadar
+  gidiyor, 17 mm'lik bir kenar boşluğu olsa sayfa 97. mm'de biterdi.
+  "Kenar boşlukları → Yok" bunu düzeltmez. Araç çubuğundaki not artık
+  **"Tasarım boyuna dokunmanız gerekmez"** diyor — sayı koda gömülü.
 
 ### 2026-09-04 (dördüncü oturum)
 - **Etiketin gerçek boyu ölçüldü: ~102 mm, 9,5 cm değil.** Basılmış iki

@@ -70,6 +70,11 @@ EN_COK_KAYDIRMA = 20.0
 # Sinama etiketindeki cetvel araligi.
 CETVEL_ARALIGI = 5
 
+# Sinama kac etiket bassin. Tek etiket kaymayi gosteriyor ama "yazicinin sayfa
+# boyu etiketin boyuyla ayni mi" sorusunu cevaplamiyor: ard arda uc numarali
+# etiket basilinca arada bos etiket kalip kalmadigi tek bakista goruluyor.
+SINAMA_ETIKET_SAYISI = 3
+
 
 def _sayi(deger, varsayilan, en_az, en_cok):
     try:
@@ -189,6 +194,7 @@ def sayfa_baglami(istek):
         "kay_y": "%g" % _ondalik(istek.GET.get("ky"), 0.0,
                                  -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
         "sinama": sinama,
+        "sinama_liste": range(1, SINAMA_ETIKET_SAYISI + 1),
         # Hangi simgelemeden kac tane cikacak. Ekranda gorunur, kagida
         # basilmaz: kontrol hanesi tutmayan barkodlar Code 128'e dustugu icin
         # "hepsi Code 128" ciktisi barkod verisinde bir sorun oldugunu soyler.

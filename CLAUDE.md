@@ -83,8 +83,8 @@ python3 manage.py makemigrations --dry-run -v 2
    ve "sayfaya sığdır" kapalı. Sayfa `@page` ile boyu kendisi bildiriyor ama
    sürücüde o boy yoksa Chrome A4'e düşürüp etiketi küçültür.
    Doğrulaması: `/etiket/` → **"Ölçü baskısı"** kutusunu işaretle → Yazdır.
-   Cetvelli tek bir etiket çıkar; dört kenardaki çerçeve de kâğıda çıktıysa
-   boy doğrudur.
+   1-2-3 numaralı cetvelli üç etiket çıkar; üçü art arda etiketlere düştüyse ve
+   dört kenardaki çerçeve de göründüyse boy doğrudur.
 
 ### Ters giderse
 ```bash
@@ -296,7 +296,7 @@ kurtarıyor.
 | Baştan boş bırak | Sadece A4'te; kullanılmış etiket kâğıdını atlar |
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
-| **Ölçü baskısı** | Ürün yerine cetvelli tek bir sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
+| **Ölçü baskısı** | Ürün yerine cetvelli, 1-2-3 numaralı üç sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
 | **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. Yazıcının kâğıdı kaçırdığı kadar geri alır |
 
 **Barkod `stok/barkod.py`'de sıfırdan çiziliyor** — `python-barcode` kurulmadı,
@@ -361,9 +361,13 @@ static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
 Ekranda doğru görünüp kâğıda yanlış çıkması **her zaman** yazıcı/sürücü tarafı
 değil; önce hangisi olduğunu ölçün, tahmin etmeyin:
 
-1. `/etiket/` → **"Ölçü baskısı"** işaretle → Yazdır. Cetvelli tek bir etiket çıkar.
-2. **Dört kenardaki çerçeve de görünüyorsa** boy doğru, sorun yazıcıda değil.
-3. Bir kenar eksikse cetvelden **kaç mm** eksik olduğunu okuyun ve o kadarını
+1. `/etiket/` → **"Ölçü baskısı"** işaretle → Yazdır. Cetvelli, **1-2-3 numaralı
+   üç etiket** çıkar.
+2. **Üç numara art arda etiketlere düştüyse** sayfa boyu doğru. Aralarda boş
+   etiket kaldıysa yazıcının sayfa boyu etiketten uzun — iş sürücüde, kâğıt
+   boyu ve boşluk sensörü kalibrasyonunda.
+3. **Dört kenardaki çerçeve de görünüyorsa** ölçü doğru. Bir kenar eksikse
+   cetvelden **kaç mm** eksik olduğunu okuyun ve o kadarını
    **"sağa kaydır" / "aşağı kaydır"** alanlarına yazın (eksi değer de kabul).
    Kaydırma `position: relative` ile yapılıyor: sadece boyanan yer kayıyor,
    sayfa sonları olduğu yerde kalıyor.
@@ -705,8 +709,10 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 
 ### 2026-09-04 (ikinci oturum)
 - **Ölçü baskısı** — kâğıda çıkanı ölçmenin yolu yoktu, "sanki kaymış" ile
-  uğraşılıyordu. Araç çubuğundaki kutu artık cetvelli tek bir sınama etiketi
-  basıyor: çerçevenin hangi kenarı eksik, kaç mm eksik, doğrudan okunuyor.
+  uğraşılıyordu. Araç çubuğundaki kutu artık cetvelli, **1-2-3 numaralı üç**
+  sınama etiketi basıyor: çerçevenin hangi kenarı kaç mm eksik ve yazıcının
+  sayfa boyu etiketin boyuyla aynı mı (aralarda boş etiket kalıyor mu),
+  tek çıktıda görülüyor.
 - **Sağa / aşağı kaydırma** — yazıcının kaçırdığı kadarı ±20 mm elle geri
   alınabiliyor. `position: relative` ile: sayfa sonları yerinde kalıyor.
 - **Barkod termal kafaya göre çiziliyor** — SVG'ye `shape-rendering="crispEdges"`

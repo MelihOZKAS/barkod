@@ -1281,6 +1281,10 @@ class EtiketOlcuBaskisiTesti(TestCase):
         self.assertIn("95 × 39 mm", govde)
         self.assertIn('style="left:90mm"', govde)      # yatay cetvel kenara kadar
         self.assertIn('style="top:35mm"', govde)       # dikey cetvel kenara kadar
+        # Uc numarali etiket: aralarinda bos etiket kalip kalmadigi goruluyor.
+        self.assertEqual(govde.count('class="et-sinama"'), 3)
+        for sira in (1, 2, 3):
+            self.assertIn(f"{sira}. etiket ·", govde)
         # Urun etiketi basilmaz: 600 urun secili olsa da barkod cizilmesin.
         self.assertNotIn("KDV Dahildir.", govde)
 

@@ -163,6 +163,8 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
   font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
 .et-sinama-mm--ust{top:3.4mm;transform:translateX(-50%)}
 .et-sinama-mm--sol{left:3.4mm;transform:translateY(-50%)}
+.et-sinama-no{position:absolute;right:5mm;top:50%;
+  transform:translateY(-50%);font-size:20pt;font-weight:800;line-height:1}
 .et-sinama-kose{position:absolute;font-size:5pt;font-weight:700;
   letter-spacing:.06em;white-space:nowrap}
 .et-sinama-kose--sol-ust{left:.8mm;top:5.8mm}
@@ -318,7 +320,9 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
       Olcu etiketi: cercevenin dort kenari da kagida ciktiysa boy dogru,
       cikmadiysa cetvelden kac milim kaybedildigi sayilabiliyor.
       {% endcomment %}
+      {% for sira in sinama_liste %}
       <div class="et-sinama">
+        <span class="et-sinama-no">{{ sira }}</span>
         {% for mm in cetvel_x %}
           <i class="et-sinama-tik et-sinama-tik--ust{% if mm|divisibleby:10 %} et-sinama-tik--on{% endif %}" style="left:{{ mm }}mm"></i>
           {% if mm and mm|divisibleby:10 %}<span class="et-sinama-mm et-sinama-mm--ust" style="left:{{ mm }}mm">{{ mm }}</span>{% endif %}
@@ -332,11 +336,12 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
         <span class="et-sinama-kose et-sinama-kose--sol-alt">SOL ALT</span>
         <span class="et-sinama-kose et-sinama-kose--sag-alt">SAĞ ALT</span>
         <div class="et-sinama-orta">
-          <b>{{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
-          <span>Dört kenardaki çerçeve de görünüyorsa ölçü doğru. Görünmüyorsa
-            cetvelden kaç mm eksik olduğunu okuyup “kaydır” alanlarına yazın.</span>
+          <b>{{ sira }}. etiket · {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
+          <span>Üç numara da <b>art arda</b> etiketlere düştüyse sayfa boyu doğru.
+            Aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzun.</span>
         </div>
       </div>
+      {% endfor %}
     {% else %}
     {% for bos in bos_yerler %}<div class="etiket-bos"></div>{% endfor %}
 

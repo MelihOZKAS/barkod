@@ -224,7 +224,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
   <div class="et-cubuk-ic">
     <h1>Raf etiketi
-      <small>Yazdır: Ctrl+P · Ölçek %100, “sayfaya sığdır” kapalı olmalı{% if duzen == 'tek' %} · kağıt boyu {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm{% endif %}</small>
+      <small>Ayarlar hatırlanıyor — bir kere doğru kurulunca her baskı öyle çıkar.{% if duzen == 'tek' %} Kağıt boyu {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm, ölçek %100.{% endif %}</small>
     </h1>
 
     <div class="et-alan">
@@ -407,6 +407,18 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
   sigdir();
   if (document.fonts && document.fonts.ready) { document.fonts.ready.then(sigdir); }
   window.addEventListener('beforeprint', sigdir);
+
+{% if kendi_bas %}
+  // ?bas=1 ile gelindiyse yazdirma penceresini kendimiz aciyoruz. Yazi
+  // boylari oturmadan basilmasin diye once yazi tiplerini bekliyoruz.
+  var hazir = (document.fonts && document.fonts.ready)
+    ? document.fonts.ready : Promise.resolve();
+  hazir.then(function () {
+    sigdir();
+    // Bir kare bekle: sigdir'in yazdigi puntolar yerlesime islensin.
+    requestAnimationFrame(function () { window.print(); });
+  });
+{% endif %}
 })();
 </script>
 {% endblock %}

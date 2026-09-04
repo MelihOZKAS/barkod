@@ -150,7 +150,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 249 test (120 stok + 129 kahve)
+python3 manage.py test stok kahve     # 256 test (127 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -297,7 +297,16 @@ kurtarıyor.
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
 | **Ölçü baskısı** | Ürün yerine cetvelli, 1-2-3 numaralı üç sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
-| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. Yazıcının kâğıdı kaçırdığı kadar geri alır |
+| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. **Dükkândaki yazıcı için varsayılan −8 mm** — aşağıya bak |
+
+**Ayarlar oturumda hatırlanıyor** (`AYAR_ANAHTARI`). Ölçü, düzen, kaydırma,
+şerit ve kesim bir kere kurulunca admin'den gelen her baskı öyle çıkar; admin
+eylemi `/etiket/`'e parametresiz yönlendirdiği için bu şart. **Kopya sayısı ve
+"baştan boş bırak" bilerek hatırlanmıyor** — işe özeller, hatırlanırsa bir
+dahaki sefere sessizce 10 kopya basar.
+
+Listedeki tek ürünlük **"yazdır"** bağlantısı `?bas=1` ile açılıyor: sayfa
+yüklenince yazdırma penceresini kendisi açar. Kasadaki kişi sayfayla uğraşmaz.
 
 **Barkod `stok/barkod.py`'de sıfırdan çiziliyor** — `python-barcode` kurulmadı,
 proje kuralı yeni bağımlılık eklememek. Seçim şöyle:
@@ -357,24 +366,25 @@ dokunulup bir hane yanlış yazılırsa oradan yakalanır.
 Etiketin CSS'i **şablonun içinde** (`templates/system/user/etiket.html`), ayrı bir
 static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
 
-##### Etiket kayarak ya da eksik çıkıyorsa
-Ekranda doğru görünüp kâğıda yanlış çıkması **her zaman** yazıcı/sürücü tarafı
-değil; önce hangisi olduğunu ölçün, tahmin etmeyin:
+##### Baskı kayması ve `kaydirma_x = -8`
+Dükkândaki rulo **3,9 cm eninde, her etiket 9,5 cm uzunluğunda** — yani 95 mm
+kâğıt besleme yönünde ilerliyor, tarayıcı sayfayı 90° çevirip öyle basıyor.
+Basılmış gerçek bir etiketten ölçüldü (2026-09-04): tasarım etiketin
+başlangıcından **8 mm sonra** başlıyordu, o yüzden fiyatın son hanesi kesim
+deliğine geliyor ve tasarımın kuyruğu bir sonraki etikete taşıyordu.
 
-1. `/etiket/` → **"Ölçü baskısı"** işaretle → Yazdır. Cetvelli, **1-2-3 numaralı
-   üç etiket** çıkar.
-2. **Üç numara art arda etiketlere düştüyse** sayfa boyu doğru. Aralarda boş
-   etiket kaldıysa yazıcının sayfa boyu etiketten uzun — iş sürücüde, kâğıt
-   boyu ve boşluk sensörü kalibrasyonunda.
-3. **Dört kenardaki çerçeve de görünüyorsa** ölçü doğru. Bir kenar eksikse
-   cetvelden **kaç mm** eksik olduğunu okuyun ve o kadarını
-   **"sağa kaydır" / "aşağı kaydır"** alanlarına yazın (eksi değer de kabul).
-   Kaydırma `position: relative` ile yapılıyor: sadece boyanan yer kayıyor,
-   sayfa sonları olduğu yerde kalıyor.
-4. Kaydırma 3-4 mm'yi geçiyorsa asıl iş sürücüde: XP-470B'de kâğıt boyu
-   **95 × 39 mm** tanımlı mı, yazdırma penceresinde ölçek **%100** ve
-   "sayfaya sığdır" kapalı mı, etiket boşluk sensörü kalibre edilmiş mi
-   (yazıcının besleme düğmesiyle).
+Düzeltme `OLCULER["termal"]["kaydirma_x"] = -8.0` olarak **varsayılana gömülü**:
+başka şehirdeki kullanıcı hiçbir kutu doldurmadan doğru etiket basıyor. Yazıcı
+değişir ya da kayma değişirse araç çubuğundaki kutudan değiştirilir, oturumda
+kalır — sabit sadece varsayılan.
+
+> Ölçü hâlâ tutmuyorsa: `/etiket/` → **"Ölçü baskısı"** cetvelli, 1-2-3 numaralı
+> üç etiket basar. Numaralar art arda etiketlere düştüyse sayfa boyu doğru;
+> aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzundur (sürücüde
+> kâğıt boyu **95 × 39 mm** mi, boşluk sensörü kalibre mi). Çerçevenin eksik
+> kenarı varsa cetvelden kaç mm olduğu okunup "kaydır" alanlarına yazılır.
+> **Bunu kullanıcıya yaptırma** — kendisi ölçü okumakla uğraşmasın, geliştirici
+> aracı gibi düşün.
 
 #### `Stok`'a eklenen etiket alanları
 | Alan | Ne |
@@ -706,6 +716,19 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04 (üçüncü oturum)
+- **Baskı kayması varsayılana gömüldü** — basılmış etiketten ölçüldü: tasarım
+  etiketin başlangıcından 8 mm sonra başlıyor, fiyatın son hanesi kesim
+  deliğine geliyordu. `OLCULER["termal"]["kaydirma_x"] = -8.0`. Etiketi basan
+  kişi başka şehirde ve ayarla uğraşamıyor; hiçbir kutu doldurmadan doğru
+  çıkması gerekiyordu.
+- **Ayarlar oturumda hatırlanıyor** — ölçü, düzen, kaydırma, şerit, kesim.
+  Admin eylemi `/etiket/`'e parametresiz yönlendirdiği için her baskıda
+  sıfırlanıyordu. Kopya sayısı ve "baştan boş bırak" bilerek hariç.
+- **Listedeki "yazdır" bağlantısı doğrudan yazdırıyor** (`?bas=1`): sayfa
+  yüklenince yazdırma penceresi kendiliğinden açılıyor.
+- **Rulonun yönü belgelendi** — 3,9 cm en, 9,5 cm boy; 95 mm besleme yönünde.
 
 ### 2026-09-04 (ikinci oturum)
 - **Ölçü baskısı** — kâğıda çıkanı ölçmenin yolu yoktu, "sanki kaymış" ile

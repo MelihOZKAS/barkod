@@ -17,6 +17,13 @@ from .barkod import barkod_ciz
 from .models import Stok
 
 OTURUM_ANAHTARI = "etiket_urunleri"
+AYAR_ANAHTARI = "etiket_ayarlari"
+
+# Bir kere dogru kurulan ayar bir daha sorulmasin: admin'deki eylem /etiket/'e
+# parametresiz yonlendiriyor, oradan gelen her baski en son kullanilan ayarla
+# ciksin. Kopya sayisi ve "bastan bos birak" bilerek DISARIDA: ise ozeller,
+# hatirlanirsa bir dahaki sefere sessizce 10 kopya basar.
+HATIRLANAN_AYARLAR = ("boyut", "duzen", "kx", "ky", "serit", "kesim")
 
 # A4'un basilabilir alani 6 mm kenar bosluguyla 198 x 285 mm. Olculer o alana
 # tam sigacak sekilde secildi; satir sayisi asagi yuvarlandi ki son satir
@@ -29,24 +36,30 @@ OLCULER = {
         "aciklama": "95 × 39 mm rulo · Xprinter XP-470B",
         "genislik": 95.0, "yukseklik": 39.0, "sutun": 2, "satir": 7,
         "dar": False,
+        # Dukkandaki yazici baskiyi etiketin basindan 8 mm ILERIDE basiyor:
+        # fiyatin son hanesi etiketin kesim deligine geliyor, tasarimin kuyrugu
+        # bir sonraki etikete tasiyordu. 2026-09-04'te basilmis gercek bir
+        # etiketten olculdu (delikler arasi mesafeye orantilanarak). Arac
+        # cubugundan degistirilebilir, degistirilen deger oturumda kalir.
+        "kaydirma_x": -8.0, "kaydirma_y": 0.0,
     },
     "kucuk": {
         "ad": "Küçük",
         "aciklama": "49,5 × 30 mm · A4'e 36 etiket",
         "genislik": 49.5, "yukseklik": 30.0, "sutun": 4, "satir": 9,
-        "dar": True,
+        "dar": True, "kaydirma_x": 0.0, "kaydirma_y": 0.0,
     },
     "orta": {
         "ad": "Orta",
         "aciklama": "66 × 40 mm · A4'e 21 etiket",
         "genislik": 66.0, "yukseklik": 40.0, "sutun": 3, "satir": 7,
-        "dar": False,
+        "dar": False, "kaydirma_x": 0.0, "kaydirma_y": 0.0,
     },
     "buyuk": {
         "ad": "Büyük",
         "aciklama": "99 × 57 mm · A4'e 10 etiket",
         "genislik": 99.0, "yukseklik": 57.0, "sutun": 2, "satir": 5,
-        "dar": False,
+        "dar": False, "kaydirma_x": 0.0, "kaydirma_y": 0.0,
     },
 }
 VARSAYILAN_OLCU = "termal"
@@ -100,6 +113,23 @@ def _cetvel(uzunluk):
     return list(range(0, int(uzunluk) + 1, CETVEL_ARALIGI))
 
 
+def ayarlari_hatirla(istek):
+    """URL'de gelen ayarlari oturuma yazar, gelmeyenleri oturumdan tamamlar."""
+    kayitli = dict(istek.session.get(AYAR_ANAHTARI) or {})
+    degisti = False
+    for ad in HATIRLANAN_AYARLAR:
+        if ad in istek.GET:
+            # Onay kutulari "gizli 0 + kutu 1" ikilisiyle geliyor; QueryDict
+            # koseli parantezde SON degeri veriyor, dogru olan da o.
+            yeni = istek.GET[ad]
+            if kayitli.get(ad) != yeni:
+                kayitli[ad] = yeni
+                degisti = True
+    if degisti:
+        istek.session[AYAR_ANAHTARI] = kayitli
+    return kayitli
+
+
 def secilen_urunler(istek):
     """Etiketi basilacak urunler. Sirasi: ?ids= > ?q= > oturumdaki secim."""
     ham_ids = (istek.GET.get("ids") or "").strip()
@@ -140,12 +170,14 @@ def etiket_verisi(urun):
 
 def sayfa_baglami(istek):
     """Etiket sayfasinin tum baglami."""
-    olcu_anahtari = istek.GET.get("boyut")
+    ayar = ayarlari_hatirla(istek)
+
+    olcu_anahtari = ayar.get("boyut")
     if olcu_anahtari not in OLCULER:
         olcu_anahtari = VARSAYILAN_OLCU
     olcu = OLCULER[olcu_anahtari]
 
-    duzen = istek.GET.get("duzen")
+    duzen = ayar.get("duzen")
     if duzen not in DUZENLER:
         duzen = VARSAYILAN_DUZEN
 
@@ -183,17 +215,22 @@ def sayfa_baglami(istek):
         "sayfada": sayfada,
         # Varsayilan beyaz: termal kafa bos yere yanmasin, baski hizlansin.
         # Isteyen siyah serite gecebilir.
-        "serit": istek.GET.get("serit", "0") != "0",
+        "serit": ayar.get("serit", "0") != "0",
         # Rulo etiketi zaten kesilmis geliyor; kesim cizgisi sadece A4'te lazim.
-        "kesim": istek.GET.get("kesim", "0" if duzen == "tek" else "1") != "0",
+        "kesim": ayar.get("kesim", "0" if duzen == "tek" else "1") != "0",
         # Yazicinin kagidi kacirdigi durumda baskiyi elle kaydirmak icin.
         # CSS'e basildigi icin "%g": Turkce yerellestirmede {{ 1.5 }} "1,5"
         # yazilir, o da gecersiz bir CSS uzunlugu olur.
-        "kay_x": "%g" % _ondalik(istek.GET.get("kx"), 0.0,
+        # Varsayilan olcuye gomulu: dukkandaki yazicinin bilinen kaymasi
+        # kutulara elle bir sey yazilmadan da duzeltilsin.
+        "kay_x": "%g" % _ondalik(ayar.get("kx"), olcu.get("kaydirma_x", 0.0),
                                  -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
-        "kay_y": "%g" % _ondalik(istek.GET.get("ky"), 0.0,
+        "kay_y": "%g" % _ondalik(ayar.get("ky"), olcu.get("kaydirma_y", 0.0),
                                  -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
         "sinama": sinama,
+        # ?bas=1 -> sayfa acilinca kendi kendine yazdirir. Admin listesindeki
+        # tek urunluk "yazdir" baglantisi bunu kullaniyor: tik, cikti.
+        "kendi_bas": istek.GET.get("bas") == "1",
         "sinama_liste": range(1, SINAMA_ETIKET_SAYISI + 1),
         # Hangi simgelemeden kac tane cikacak. Ekranda gorunur, kagida
         # basilmaz: kontrol hanesi tutmayan barkodlar Code 128'e dustugu icin

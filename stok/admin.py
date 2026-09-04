@@ -82,9 +82,12 @@ class StokAdmin(admin.ModelAdmin):
 
     @admin.display(description="Etiket")
     def etiket_baglantisi(self, urun):
-        """Tek urunun etiketini yeni sekmede acar. Fiyat degisince tek etiket
-        yeniden basmak icin listeden cikmaya gerek kalmasin."""
-        adres = f"{reverse('etiket')}?ids={urun.pk}"
+        """Tek urunun etiketini yeni sekmede acip DOGRUDAN yazdirir.
+
+        Fiyat degisince tek etiket yeniden basmak icin listeden cikmaya gerek
+        kalmasin; kasadaki kisi sayfayla ugrasmasin diye "bas=1" ile yazdirma
+        penceresi kendiliginden aciliyor."""
+        adres = f"{reverse('etiket')}?ids={urun.pk}&bas=1"
         return format_html('<a href="{}" target="_blank" rel="noopener">yazdır</a>', adres)
 
     @admin.action(description="Seçili ürünler için raf etiketi yazdır")

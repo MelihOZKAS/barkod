@@ -1303,17 +1303,59 @@ class EtiketOlcuBaskisiTesti(TestCase):
     def test_kaydirma_virgullu_de_kabul_edilir(self):
         self.assertIn("--et-kx:1.5mm", self._govde(ids=str(self.urun.pk), kx="1,5"))
 
-    def test_kaydirma_sinirlari_ve_copu_sifira_duser(self):
-        for deger in ("500", "-500", "abc", "", "NaN", "inf"):
+    def test_kaydirma_sinirlari_ve_copu_olcunun_varsayilanina_duser(self):
+        """Cop deger CSS'e sizmasin; sinirlar disi deger sinira otursun."""
+        varsayilan = "%g" % etiket_modulu.OLCULER["termal"]["kaydirma_x"]
+
+        for deger, beklenen in (("500", "20"), ("-500", "-20"),
+                                ("abc", varsayilan), ("NaN", varsayilan),
+                                ("inf", varsayilan)):
             with self.subTest(deger=deger):
                 govde = self._govde(ids=str(self.urun.pk), kx=deger)
-                self.assertRegex(govde, r"--et-kx:(20|-20|0)mm")
-                self.assertNotIn("--et-kx:abcmm", govde)
+
+                self.assertIn(f"--et-kx:{beklenen}mm", govde)
 
     def test_kaydirma_baskida_uygulaniyor(self):
         govde = self._govde(ids=str(self.urun.pk), kx="2", ky="2")
 
         self.assertIn("left:var(--et-kx,0);top:var(--et-ky,0)", govde)
+
+    def test_dukkandaki_yazicinin_kaymasi_varsayilan_geliyor(self):
+        """Baska sehirdeki kullanici hicbir kutu doldurmadan dogru etiket
+        bassin: yazicinin bilinen kaymasi olcuye gomulu."""
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("--et-kx:-8mm", govde)
+
+    def test_a4_olculerinde_kaydirma_yok(self):
+        govde = self._govde(ids=str(self.urun.pk), boyut="orta", duzen="sayfa")
+
+        self.assertIn("--et-kx:0mm", govde)
+
+    def test_ayarlar_oturumda_hatirlaniyor(self):
+        """Admin eylemi /etiket/'e parametresiz yonlendiriyor; bir kere kurulan
+        ayar her baskida gecerli olmali."""
+        self._govde(ids=str(self.urun.pk), kx="-6.5", boyut="orta", serit="1")
+
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("--et-kx:-6.5mm", govde)
+        self.assertIn('et-orta', govde)
+        self.assertIn('et-seritli"', govde)
+
+    def test_kopya_sayisi_hatirlanmaz(self):
+        """Bir kere 5 kopya basan, sonraki her uruni 5 kopya basmasin."""
+        self._govde(ids=str(self.urun.pk), kopya="5")
+
+        self.assertEqual(self._govde(ids=str(self.urun.pk)).count("KDV Dahildir."), 1)
+
+    def test_bas_parametresi_kendiliginden_yazdirir(self):
+        self.assertIn("window.print()", self._govde(ids=str(self.urun.pk), bas="1"))
+
+    def test_bas_verilmezse_kendiliginden_yazdirmaz(self):
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertNotIn("requestAnimationFrame", govde)
 
 
 class EtiketAdminEylemiTesti(TestCase):
@@ -1342,6 +1384,13 @@ class EtiketAdminEylemiTesti(TestCase):
         })
 
         self.assertNotIn("ids=", cevap["Location"])
+
+    def test_listedeki_baglanti_dogrudan_yazdiriyor(self):
+        """Kasadaki kisi sayfayla ugrasmasin: tik -> yazdirma penceresi."""
+        cevap = self.client.get(reverse("admin:stok_stok_changelist"))
+
+        self.assertIn(f"{reverse('etiket')}?ids={self.urun.pk}&amp;bas=1",
+                      cevap.content.decode())
 
     def test_listede_tek_urunluk_etiket_baglantisi_var(self):
         govde = self.client.get("/admin/stok/stok/").content.decode()

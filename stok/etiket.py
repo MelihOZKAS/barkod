@@ -23,7 +23,7 @@ AYAR_ANAHTARI = "etiket_ayarlari"
 # parametresiz yonlendiriyor, oradan gelen her baski en son kullanilan ayarla
 # ciksin. Kopya sayisi ve "bastan bos birak" bilerek DISARIDA: ise ozeller,
 # hatirlanirsa bir dahaki sefere sessizce 10 kopya basar.
-HATIRLANAN_AYARLAR = ("boyut", "duzen", "boy", "kx", "ky", "serit", "kesim")
+HATIRLANAN_AYARLAR = ("boyut", "duzen", "kagit", "boy", "kx", "ky", "serit", "kesim")
 
 # A4'un basilabilir alani 6 mm kenar bosluguyla 198 x 285 mm. Olculer o alana
 # tam sigacak sekilde secildi; satir sayisi asagi yuvarlandi ki son satir
@@ -43,11 +43,7 @@ OLCULER = {
         # barkodun kagit uzerindeki genisligi bilindigi icin (95 modul x
         # 0,45 mm = 42,75 mm) fotograftan milim okunabiliyor.
         "basim": 82.0,
-        # Kaydirma ARTIK SIFIR. Negatif kaydirma tasarimi sayfanin disina
-        # itiyor ve disarida kalan kismi yazici hic basmiyor: -8 mm ile
-        # basilan ornekte dort bilgi satirinin basi kayipti ("KDV Dahildir."
-        # -> "Dahildir."). Kuyrugu kisaltmanin dogru yolu "basim", kaydirma
-        # degil; kaydirma sadece milimlik ince ayar icin duruyor.
+        # Kaydirma SIFIR ve artik negatif olamiyor -- bkz. EN_AZ_KAYDIRMA.
         "kaydirma_x": 0.0, "kaydirma_y": 0.0,
     },
     "kucuk": {
@@ -86,6 +82,25 @@ EN_COK_KOPYA = 50      # urun basina kopya
 # kalibrasyonu, rulonun gerginligi). Kullanici basilan seyi milim milim
 # kaydirabilsin diye; 20 mm'den fazlasi zaten baska bir arizadir.
 EN_COK_KAYDIRMA = 20.0
+
+# Kaydirma NEGATIF OLAMAZ, ve bu bir tercih degil fizik: kaydirma
+# "position: relative" ile yapiliyor, yani tasarimin sayfa disinda kalan kismi
+# hic basilmiyor. -8 mm ile basilan ornekte dort bilgi satirinin basi kayipti
+# ("KDV Dahildir." -> "DV Dahildir.", "Birim: AD" -> "irim: AD") -- tarayicinin
+# kendi onizlemesinde bile goruluyordu.
+#
+# Baskiyi geri cekmenin dogru yolu tasarimi kisaltmak ("boy"), kaydirmak degil.
+# Alt sinir 0: eski oturumlarda saklanan negatif deger de buraya oturur, yani
+# takili kalmis bir -8 kendi kendini duzeltir.
+EN_AZ_KAYDIRMA = 0.0
+
+# Kagit boyu. Tarayicinin @page'e yazdigi olcu, Windows surucusundeki ozel
+# kagitla AYNI olmali; tutmazsa yazici sayfayi etiketin ortasindan baslatiyor
+# ya da olcekleyip kucultuyor. Varsayilan olcuden gelir, elle degistirilebilir:
+# surucudeki kagit gercek etiket boyuna cekilince ("solu bos kaliyor" sorununun
+# tek gercek carsi) buradaki sayi da onunla ayni yapilir.
+EN_AZ_KAGIT = 20.0
+EN_COK_KAGIT = 200.0
 
 # Tasarimin kagit uzerinde kaplayacagi boy. Kagidin (sayfanin) boyundan kisa
 # olabilir: yazici sayfayi etiketin basindan biraz ileride basliyorsa tasarimi
@@ -128,6 +143,14 @@ def _cetvel(uzunluk):
 
 def ayarlari_hatirla(istek):
     """URL'de gelen ayarlari oturuma yazar, gelmeyenleri oturumdan tamamlar."""
+    # ?sifirla=1 -> hatirlananlarin hepsi silinir. Hatirlama iyi bir sey ama
+    # sessizce takilip kaliyor: kx=-8 bir oturuma yazildiktan sonra sonraki
+    # surumde varsayilan 0 yapildigi halde her baski kirpilmaya devam etti,
+    # cunku form ekrandaki -8'i her "Uygula"da geri gonderiyordu.
+    if istek.GET.get("sifirla") == "1":
+        istek.session.pop(AYAR_ANAHTARI, None)
+        return {}
+
     kayitli = dict(istek.session.get(AYAR_ANAHTARI) or {})
     degisti = False
     for ad in HATIRLANAN_AYARLAR:
@@ -194,13 +217,14 @@ def sayfa_baglami(istek):
     if duzen not in DUZENLER:
         duzen = VARSAYILAN_DUZEN
 
-    # Tasarimin boyu sadece tek tek dizilişte anlamli: A4'te etiketler zaten
-    # kesilmis, boy kagidin kendisi.
+    # Kagit ve tasarim boyu sadece tek tek dizilişte anlamli: A4'te etiketler
+    # zaten kesilmis, ikisi de kagidin kendisi.
     if duzen == "tek":
-        basim = _ondalik(ayar.get("boy"), olcu.get("basim", olcu["genislik"]),
-                         EN_AZ_BASIM, olcu["genislik"])
+        kagit = _ondalik(ayar.get("kagit"), olcu["genislik"], EN_AZ_KAGIT, EN_COK_KAGIT)
+        varsayilan_boy = min(olcu.get("basim", kagit), kagit)
+        basim = _ondalik(ayar.get("boy"), varsayilan_boy, EN_AZ_BASIM, kagit)
     else:
-        basim = olcu["genislik"]
+        kagit = varsayilan_boy = basim = olcu["genislik"]
 
     kopya = _sayi(istek.GET.get("kopya"), 1, 1, EN_COK_KOPYA)
     sayfada = 1 if duzen == "tek" else olcu["sutun"] * olcu["satir"]
@@ -222,6 +246,24 @@ def sayfa_baglami(istek):
             # Ayni cizim kopya sayisi kadar tekrarlanir; barkod bir kez uretilir.
             etiketler.extend([veri] * kopya)
 
+    # Negatif kaydirma yok: EN_AZ_KAYDIRMA'daki gerekceye bak. Eski oturumda
+    # saklanan -8 de buraya, yani 0'a oturuyor.
+    kay_x = _ondalik(ayar.get("kx"), olcu.get("kaydirma_x", 0.0),
+                     EN_AZ_KAYDIRMA, EN_COK_KAYDIRMA)
+    kay_y = _ondalik(ayar.get("ky"), olcu.get("kaydirma_y", 0.0),
+                     EN_AZ_KAYDIRMA, EN_COK_KAYDIRMA)
+
+    sapmalar = []
+    if duzen == "tek":
+        if kagit != olcu["genislik"]:
+            sapmalar.append("kâğıt boyu %g mm (önerilen %g)" % (kagit, olcu["genislik"]))
+        if basim != varsayilan_boy:
+            sapmalar.append("tasarım boyu %g mm (önerilen %g)" % (basim, varsayilan_boy))
+        if kay_x:
+            sapmalar.append("sağa kaydır %g mm" % kay_x)
+        if kay_y:
+            sapmalar.append("aşağı kaydır %g mm" % kay_y)
+
     return {
         "etiketler": etiketler,
         "urun_sayisi": len(urunler),
@@ -242,15 +284,17 @@ def sayfa_baglami(istek):
         "serit": ayar.get("serit", "0") != "0",
         # Rulo etiketi zaten kesilmis geliyor; kesim cizgisi sadece A4'te lazim.
         "kesim": ayar.get("kesim", "0" if duzen == "tek" else "1") != "0",
+        # Kagit boyu: @page'e basiliyor, surucudeki ozel kagitla ayni olmali.
+        "kagit": "%g" % kagit,
         # Yazicinin kagidi kacirdigi durumda baskiyi elle kaydirmak icin.
         # CSS'e basildigi icin "%g": Turkce yerellestirmede {{ 1.5 }} "1,5"
         # yazilir, o da gecersiz bir CSS uzunlugu olur.
-        # Varsayilan olcuye gomulu: dukkandaki yazicinin bilinen kaymasi
-        # kutulara elle bir sey yazilmadan da duzeltilsin.
-        "kay_x": "%g" % _ondalik(ayar.get("kx"), olcu.get("kaydirma_x", 0.0),
-                                 -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
-        "kay_y": "%g" % _ondalik(ayar.get("ky"), olcu.get("kaydirma_y", 0.0),
-                                 -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
+        "kay_x": "%g" % kay_x,
+        "kay_y": "%g" % kay_y,
+        # Varsayilandan sapan her ayar ekranda yaziyor. Hatirlanan bir ayar
+        # goze carpmadan takili kalabiliyor; kirpilmis etiketi kagitta gormek
+        # yerine sayfada okunsun.
+        "sapmalar": sapmalar,
         "sinama": sinama,
         # ?bas=1 -> sayfa acilinca kendi kendine yazdirir. Admin listesindeki
         # tek urunluk "yazdir" baglantisi bunu kullaniyor: tik, cikti.

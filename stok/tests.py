@@ -1296,9 +1296,9 @@ class EtiketOlcuBaskisiTesti(TestCase):
 
     def test_kaydirma_css_e_noktali_yaziliyor(self):
         """Turkce yerellestirmede {{ 1.5 }} "1,5" basar, o da gecersiz CSS."""
-        govde = self._govde(ids=str(self.urun.pk), kx="2.5", ky="-3")
+        govde = self._govde(ids=str(self.urun.pk), kx="2.5", ky="3")
 
-        self.assertIn("--et-kx:2.5mm;--et-ky:-3mm", govde)
+        self.assertIn("--et-kx:2.5mm;--et-ky:3mm", govde)
 
     def test_kaydirma_virgullu_de_kabul_edilir(self):
         self.assertIn("--et-kx:1.5mm", self._govde(ids=str(self.urun.pk), kx="1,5"))
@@ -1307,7 +1307,7 @@ class EtiketOlcuBaskisiTesti(TestCase):
         """Cop deger CSS'e sizmasin; sinirlar disi deger sinira otursun."""
         varsayilan = "%g" % etiket_modulu.OLCULER["termal"]["kaydirma_x"]
 
-        for deger, beklenen in (("500", "20"), ("-500", "-20"),
+        for deger, beklenen in (("500", "20"), ("-500", "0"),
                                 ("abc", varsayilan), ("NaN", varsayilan),
                                 ("inf", varsayilan)):
             with self.subTest(deger=deger):
@@ -1353,14 +1353,67 @@ class EtiketOlcuBaskisiTesti(TestCase):
     def test_ayarlar_oturumda_hatirlaniyor(self):
         """Admin eylemi /etiket/'e parametresiz yonlendiriyor; bir kere kurulan
         ayar her baskida gecerli olmali."""
-        self._govde(ids=str(self.urun.pk), kx="-6.5", boy="60", boyut="orta", serit="1")
+        self._govde(ids=str(self.urun.pk), kx="6.5", boy="60", boyut="orta", serit="1")
 
         govde = self._govde(ids=str(self.urun.pk))
 
-        self.assertIn("--et-kx:-6.5mm", govde)
+        self.assertIn("--et-kx:6.5mm", govde)
         self.assertIn("--et-g:60mm", govde)
         self.assertIn('et-orta', govde)
         self.assertIn('et-seritli"', govde)
+
+    def test_negatif_kaydirma_sifira_oturur(self):
+        """Sola kaydirilan tasarimin sayfa disinda kalan kismini yazici hic
+        basmiyor: -8 mm ile basilan etikette bilgi satirlarinin basi kayipti
+        ("KDV Dahildir." -> "DV Dahildir."). Negatif deger bir daha CSS'e
+        sizmasin -- oturumda takili kalmis eski bir deger olsa bile."""
+        for deger in ("-8", "-0.5", "-20", "-1,5"):
+            with self.subTest(deger=deger):
+                govde = self._govde(ids=str(self.urun.pk), kx=deger, ky=deger)
+
+                self.assertIn("--et-kx:0mm;--et-ky:0mm", govde)
+
+    def test_takili_kalan_kaydirma_kendini_duzeltir(self):
+        """Onceki surum oturuma kx=-8 yazmisti; hatirlanan deger de sifirlansin."""
+        self._govde(ids=str(self.urun.pk), kx="-8")
+
+        self.assertIn("--et-kx:0mm", self._govde(ids=str(self.urun.pk)))
+
+    def test_sifirla_hatirlanan_ayarlari_siler(self):
+        """Takilip kalan bir ayar tek tikla varsayilana donsun."""
+        self._govde(ids=str(self.urun.pk), boy="40", kx="7", boyut="orta")
+
+        self._govde(sifirla="1")
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("--et-g:82mm", govde)
+        self.assertIn("--et-kx:0mm", govde)
+        self.assertIn("et-termal", govde)
+
+    def test_varsayilandan_sapan_ayar_ekranda_yaziyor(self):
+        """Kirpilmis etiketi kagitta gormek yerine sayfada okunsun."""
+        sapmali = self._govde(ids=str(self.urun.pk), kx="7", boy="60")
+
+        self.assertIn("Varsayılana dön", sapmali)
+        self.assertIn("sağa kaydır 7 mm", sapmali)
+        self.assertIn("tasarım boyu 60 mm", sapmali)
+
+        self.assertNotIn("Varsayılana dön", self._govde(sifirla="1", ids=str(self.urun.pk)))
+
+    def test_kagit_boyu_page_e_yaziliyor(self):
+        """Surucudeki ozel kagit gercek etiket boyuna cekilince sayfa da onu
+        bildirebilsin: etiketin basindaki bosluk ancak boyle kapaniyor."""
+        govde = self._govde(ids=str(self.urun.pk), kagit="102.8", boy="100")
+
+        self.assertIn("@page{size:102.8mm 39mm;margin:0}", govde)
+        self.assertIn("--et-g:100mm", govde)
+
+    def test_tasarim_kagittan_uzun_olamaz(self):
+        """Kagit kisaltilinca tasarim da onunla birlikte kisalsin."""
+        govde = self._govde(ids=str(self.urun.pk), kagit="60")
+
+        self.assertIn("@page{size:60mm 39mm;margin:0}", govde)
+        self.assertIn("--et-g:60mm", govde)
 
     def test_kopya_sayisi_hatirlanmaz(self):
         """Bir kere 5 kopya basan, sonraki her uruni 5 kopya basmasin."""

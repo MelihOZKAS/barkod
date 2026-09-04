@@ -299,8 +299,9 @@ kurtarıyor.
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
 | **Ölçü baskısı** | Ürün yerine cetvelli, 1-2-3 numaralı üç sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
-| **Tasarım boyu** | Sadece tek tek düzende. Kâğıt 95 mm ama tasarım daha kısa olabilir. **Dükkândaki yazıcı için varsayılan 82 mm** — aşağıya bak |
-| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. **Varsayılan 0** — kaydırma içerik siler, ilk çare değildir |
+| **Kâğıt boyu** | Sadece tek tek düzende. `@page`'e yazılan boy. **Windows sürücüsündeki özel kâğıtla AYNI olmalı** — tutmazsa yazıcı her etikette kayar |
+| **Tasarım boyu** | Sadece tek tek düzende. Kâğıttan kısa olabilir. **Dükkândaki yazıcı için varsayılan 82 mm** — aşağıya bak |
+| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı **0…20 mm** kaydırır. **Negatif olamaz** — bkz. aşağıdaki kutu |
 
 **Ayarlar oturumda hatırlanıyor** (`AYAR_ANAHTARI`). Ölçü, düzen, kaydırma,
 şerit ve kesim bir kere kurulunca admin'den gelen her baskı öyle çıkar; admin
@@ -410,32 +411,54 @@ kesim deliğine düşer.
 > olması yüzünden güvenilir değil. Gerçek çözüm yazıcı tarafında: sürücüdeki
 > kâğıt boyunu 95 yerine gerçek ~102,8 mm yapmak ya da yazıcıyı kalibre etmek.
 
-> **Kaydırma (`kaydirma_x`) bunun çözümü değil — artık 0.** `position:relative`
+> **Negatif kaydırma artık mümkün değil (`EN_AZ_KAYDIRMA = 0`).** `position:relative`
 > ile sola kaydırılan tasarımın sayfa dışında kalan kısmını yazıcı hiç basmıyor.
 > −8 mm ile basılmış örnekte dört bilgi satırının başı kayıptı: "KDV Dahildir."
-> → "Dahildir.", "Birim: AD" → "ı: AD", "Üretim Yeri:" → "m Yeri:",
-> "F.D.T:" → "T:". Kuyruğu geri çekmek için **tasarım boyu** kısaltılır;
-> kaydırma sadece milimlik ince ayar içindir.
+> → "DV Dahildir.", "Birim: AD" → "irim: AD", "Üretim Yeri:" → "retim Yeri:",
+> "F.D.T:" → ".D.T:" — ve **tarayıcının kendi önizlemesinde bile görünüyordu**.
+> Kuyruğu geri çekmek için **tasarım boyu** kısaltılır; kaydırma sadece milimlik
+> ince ayar içindir, o da sadece ileri yönde.
+>
+> **Hatırlanan ayar sessizce takılıp kalıyordu.** `kaydirma_x` varsayılanı
+> 2026-09-04'te −8'den 0'a çekildi ama oturumda saklanan −8 duruyordu; form her
+> "Uygula"da ekrandaki −8'i geri gönderdiği için kendini besliyordu. İki önlem:
+> sınır 0 olduğu için eski değer artık kendiliğinden 0'a oturuyor, ve
+> varsayılandan sapan her ayar araç çubuğunun altında **kırmızı şeritte**
+> yazıyor, yanında `?sifirla=1` bağlantısı var.
 
 > **Modül genişliği `--et-mw: .375mm`** — 203 dpi kafada tam **3 nokta**.
 > 0,45 mm 3,6 nokta ediyordu, yuvarlama çubukları bir kalın bir ince basıyor.
 > 113 × 0,375 = 42,4 mm; 82 mm'lik tasarımda barkod sütunu 43,2 mm, yani barkod
 > hâlâ sütuna esnetilmeden sığıyor.
 
-##### Baskı hâlâ oturmuyorsa
-1. **Kenar boşlukları "Yok"u dene.** Aynı gün "Yok" ile basılan örnekte sayfa
-   etiketin **3. mm**'sinde başlıyordu (20 değil) — yani tasarım 95 mm olarak
-   etikete tam oturur. O baskının bozuk görünmesinin sebebi ayrı: baskı etiketin
-   **enine** ~22 mm kaymıştı, bu da ruloyu makaraya oturtmakla ilgili, kenar
-   boşluğuyla değil. 39 mm'lik bir sayfada 22 mm'lik bir kenar boşluğu olamaz.
-2. **Sürücüdeki kâğıt boyu.** Windows'ta XP-470B özel kâğıdı 95 × 39 mm diye
-   tanımlı ama etiket ~102 mm. Sürücüdeki boyu gerçek ölçüye çekmek yazıcının
-   geç başlamasını da düzeltebilir.
-3. **Ölçü baskısı**: `/etiket/` → **"Ölçü baskısı"** cetvelli, 1-2-3 numaralı üç
-   etiket basar. Numaralar art arda etiketlere düştüyse sayfa boyu doğru;
-   aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzun. Çerçevenin
-   eksik kenarı varsa cetvelden kaç mm olduğu okunup "kaydır" alanlarına
-   yazılır. **Bunu kullanıcıya yaptırma** — geliştirici aracı gibi düşün.
+##### Etiketin başındaki boşluk — sebebi sürücüdeki kâğıt boyu
+
+> **Bu CSS ile kapatılamaz, kapatmaya çalışmayın.** Üç oturum boyunca `basim`
+> ölçülüp ölçülüp değiştirildi ve her seferinde başka bir sayı çıktı:
+> 3. oturumda 8 mm, 4. oturumda 20 mm, 5. oturumda 19,1 mm. **Hareketli bir
+> hedef ölçülüyordu.**
+
+Sebep: sürücüdeki özel kâğıt **95 mm**, rulodaki etiketin gerçek aralığı
+**~102,8 mm**. Yazıcı her etikette 95 mm besleyip duruyor, aradaki **7,8 mm
+her baskıda birikiyor** — 1. etiket 0'dan, 2. etiket ~8'den, 3. etiket ~16'dan
+başlıyor. Ölçülen 8 / 19 / 20 mm bu birikmenin farklı anlarıdır.
+
+Çözüm yazıcı tarafında, ikisi de tek seferlik:
+1. **Yazıcıyı boşluk (gap) sensörüne göre kalibre et.** Kalibrasyon tutarsa
+   yazıcı her etiketin gerçek başını kendisi bulur ve birikme sıfırlanır.
+   XP-470B'de genelde: kapat → FEED düğmesini basılı tut → aç → gösterge yanıp
+   sönünce bırak; 2-3 etiket besleyip durur.
+2. **Sürücüdeki kâğıt boyunu gerçek ölçüye çek** (95 değil ~102,8 mm), sonra
+   `/etiket/` araç çubuğundaki **Kâğıt boyu**nu da aynı sayıya getir —
+   `@page` oradan yazılıyor. Tasarım boyu da kâğıttan 1-2 mm kısa yapılır.
+   İkisi eşitlendiği an ne birikme kalır ne de baştaki boşluk; `basim = 82`
+   telafisine de gerek kalmaz.
+
+**Doğrulaması `/etiket/` → "Ölçü baskısı":** cetvelli, 1-2-3 numaralı üç etiket
+basar. **Üçü de aynı yerden başlıyorsa** birikme yok. Her biri bir öncekinden
+biraz daha ileride başlıyorsa kâğıt boyu etiketten kısa; aralarda boş etiket
+kalıyorsa uzun. Çerçevenin eksik kenarı varsa cetvelden kaç mm olduğu okunup
+"kaydır" alanlarına yazılır (sadece ileri yönde).
 
 #### `Stok`'a eklenen etiket alanları
 | Alan | Ne |
@@ -805,6 +828,29 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04 (altıncı oturum)
+- **Etiketin solu kesik çıkıyordu: `kx = -8` oturumda takılı kalmıştı.**
+  `71026f3` bu değeri Django oturumuna yazdı; `4569aa1` sadece *varsayılanı*
+  0 yaptı, oturumdaki −8 durdu ve form her "Uygula"da ekrandaki −8'i geri
+  gönderip kendini besledi. `left:-8mm` tasarımı sayfanın dışına itiyor,
+  Chrome da orayı kırpıyordu — **kırpma tarayıcının kendi önizlemesinde de
+  görünüyordu**, yani hiç yazıcıyla ilgili değildi.
+- **Negatif kaydırma tamamen kaldırıldı** (`EN_AZ_KAYDIRMA = 0`, formda
+  `min="0"`). Sayfa dışına itilen içerik hiç basılmadığı için negatif kaydırma
+  yalnızca içerik siliyor; kuyruğu geri çekmenin yolu tasarım boyu. Sınır 0
+  olduğu için oturumda saklı eski −8 de kendiliğinden 0'a oturuyor.
+- **Varsayılandan sapan ayar artık ekranda yazıyor** — araç çubuğunun altında
+  kırmızı şerit, yanında **"Varsayılana dön"** (`?sifirla=1`). Hatırlanan ayar
+  faydalı ama sessizce takılıp kalabiliyor; bir daha kâğıda basıp anlamayalım.
+- **Araç çubuğuna "Kâğıt boyu"** — `@page` artık oradan yazılıyor, 20…200 mm.
+  Sürücüdeki özel kâğıt gerçek etiket boyuna çekilince sayfa da onu bildirebilsin.
+- **Baştaki boşluğun sebebi teşhis edildi: birikmeli kayma.** Sürücüdeki kâğıt
+  95 mm, gerçek etiket ~102,8 mm; aradaki 7,8 mm her baskıda birikiyor. Üç
+  oturumda ölçülen 8 / 19 / 20 mm aynı birikmenin farklı anlarıymış — sabit bir
+  `basim` sayısıyla kapatılamaz. Çözüm sürücü tarafında (gap kalibrasyonu +
+  kâğıt boyunu gerçek ölçüye çekmek). Ölçü baskısının metni artık bunu soruyor:
+  "üçü de aynı yerden mi başlıyor".
 
 ### 2026-09-04 (beşinci oturum)
 - **Mükerrer müşteri kaydı** — kasadaki hızlı ekleme var olan kaydı hiç

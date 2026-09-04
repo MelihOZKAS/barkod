@@ -1278,8 +1278,8 @@ class EtiketOlcuBaskisiTesti(TestCase):
         self.assertIn("et-sinama", govde)
         self.assertIn("SOL ÜST", govde)
         self.assertIn("SAĞ ALT", govde)
-        self.assertIn("95 × 39 mm", govde)
-        self.assertIn('style="left:90mm"', govde)      # yatay cetvel kenara kadar
+        self.assertIn("82 × 39 mm", govde)             # kagit degil, basilan alan
+        self.assertIn('style="left:80mm"', govde)      # yatay cetvel kenara kadar
         self.assertIn('style="top:35mm"', govde)       # dikey cetvel kenara kadar
         # Uc numarali etiket: aralarinda bos etiket kalip kalmadigi goruluyor.
         self.assertEqual(govde.count('class="et-sinama"'), 3)
@@ -1320,12 +1320,30 @@ class EtiketOlcuBaskisiTesti(TestCase):
 
         self.assertIn("left:var(--et-kx,0);top:var(--et-ky,0)", govde)
 
-    def test_dukkandaki_yazicinin_kaymasi_varsayilan_geliyor(self):
+    def test_dukkandaki_etiketin_boyu_varsayilan_geliyor(self):
         """Baska sehirdeki kullanici hicbir kutu doldurmadan dogru etiket
-        bassin: yazicinin bilinen kaymasi olcuye gomulu."""
+        bassin: kullanilabilir boy olcuye gomulu, kaydirma sifir."""
         govde = self._govde(ids=str(self.urun.pk))
 
-        self.assertIn("--et-kx:-8mm", govde)
+        self.assertIn("--et-g:82mm", govde)
+        self.assertIn("--et-kx:0mm", govde)
+
+    def test_tasarim_boyu_kagittan_uzun_olamaz(self):
+        """Kagidi asan tasarimin fazlasi zaten basilmaz; sinira otursun."""
+        govde = self._govde(ids=str(self.urun.pk), boy="300")
+
+        self.assertIn("--et-g:95mm", govde)
+
+    def test_tasarim_boyu_degistirilebiliyor(self):
+        govde = self._govde(ids=str(self.urun.pk), boy="88,5")
+
+        self.assertIn("--et-g:88.5mm", govde)
+
+    def test_a4_dizilisinde_tasarim_boyu_kagidin_kendisi(self):
+        """A4'te etiketler kesilmis geliyor: boy kagida esit olmali."""
+        govde = self._govde(ids=str(self.urun.pk), boyut="orta", duzen="sayfa", boy="30")
+
+        self.assertIn("--et-g:66mm", govde)
 
     def test_a4_olculerinde_kaydirma_yok(self):
         govde = self._govde(ids=str(self.urun.pk), boyut="orta", duzen="sayfa")
@@ -1335,11 +1353,12 @@ class EtiketOlcuBaskisiTesti(TestCase):
     def test_ayarlar_oturumda_hatirlaniyor(self):
         """Admin eylemi /etiket/'e parametresiz yonlendiriyor; bir kere kurulan
         ayar her baskida gecerli olmali."""
-        self._govde(ids=str(self.urun.pk), kx="-6.5", boyut="orta", serit="1")
+        self._govde(ids=str(self.urun.pk), kx="-6.5", boy="60", boyut="orta", serit="1")
 
         govde = self._govde(ids=str(self.urun.pk))
 
         self.assertIn("--et-kx:-6.5mm", govde)
+        self.assertIn("--et-g:60mm", govde)
         self.assertIn('et-orta', govde)
         self.assertIn('et-seritli"', govde)
 

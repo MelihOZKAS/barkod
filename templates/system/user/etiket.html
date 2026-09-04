@@ -123,8 +123,12 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .et-kucuk .et-barkod figcaption{font-size:5pt;margin-top:.3mm}
 
 /* 95 x 39 mm rulo: dort bilgi satiri + fiyat + barkod tam sigmali.
-   Yukseklikler buyutulurse barkod asagi tasar ve kirpilir. */
-.et-termal{--et-mw:.45mm}
+   Yukseklikler buyutulurse barkod asagi tasar ve kirpilir.
+   Modul genisligi 0,375 mm = 203 dpi kafada TAM 3 nokta. Kusuratli bir
+   modul (0,45 mm = 3,6 nokta) yuvarlanirken cubuklari bir kalin bir ince
+   basiyor. 113 modul x 0,375 = 42,4 mm; 82 mm'lik tasarimda barkod sutunu
+   43,2 mm, yani barkod hala sutuna esnetilmeden sigiyor. */
+.et-termal{--et-mw:.375mm}
 .et-termal .etiket .et-ad{height:7.4mm;padding:0 3mm;font-size:11.5pt}
 .et-termal .et-bilgi{padding:1.4mm 0 1.4mm 3mm;font-size:6.4pt}
 .et-termal .et-fiyat{padding:1.4mm 3mm 0 0;font-size:24pt}
@@ -261,6 +265,12 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
     {% if duzen == 'tek' %}
     <div class="et-alan">
+      <label for="et-boy">Tasarım boyu</label>
+      <input id="et-boy" type="number" name="boy" step="0.5" min="20"
+             max="{{ olcu.genislik|stringformat:'g' }}" value="{{ basim }}">
+    </div>
+
+    <div class="et-alan">
       <label for="et-kx">Sağa kaydır</label>
       <input id="et-kx" type="number" name="kx" step="0.5" min="-20" max="20" value="{{ kay_x }}">
     </div>
@@ -295,7 +305,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
     <p class="et-ozet">
       {% if sinama %}<b>Ölçü baskısı açık</b><br>tek bir cetvelli etiket çıkar
       {% else %}<b>{{ urun_sayisi }}</b> ürün · <b>{{ etiketler|length }}</b> etiket<br>
-      {% if duzen == 'tek' %}her etiket ayrı sayfa · kağıt {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm
+      {% if duzen == 'tek' %}her etiket ayrı sayfa · kağıt {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm<br>tasarım {{ basim }} mm
       {% else %}sayfa başına {{ sayfada }} adet{% endif %}
       {% if barkod_ozeti %}<br>{% for tur, adet in barkod_ozeti %}{{ tur }}: {{ adet }}{% if not forloop.last %} · {% endif %}{% endfor %}{% endif %}{% endif %}
     </p>
@@ -313,7 +323,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
 <div class="et-sarmal et-{{ duzen }}">
 <div class="et-kagit et-{{ olcu_anahtari }}{% if olcu.dar %} et-dar{% endif %}{% if kesim %} et-kesimli{% endif %}{% if serit %} et-seritli{% else %} et-cizgili{% endif %}"
-     style="--et-g:{{ olcu.genislik|stringformat:'g' }}mm;--et-y:{{ olcu.yukseklik|stringformat:'g' }}mm;--et-kx:{{ kay_x }}mm;--et-ky:{{ kay_y }}mm">
+     style="--et-g:{{ basim }}mm;--et-y:{{ olcu.yukseklik|stringformat:'g' }}mm;--et-kx:{{ kay_x }}mm;--et-ky:{{ kay_y }}mm">
   <div class="et-dizi">
     {% if sinama %}
       {% comment %}
@@ -336,7 +346,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
         <span class="et-sinama-kose et-sinama-kose--sol-alt">SOL ALT</span>
         <span class="et-sinama-kose et-sinama-kose--sag-alt">SAĞ ALT</span>
         <div class="et-sinama-orta">
-          <b>{{ sira }}. etiket · {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
+          <b>{{ sira }}. etiket · {{ basim }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
           <span>Üç numara da <b>art arda</b> etiketlere düştüyse sayfa boyu doğru.
             Aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzun.</span>
         </div>

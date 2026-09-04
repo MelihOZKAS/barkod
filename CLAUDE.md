@@ -85,6 +85,8 @@ python3 manage.py makemigrations --dry-run -v 2
    Doğrulaması: `/etiket/` → **"Ölçü baskısı"** kutusunu işaretle → Yazdır.
    1-2-3 numaralı cetvelli üç etiket çıkar; üçü art arda etiketlere düştüyse ve
    dört kenardaki çerçeve de göründüyse boy doğrudur.
+   > Ölçüldü (2026-09-04): rulodaki etiketin gerçek boyu **~102 mm**, 95 değil.
+   > Tasarım bu yüzden 82 mm'ye kuruldu; ayrıntı "Baskı yerleşimi" bölümünde.
 
 ### Ters giderse
 ```bash
@@ -297,7 +299,8 @@ kurtarıyor.
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
 | **Ölçü baskısı** | Ürün yerine cetvelli, 1-2-3 numaralı üç sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
-| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. **Dükkândaki yazıcı için varsayılan −8 mm** — aşağıya bak |
+| **Tasarım boyu** | Sadece tek tek düzende. Kâğıt 95 mm ama tasarım daha kısa olabilir. **Dükkândaki yazıcı için varsayılan 82 mm** — aşağıya bak |
+| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. **Varsayılan 0** — kaydırma içerik siler, ilk çare değildir |
 
 **Ayarlar oturumda hatırlanıyor** (`AYAR_ANAHTARI`). Ölçü, düzen, kaydırma,
 şerit ve kesim bir kere kurulunca admin'den gelen her baskı öyle çıkar; admin
@@ -331,8 +334,9 @@ barkodu okumuyor. İki önlem var:
 - Barkodun genişliği **modül sayısından** hesaplanıyor
   (`width: min(100%, modül × --et-mw)`), sütuna esnetilmiyor. Sığmayacak kadar
   uzun bir Code 128'de %100'e düşüyor — dar çıkması hiç çıkmamasından iyi.
-  `--et-mw` ölçü başına ayarlı: 95 × 39 mm'de `.45mm`, yani EAN-13 sütunu
-  neredeyse dolduruyor.
+  `--et-mw` ölçü başına ayarlı: termal ölçüde `.375mm` — 203 dpi kafada tam
+  **3 nokta**. Kesirli modül (0,45 mm = 3,6 nokta) yuvarlanırken çubukları bir
+  kalın bir ince bastırıyor.
 
 > **Tuzak:** tarayıcının yazdırma penceresindeki **"arka plan grafikleri"
 > kutusu varsayılan olarak KAPALI**. `background` ile çizilen hiçbir şey
@@ -366,25 +370,50 @@ dokunulup bir hane yanlış yazılırsa oradan yakalanır.
 Etiketin CSS'i **şablonun içinde** (`templates/system/user/etiket.html`), ayrı bir
 static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
 
-##### Baskı kayması ve `kaydirma_x = -8`
-Dükkândaki rulo **3,9 cm eninde, her etiket 9,5 cm uzunluğunda** — yani 95 mm
-kâğıt besleme yönünde ilerliyor, tarayıcı sayfayı 90° çevirip öyle basıyor.
-Basılmış gerçek bir etiketten ölçüldü (2026-09-04): tasarım etiketin
-başlangıcından **8 mm sonra** başlıyordu, o yüzden fiyatın son hanesi kesim
-deliğine geliyor ve tasarımın kuyruğu bir sonraki etikete taşıyordu.
+##### Baskı yerleşimi ve `basim = 82`
+Rulonun eni **3,9 cm**, yani 39 mm baskı kafası yönünde; 95 mm kâğıt besleme
+yönünde ilerliyor, tarayıcı sayfayı 90° çevirip basıyor.
 
-Düzeltme `OLCULER["termal"]["kaydirma_x"] = -8.0` olarak **varsayılana gömülü**:
-başka şehirdeki kullanıcı hiçbir kutu doldurmadan doğru etiket basıyor. Yazıcı
-değişir ya da kayma değişirse araç çubuğundaki kutudan değiştirilir, oturumda
-kalır — sabit sadece varsayılan.
+**Etiketin boyu 9,5 cm değil, ~10,2 cm.** 2026-09-04'te basılmış iki gerçek
+etiketten ölçüldü. Ölçüm barkoda dayanıyor: EAN-13 tam **95 modül**, modül
+`--et-mw` kadar, yani barkodun kâğıt üzerindeki genişliği tam olarak biliniyor
+(0,45 mm ile 42,75 mm). Fotoğrafta barkodun kaç piksel olduğuna bakılınca
+etiketin geri kalanı milim milim okunabiliyor.
 
-> Ölçü hâlâ tutmuyorsa: `/etiket/` → **"Ölçü baskısı"** cetvelli, 1-2-3 numaralı
-> üç etiket basar. Numaralar art arda etiketlere düştüyse sayfa boyu doğru;
-> aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzundur (sürücüde
-> kâğıt boyu **95 × 39 mm** mi, boşluk sensörü kalibre mi). Çerçevenin eksik
-> kenarı varsa cetvelden kaç mm olduğu okunup "kaydır" alanlarına yazılır.
-> **Bunu kullanıcıya yaptırma** — kendisi ölçü okumakla uğraşmasın, geliştirici
-> aracı gibi düşün.
+Aynı ölçümün söylediği ikincisi: **yazıcı sayfayı etiketin başından ~20 mm
+ileride başlatıyor** (kenar boşlukları "Varsayılan" iken). Etiket 102 mm,
+sayfa 20. mm'de başlıyor → tasarıma kalan yer **82 mm**. 95 mm'lik tasarım
+oraya sığmıyor, kuyruğu kesim deliğine ve bir sonraki etikete taşıyordu.
+
+Düzeltme `OLCULER["termal"]["basim"] = 82.0`: kâğıt (`@page`) 95 × 39 mm
+kalıyor, tasarım 82 mm'ye kuruluyor ve sayfanın **başına** yaslanıyor.
+
+> **Kaydırma (`kaydirma_x`) bunun çözümü değil — artık 0.** `position:relative`
+> ile sola kaydırılan tasarımın sayfa dışında kalan kısmını yazıcı hiç basmıyor.
+> −8 mm ile basılmış örnekte dört bilgi satırının başı kayıptı: "KDV Dahildir."
+> → "Dahildir.", "Birim: AD" → "ı: AD", "Üretim Yeri:" → "m Yeri:",
+> "F.D.T:" → "T:". Kuyruğu geri çekmek için **tasarım boyu** kısaltılır;
+> kaydırma sadece milimlik ince ayar içindir.
+
+> **Modül genişliği `--et-mw: .375mm`** — 203 dpi kafada tam **3 nokta**.
+> 0,45 mm 3,6 nokta ediyordu, yuvarlama çubukları bir kalın bir ince basıyor.
+> 113 × 0,375 = 42,4 mm; 82 mm'lik tasarımda barkod sütunu 43,2 mm, yani barkod
+> hâlâ sütuna esnetilmeden sığıyor.
+
+##### Baskı hâlâ oturmuyorsa
+1. **Kenar boşlukları "Yok"u dene.** Aynı gün "Yok" ile basılan örnekte sayfa
+   etiketin **3. mm**'sinde başlıyordu (20 değil) — yani tasarım 95 mm olarak
+   etikete tam oturur. O baskının bozuk görünmesinin sebebi ayrı: baskı etiketin
+   **enine** ~22 mm kaymıştı, bu da ruloyu makaraya oturtmakla ilgili, kenar
+   boşluğuyla değil. 39 mm'lik bir sayfada 22 mm'lik bir kenar boşluğu olamaz.
+2. **Sürücüdeki kâğıt boyu.** Windows'ta XP-470B özel kâğıdı 95 × 39 mm diye
+   tanımlı ama etiket ~102 mm. Sürücüdeki boyu gerçek ölçüye çekmek yazıcının
+   geç başlamasını da düzeltebilir.
+3. **Ölçü baskısı**: `/etiket/` → **"Ölçü baskısı"** cetvelli, 1-2-3 numaralı üç
+   etiket basar. Numaralar art arda etiketlere düştüyse sayfa boyu doğru;
+   aralarda boş etiket kaldıysa yazıcının sayfa boyu etiketten uzun. Çerçevenin
+   eksik kenarı varsa cetvelden kaç mm olduğu okunup "kaydır" alanlarına
+   yazılır. **Bunu kullanıcıya yaptırma** — geliştirici aracı gibi düşün.
 
 #### `Stok`'a eklenen etiket alanları
 | Alan | Ne |
@@ -716,6 +745,23 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04 (dördüncü oturum)
+- **Etiketin gerçek boyu ölçüldü: ~102 mm, 9,5 cm değil.** Basılmış iki
+  etiketin fotoğrafından, barkodun bilinen genişliğine (EAN-13 = 95 modül)
+  orantılanarak. Aynı ölçüm yazıcının sayfayı etiketin başından **~20 mm
+  ileride** başlattığını da gösterdi: tasarıma kalan yer 82 mm.
+- **`kaydirma_x` −8 → 0, yerine `basim = 82`.** Sola kaydırılan tasarımın
+  sayfa dışında kalan kısmını yazıcı hiç basmıyor — −8 mm ile basılan
+  etikette dört bilgi satırının başı kayıptı ("KDV Dahildir." → "Dahildir.").
+  Kuyruğu geri çekmenin doğru yolu tasarımı kısaltmak; kaydırma artık sadece
+  milimlik ince ayar.
+- **Araç çubuğuna "Tasarım boyu"** — kâğıt 95 mm kalırken tasarım 20…95 mm
+  arasında ayarlanabiliyor, oturumda hatırlanıyor. Sınama etiketinin cetveli
+  de artık kâğıdı değil basılan alanı ölçüyor.
+- **Modül genişliği `.45mm` → `.375mm`** — 203 dpi kafada tam 3 nokta;
+  0,45 mm 3,6 nokta ediyor ve yuvarlama çubukları düzensiz bastırıyor.
+  82 mm'lik tasarımda barkod hâlâ sütuna esnetilmeden sığıyor (42,4 / 43,2 mm).
 
 ### 2026-09-04 (üçüncü oturum)
 - **Baskı kayması varsayılana gömüldü** — basılmış etiketten ölçüldü: tasarım

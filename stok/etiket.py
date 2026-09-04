@@ -23,7 +23,7 @@ AYAR_ANAHTARI = "etiket_ayarlari"
 # parametresiz yonlendiriyor, oradan gelen her baski en son kullanilan ayarla
 # ciksin. Kopya sayisi ve "bastan bos birak" bilerek DISARIDA: ise ozeller,
 # hatirlanirsa bir dahaki sefere sessizce 10 kopya basar.
-HATIRLANAN_AYARLAR = ("boyut", "duzen", "kx", "ky", "serit", "kesim")
+HATIRLANAN_AYARLAR = ("boyut", "duzen", "boy", "kx", "ky", "serit", "kesim")
 
 # A4'un basilabilir alani 6 mm kenar bosluguyla 198 x 285 mm. Olculer o alana
 # tam sigacak sekilde secildi; satir sayisi asagi yuvarlandi ki son satir
@@ -36,12 +36,19 @@ OLCULER = {
         "aciklama": "95 × 39 mm rulo · Xprinter XP-470B",
         "genislik": 95.0, "yukseklik": 39.0, "sutun": 2, "satir": 7,
         "dar": False,
-        # Dukkandaki yazici baskiyi etiketin basindan 8 mm ILERIDE basiyor:
-        # fiyatin son hanesi etiketin kesim deligine geliyor, tasarimin kuyrugu
-        # bir sonraki etikete tasiyordu. 2026-09-04'te basilmis gercek bir
-        # etiketten olculdu (delikler arasi mesafeye orantilanarak). Arac
-        # cubugundan degistirilebilir, degistirilen deger oturumda kalir.
-        "kaydirma_x": -8.0, "kaydirma_y": 0.0,
+        # Tasarim kagidin tamamini kullanmiyor: dukkandaki yazici sayfayi
+        # etiketin basindan ~20 mm ILERIDE basliyor, etiketin kendisi de
+        # 95 degil ~102 mm. Ikisi birlikte, etikette kullanilabilir yer
+        # 82 mm. Olcu 2026-09-04'te basilmis gercek bir etiketten alindi:
+        # barkodun kagit uzerindeki genisligi bilindigi icin (95 modul x
+        # 0,45 mm = 42,75 mm) fotograftan milim okunabiliyor.
+        "basim": 82.0,
+        # Kaydirma ARTIK SIFIR. Negatif kaydirma tasarimi sayfanin disina
+        # itiyor ve disarida kalan kismi yazici hic basmiyor: -8 mm ile
+        # basilan ornekte dort bilgi satirinin basi kayipti ("KDV Dahildir."
+        # -> "Dahildir."). Kuyrugu kisaltmanin dogru yolu "basim", kaydirma
+        # degil; kaydirma sadece milimlik ince ayar icin duruyor.
+        "kaydirma_x": 0.0, "kaydirma_y": 0.0,
     },
     "kucuk": {
         "ad": "Küçük",
@@ -79,6 +86,12 @@ EN_COK_KOPYA = 50      # urun basina kopya
 # kalibrasyonu, rulonun gerginligi). Kullanici basilan seyi milim milim
 # kaydirabilsin diye; 20 mm'den fazlasi zaten baska bir arizadir.
 EN_COK_KAYDIRMA = 20.0
+
+# Tasarimin kagit uzerinde kaplayacagi boy. Kagidin (sayfanin) boyundan kisa
+# olabilir: yazici sayfayi etiketin basindan biraz ileride basliyorsa tasarimi
+# kisaltmak, kaydirmaktan farkli olarak hicbir seyi kirpmiyor -- kaydirilan
+# tasarimin sayfa disinda kalan kismi hic basilmiyor.
+EN_AZ_BASIM = 20.0
 
 # Sinama etiketindeki cetvel araligi.
 CETVEL_ARALIGI = 5
@@ -181,6 +194,14 @@ def sayfa_baglami(istek):
     if duzen not in DUZENLER:
         duzen = VARSAYILAN_DUZEN
 
+    # Tasarimin boyu sadece tek tek dizilişte anlamli: A4'te etiketler zaten
+    # kesilmis, boy kagidin kendisi.
+    if duzen == "tek":
+        basim = _ondalik(ayar.get("boy"), olcu.get("basim", olcu["genislik"]),
+                         EN_AZ_BASIM, olcu["genislik"])
+    else:
+        basim = olcu["genislik"]
+
     kopya = _sayi(istek.GET.get("kopya"), 1, 1, EN_COK_KOPYA)
     sayfada = 1 if duzen == "tek" else olcu["sutun"] * olcu["satir"]
     # Bastan bos birakmak sadece A4 dizilisinde anlamli: yarim kalmis etiket
@@ -207,6 +228,9 @@ def sayfa_baglami(istek):
         "bos_yerler": range(atla),
         "olcu": olcu,
         "olcu_anahtari": olcu_anahtari,
+        # Kagit boyu olcu.genislik, tasarimin boyu bu. CSS'e basildigi icin
+        # "%g": Turkce yerellestirmede {{ 82.0 }} "82,0" yazilir.
+        "basim": "%g" % basim,
         "olculer": OLCULER,
         "duzen": duzen,
         "duzenler": DUZENLER,
@@ -236,7 +260,9 @@ def sayfa_baglami(istek):
         # basilmaz: kontrol hanesi tutmayan barkodlar Code 128'e dustugu icin
         # "hepsi Code 128" ciktisi barkod verisinde bir sorun oldugunu soyler.
         "barkod_ozeti": turler.most_common(),
-        "cetvel_x": _cetvel(olcu["genislik"]),
+        # Cetvel tasarimin boyunca: sinama etiketi kagidi degil, gercekten
+        # basilan alani olcsun.
+        "cetvel_x": _cetvel(basim),
         "cetvel_y": _cetvel(olcu["yukseklik"]),
         "arama": (istek.GET.get("q") or "").strip(),
         "ids": (istek.GET.get("ids") or "").strip(),

@@ -1,0 +1,297 @@
+{% extends 'system/user/atlas_base.html' %}
+
+{% block baslik %}Raf etiketi · Atlas Kırtasiye{% endblock %}
+
+{% comment %}
+Etiketin bicimi bilerek bu dosyanin icinde, ayri bir CSS dosyasinda degil:
+collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
+(arac cubugu) atlas.css kullaniyor, o bozulsa da kagida bir sey basilmiyor.
+{% endcomment %}
+{% block ek_stil %}
+<style>
+/* ---------- arac cubugu (sadece ekranda) ---------- */
+.et-cubuk{position:sticky;top:0;z-index:5;background:var(--murekkep-2);
+  border-bottom:1px solid rgba(255,255,255,.08);padding:var(--b2) var(--b3)}
+.et-cubuk-ic{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;
+  align-items:flex-end;gap:var(--b2)}
+.et-cubuk h1{font-family:var(--f-baslik);font-size:20px;font-weight:800;
+  margin:0 var(--b2) 0 0;letter-spacing:-.01em}
+.et-cubuk h1 small{display:block;font-family:var(--f-metin);font-size:12px;
+  font-weight:400;color:var(--kursun);letter-spacing:0}
+.et-alan{display:flex;flex-direction:column;gap:4px}
+.et-alan label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--kursun)}
+.et-alan select,.et-alan input[type=number],.et-alan input[type=search]{
+  background:var(--murekkep-3);border:1px solid rgba(255,255,255,.12);
+  color:var(--kagit);border-radius:var(--r-s);padding:8px 10px;
+  font-family:var(--f-metin);font-size:14px}
+.et-alan input[type=number]{width:84px}
+.et-alan input[type=search]{width:200px}
+.et-kutu{display:flex;align-items:center;gap:8px;font-size:13px;
+  color:var(--kagit);padding-bottom:9px}
+.et-dugme{border:0;border-radius:var(--r-s);padding:10px 18px;cursor:pointer;
+  font-family:var(--f-metin);font-size:14px;font-weight:600}
+.et-dugme--asil{background:var(--cini);color:#fff}
+.et-dugme--sade{background:var(--murekkep-3);color:var(--kagit);
+  border:1px solid rgba(255,255,255,.12)}
+.et-ozet{margin-left:auto;text-align:right;font-size:13px;color:var(--kursun)}
+.et-ozet b{color:var(--kagit);font-family:var(--f-veri)}
+
+.et-bos{max-width:640px;margin:var(--b6) auto;padding:var(--b4);text-align:center;
+  background:var(--murekkep-2);border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--r-l)}
+.et-bos h2{font-family:var(--f-baslik);margin:0 0 var(--b1)}
+.et-bos p{color:var(--kursun);margin:0}
+
+/* ---------- kagit ---------- */
+.et-kagit{background:#fff;color:#000;margin:var(--b3) auto;padding:6mm;
+  width:210mm;box-shadow:var(--golge-yuksek)}
+.et-dizi{font-size:0;line-height:0}
+
+/* ---------- etiketin kendisi ---------- */
+.etiket,.etiket-bos{
+  width:var(--et-g);height:var(--et-y);
+  box-sizing:border-box;overflow:hidden;vertical-align:top;
+  break-inside:avoid;page-break-inside:avoid;
+  background:#fff;color:#000}
+.etiket-bos{display:inline-block}
+.etiket{
+  display:inline-grid;
+  grid-template-columns:40% 60%;
+  /* minmax(0,1fr) sart: duz "1fr" satiri icerige kilitliyor, etiketin yuksekligi
+     yetmedigi anda barkod asagi tasip kirpiliyor. */
+  grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"ad ad" "bilgi fiyat" "bilgi barkod";
+  font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;
+  line-height:1.15}
+.et-dar .etiket{
+  grid-template-columns:1fr auto;
+  grid-template-areas:"ad ad" "bilgi fiyat" "barkod barkod"}
+
+.et-kesimli .etiket,.et-kesimli .etiket-bos{
+  outline:.2mm dashed #9a9a9a;outline-offset:-.1mm}
+
+/* urun adi seridi */
+.etiket .et-ad{grid-area:ad;margin:0;display:flex;align-items:center;
+  justify-content:center;overflow:hidden;text-align:center;
+  font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;
+  font-weight:700;letter-spacing:0;line-height:1.1}
+.etiket .et-ad span{display:block;width:100%}
+.et-seritli .etiket .et-ad{background:#000;color:#fff}
+.et-cizgili .etiket .et-ad{background:#fff;color:#000;border-bottom:.3mm solid #000}
+
+/* sol bilgi sutunu */
+.et-bilgi{grid-area:bilgi;display:flex;flex-direction:column;justify-content:center;
+  gap:.4mm;overflow:hidden;min-height:0}
+.et-bilgi span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.et-fdt{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+
+/* fiyat */
+.et-fiyat{grid-area:fiyat;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;display:flex;align-items:center;justify-content:flex-end;
+  font-weight:800;letter-spacing:-.02em;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+
+/* barkod */
+.et-barkod{grid-area:barkod;margin:0;display:flex;flex-direction:column;
+  justify-content:flex-end;align-items:stretch;min-height:0}
+.et-barkod .barkod-svg{display:block;width:100%}
+.et-barkod figcaption{text-align:center;letter-spacing:.06em;
+  font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+.et-barkod-yok{text-align:center;color:#666}
+
+/* ---------- olcuye gore yazi boylari ---------- */
+.et-kucuk .etiket{padding:0}
+.et-kucuk .etiket .et-ad{height:5.4mm;padding:0 1.4mm;font-size:7pt}
+.et-kucuk .et-bilgi{padding:1mm 0 1mm 1.4mm;font-size:4.6pt}
+.et-kucuk .et-fiyat{padding:1mm 1.4mm 0 0;font-size:13pt}
+.et-kucuk .et-barkod{padding:0 1.4mm 1mm}
+.et-kucuk .et-barkod .barkod-svg{height:7mm}
+.et-kucuk .et-barkod figcaption{font-size:5pt;margin-top:.3mm}
+
+/* 95 x 39 mm rulo: dort bilgi satiri + fiyat + barkod tam sigmali.
+   Yukseklikler buyutulurse barkod asagi tasar ve kirpilir. */
+.et-termal .etiket .et-ad{height:7.4mm;padding:0 3mm;font-size:11.5pt}
+.et-termal .et-bilgi{padding:1.4mm 0 1.4mm 3mm;font-size:6.4pt}
+.et-termal .et-fiyat{padding:1.4mm 3mm 0 0;font-size:24pt}
+.et-termal .et-barkod{padding:0 3mm 1.6mm}
+.et-termal .et-barkod .barkod-svg{height:9.6mm}
+.et-termal .et-barkod figcaption{font-size:6.4pt;margin-top:.4mm}
+
+.et-orta .etiket .et-ad{height:7mm;padding:0 2mm;font-size:9.5pt}
+.et-orta .et-bilgi{padding:1.6mm 0 1.6mm 2mm;font-size:6pt}
+.et-orta .et-fiyat{padding:1.6mm 2mm 0 0;font-size:19pt}
+.et-orta .et-barkod{padding:0 2mm 1.6mm}
+.et-orta .et-barkod .barkod-svg{height:9mm}
+.et-orta .et-barkod figcaption{font-size:6pt;margin-top:.4mm}
+
+.et-buyuk .etiket .et-ad{height:10mm;padding:0 3mm;font-size:13.5pt}
+.et-buyuk .et-bilgi{padding:2.4mm 0 2.4mm 3mm;font-size:8pt}
+.et-buyuk .et-fiyat{padding:2.4mm 3mm 0 0;font-size:28pt}
+.et-buyuk .et-barkod{padding:0 3mm 2.4mm}
+.et-buyuk .et-barkod .barkod-svg{height:13mm}
+.et-buyuk .et-barkod figcaption{font-size:8pt;margin-top:.6mm}
+
+/* ---------- tek tek dizilis (ekranda) ---------- */
+.et-tek .et-kagit{background:transparent;box-shadow:none;width:auto;
+  max-width:1180px;padding:0 var(--b3)}
+.et-tek .etiket{margin:0 var(--b2) var(--b2) 0;box-shadow:var(--golge)}
+
+/* ---------- yazdirma ---------- */
+{% if duzen == 'tek' %}
+/* Kagit boyu etiketin kendisi: etiket yazicisinin rulosuna ya da tek tek
+   beslenen etiket kagidina her seferinde bir etiket cikar. */
+@page{size:{{ olcu.genislik|stringformat:'g' }}mm {{ olcu.yukseklik|stringformat:'g' }}mm;margin:0}
+{% else %}
+@page{size:A4 portrait;margin:6mm}
+{% endif %}
+@media print{
+  .at{background:#fff!important;color:#000!important;min-height:0!important}
+  .at::before,.at::after{display:none!important}
+  .et-cubuk,.et-bos{display:none!important}
+  .et-kagit{margin:0;padding:0;width:auto;box-shadow:none}
+{% if duzen == 'tek' %}
+  .et-tek .et-kagit{padding:0;max-width:none}
+  .et-tek .etiket{margin:0;box-shadow:none;outline:0;
+    break-after:page;page-break-after:always}
+  /* Son etiketten sonra bos bir sayfa cikmasin. */
+  .et-tek .etiket:last-child{break-after:auto;page-break-after:auto}
+{% endif %}
+}
+</style>
+{% endblock %}
+
+{% block icerik %}
+<form class="et-cubuk" method="get" action="{% url 'etiket' %}">
+  {% if ids %}<input type="hidden" name="ids" value="{{ ids }}">{% endif %}
+
+  <div class="et-cubuk-ic">
+    <h1>Raf etiketi
+      <small>Yazdır: Ctrl+P · Ölçek %100, “sayfaya sığdır” kapalı olmalı{% if duzen == 'tek' %} · kağıt boyu {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm{% endif %}</small>
+    </h1>
+
+    <div class="et-alan">
+      <label for="et-boyut">Etiket ölçüsü</label>
+      <select id="et-boyut" name="boyut">
+        {% for anahtar, secenek in olculer.items %}
+          <option value="{{ anahtar }}" {% if anahtar == olcu_anahtari %}selected{% endif %}>
+            {{ secenek.ad }} — {{ secenek.aciklama }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="et-alan">
+      <label for="et-duzen">Sayfa düzeni</label>
+      <select id="et-duzen" name="duzen">
+        {% for anahtar, ad in duzenler.items %}
+          <option value="{{ anahtar }}" {% if anahtar == duzen %}selected{% endif %}>{{ ad }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="et-alan">
+      <label for="et-kopya">Ürün başına</label>
+      <input id="et-kopya" type="number" name="kopya" min="1" max="50" value="{{ kopya }}">
+    </div>
+
+    {% if duzen != 'tek' %}
+    <div class="et-alan">
+      <label for="et-atla">Baştan boş bırak</label>
+      <input id="et-atla" type="number" name="atla" min="0" max="{{ sayfada|add:'-1' }}" value="{{ atla }}">
+    </div>
+    {% endif %}
+
+    <div class="et-alan">
+      <label for="et-ara">Ürün ara</label>
+      <input id="et-ara" type="search" name="q" value="{{ arama }}" placeholder="ad ya da barkod">
+    </div>
+
+    <label class="et-kutu">
+      <input type="hidden" name="serit" value="0">
+      <input type="checkbox" name="serit" value="1" {% if serit %}checked{% endif %}> Siyah şerit
+    </label>
+    <label class="et-kutu">
+      <input type="hidden" name="kesim" value="0">
+      <input type="checkbox" name="kesim" value="1" {% if kesim %}checked{% endif %}> Kesim çizgisi
+    </label>
+
+    <button class="et-dugme et-dugme--sade" type="submit">Uygula</button>
+    <button class="et-dugme et-dugme--asil" type="button" onclick="window.print()">Yazdır</button>
+
+    <p class="et-ozet">
+      <b>{{ urun_sayisi }}</b> ürün · <b>{{ etiketler|length }}</b> etiket<br>
+      {% if duzen == 'tek' %}her etiket ayrı sayfa · kağıt {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm
+      {% else %}sayfa başına {{ sayfada }} adet{% endif %}
+    </p>
+  </div>
+</form>
+
+{% if not etiketler %}
+  <div class="et-bos">
+    <h2>Etiket basılacak ürün seçilmedi</h2>
+    <p>Yönetim panelinde <b>Stok ürünleri</b> listesinden ürünleri işaretleyip
+      <b>“Seçili ürünler için raf etiketi yazdır”</b> eylemini seçin — ya da
+      yukarıdaki arama kutusuna ürün adı veya barkod yazın.</p>
+  </div>
+{% endif %}
+
+<div class="et-sarmal et-{{ duzen }}">
+<div class="et-kagit et-{{ olcu_anahtari }}{% if olcu.dar %} et-dar{% endif %}{% if kesim %} et-kesimli{% endif %}{% if serit %} et-seritli{% else %} et-cizgili{% endif %}"
+     style="--et-g:{{ olcu.genislik|stringformat:'g' }}mm;--et-y:{{ olcu.yukseklik|stringformat:'g' }}mm">
+  <div class="et-dizi">
+    {% for bos in bos_yerler %}<div class="etiket-bos"></div>{% endfor %}
+
+    {% for veri in etiketler %}
+      <article class="etiket">
+        <h2 class="et-ad"><span>{{ veri.urun.Urun_Adi }}</span></h2>
+
+        <div class="et-bilgi">
+          <span>KDV Dahildir.</span>
+          <span>Birim: {{ veri.urun.birim|default:"AD" }}</span>
+          <span>Üretim Yeri: {{ veri.urun.uretim_yeri }}</span>
+          <span class="et-fdt">F.D.T: {{ veri.fiyat_tarihi|date:"d.m.Y"|default:"—" }}</span>
+        </div>
+
+        <p class="et-fiyat">{{ veri.urun.Tutar|default:0|floatformat:2 }} ₺</p>
+
+        <figure class="et-barkod">
+          {% if veri.barkod_svg %}
+            {{ veri.barkod_svg }}
+            <figcaption>{{ veri.barkod_metin }}</figcaption>
+          {% else %}
+            <figcaption class="et-barkod-yok">{{ veri.barkod_metin }}</figcaption>
+          {% endif %}
+        </figure>
+      </article>
+    {% endfor %}
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block alt_bilgi %}{% endblock %}
+
+{% block ek_script %}
+<script>
+// Uzun urun adlari serit yuksekligini asiyor. Sigana kadar puntoyu kucult;
+// CSS'te tek bir punto secmek "Lets 6 Renk Guaj Boya 25ml" ile "Kalem"i ayni
+// anda idare edemiyor.
+(function () {
+  function sigdir() {
+    document.querySelectorAll('.et-ad').forEach(function (baslik) {
+      baslik.style.fontSize = '';
+      var punto = parseFloat(getComputedStyle(baslik).fontSize);
+      var metin = baslik.firstElementChild;
+      var sinir = 0;
+      while (metin.scrollHeight > baslik.clientHeight && punto > 5 && sinir++ < 60) {
+        punto -= 0.5;
+        baslik.style.fontSize = punto + 'px';
+      }
+    });
+  }
+  sigdir();
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(sigdir); }
+  window.addEventListener('beforeprint', sigdir);
+})();
+</script>
+{% endblock %}

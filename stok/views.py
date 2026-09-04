@@ -17,6 +17,7 @@ from django.db import IntegrityError
 #import requests
 from django.http import JsonResponse
 
+from . import etiket as etiket_modulu
 from . import indirim as indirim_modulu
 from . import rapor
 from . import satis as satis_modulu
@@ -1053,3 +1054,13 @@ def kasa_raporu(request):
         'stok_hareketleri': rapor.stok_hareketleri(baslangic, bitis),
         'kritik_stok': rapor.kritik_stok(),
     })
+
+
+@login_required(login_url='giris-yap')
+def etiket_yazdir(request):
+    """Raf etiketi cikti sayfasi.
+
+    Urunler admin'deki eylemden (oturum), ?ids= ya da ?q= ile gelir.
+    Sayfa ekranda beyaz kagit gibi durur, Ctrl+P dogrudan basar.
+    """
+    return render(request, 'system/user/etiket.html', etiket_modulu.sayfa_baglami(request))

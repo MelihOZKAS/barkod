@@ -4,11 +4,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db import models
 from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .disa_aktarma import hazir_sorgu, urunleri_yaz
+from .etiket import EN_COK_URUN, OTURUM_ANAHTARI
 
 
 
@@ -50,9 +54,10 @@ admin.site.register(Liste_Grup, ListFavoriAdmin)
 
 
 class StokAdmin(admin.ModelAdmin):
-    list_display = ("Urun_Adi","Barkod","Tutar","stok_adedi","Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi",)
+    list_display = ("Urun_Adi","Barkod","Tutar","birim","fiyat_tarihi","stok_adedi",
+                    "Favori","Stok_Durumu","Ekleme_Tarih","guncelleme_tarihi","etiket_baglantisi",)
     list_filter = ("Grup","Stok_Durumu",)
-    list_editable = ("Favori","Tutar","stok_adedi",)
+    list_editable = ("Favori","Tutar","birim","stok_adedi",)
     search_fields = ("Urun_Adi","Barkod",)
 
     formfield_overrides = {
@@ -62,7 +67,36 @@ class StokAdmin(admin.ModelAdmin):
 
 
 
-    actions = ["csv_indir","Yuzde10ZamYap","Yuzde15ZamYap","Yuzde20ZamYap","Yuzde25ZamYap","Yuzde30ZamYap","Yuzde35ZamYap"]
+    actions = ["etiket_yazdir","csv_indir","Yuzde10ZamYap","Yuzde15ZamYap","Yuzde20ZamYap","Yuzde25ZamYap","Yuzde30ZamYap","Yuzde35ZamYap"]
+
+    @admin.display(description="Etiket")
+    def etiket_baglantisi(self, urun):
+        """Tek urunun etiketini yeni sekmede acar. Fiyat degisince tek etiket
+        yeniden basmak icin listeden cikmaya gerek kalmasin."""
+        adres = f"{reverse('etiket')}?ids={urun.pk}"
+        return format_html('<a href="{}" target="_blank" rel="noopener">yazdır</a>', adres)
+
+    @admin.action(description="Seçili ürünler için raf etiketi yazdır")
+    def etiket_yazdir(self, request, queryset):
+        """Secimi oturuma yazip etiket sayfasina gonderir.
+
+        Id'ler URL'e degil oturuma konuyor: "Tumunu sec" ile yuzlerce urun
+        secildiginde adres satiri tasmasin, sayfa yenilenince secim durmaya
+        devam etsin.
+        """
+        idler = list(queryset.values_list("id", flat=True))
+        if not idler:
+            self.message_user(request, "Etiket basılacak ürün seçilmedi.", messages.WARNING)
+            return None
+        if len(idler) > EN_COK_URUN:
+            self.message_user(
+                request,
+                f"{len(idler)} ürün seçildi; ilk {EN_COK_URUN} tanesinin etiketi basılacak.",
+                messages.WARNING,
+            )
+            idler = idler[:EN_COK_URUN]
+        request.session[OTURUM_ANAHTARI] = idler
+        return redirect("etiket")
 
     @admin.action(description="Seçili ürünleri CSV olarak indir (yedek)")
     def csv_indir(self, request, queryset):

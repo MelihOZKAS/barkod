@@ -31,13 +31,13 @@ Bu kadar. Sırasıyla:
 3. `collectstatic` — `entrypoint.sh` bunu çalıştırmaz, elle gerekir (aşağıya bak).
 
 ### Bekleyen migration'lar bu dosyalarda
-`kahve/0006`–`0010`, `stok/0009`–`0011`. Hepsi repoda; sunucu sadece `migrate`
+`kahve/0006`–`0010`, `stok/0009`–`0012`. Hepsi repoda; sunucu sadece `migrate`
 çalıştırıyor, `entrypoint.sh` bunu açılışta kendisi yapıyor.
 
 ### ❌ Sunucuda `makemigrations` ÇALIŞTIRMA
 
 Migration dosyaları repoda; `migrate` onları zaten uyguluyor. `makemigrations`
-yazarsan Django `stok/0012_alter_musteri_cep_telefonu.py` üretir — canlı müşteri
+yazarsan Django `stok/0013_alter_musteri_cep_telefonu.py` üretir — canlı müşteri
 tablosuna dokunan, planlamadığın bir değişiklik.
 
 **Sebebi:** `stok/models.py` `Cep_Telefonu` alanını `null=True` diyor ama migration
@@ -57,7 +57,7 @@ Migration'ı **burada** üret, commit'le, sunucu sadece `migrate` etsin. Ama:
 > **`makemigrations kahve` bile yetmiyor.** `kahve` modelinden `stok.Musteri`'ye
 > FK eklendiği için Django yanına o `Cep_Telefonu` değişikliğini de koyuyor.
 > **Üretilen dosyayı aç, o `AlterField` operasyonunu elle sil.** `stok/0009`,
-> `0010`, `0011` ve `kahve/0007` böyle temizlendi; hepsinin docstring'inde yazıyor.
+> `0010`, `0011`, `0012` ve `kahve/0007` böyle temizlendi; hepsinin docstring'inde yazıyor.
 
 Ürettikten sonra kontrol et — çıktıda sadece o bilinen drift kalmalı:
 ```bash
@@ -78,6 +78,10 @@ python3 manage.py makemigrations --dry-run -v 2
    ürünün **Stok adedi** alanını doldur. Boş bırakılanlar eskisi gibi çalışır.
 4. **Eski fotoğrafları sıkıştır** (bir kere): `kahve_gorsel_sikistir --uygula`.
    Yeni yüklemeler zaten JPEG kaydediliyor. Dosyaların üzerine yazar, önce yedek al.
+5. **Etiket yazıcısının kâğıt boyu**: Windows'ta Xprinter XP-470B sürücüsünde
+   **95 × 39 mm** özel kâğıt tanımlı olmalı, yazdırma penceresinde ölçek **%100**
+   ve "sayfaya sığdır" kapalı. Sayfa `@page` ile boyu kendisi bildiriyor ama
+   sürücüde o boy yoksa Chrome A4'e düşürüp etiketi küçültür.
 
 ### Ters giderse
 ```bash
@@ -166,6 +170,7 @@ template'ler `templates/system/user/` altında.
 | `/musteri-listesi/` | Müşteriler — arama, borca/isme göre sıralama, toplam borç | Atlas (yeni) |
 | `/bakiye/<id>/`, `/bakiye-hareketi/<id>/` | **Aynı sayfa:** müşterinin borcu, işlem formu, hareket geçmişi | Atlas (yeni) |
 | `/kasa-raporu/` | Gün / ay / yıl — iki tezgâhın nakit/kart/borç dökümü | Atlas (yeni) |
+| `/etiket/` | Raf etiketi çıktısı — barkodlu fiyat etiketi | Atlas + baskı CSS'i |
 | `/urun-ara*`, `yeni-sayfa` | eski ekranlar | eski Bootstrap teması |
 | `/fiyat-monitor/` | Halka açık fiyat sorgulama (login yok) | kendi tasarımı |
 
@@ -259,9 +264,74 @@ gün gün ciro grafiği, satış hareketleri, stok hareketleri ve azalan ürünl
 
 > **Tuzak:** `makemigrations stok` çalıştırırsan Django yanına
 > `Musteri.Cep_Telefonu` için planlanmamış bir `AlterField` daha üretir. Üretilen
-> dosyadan **o operasyonu elle sil** — `0009` ve `0010`'da böyle yapıldı, ikisinin
-> de docstring'inde yazıyor. `makemigrations kahve` bile `stok.Musteri`'ye FK
+> dosyadan **o operasyonu elle sil** — `0009`, `0010` ve `0012`'de böyle yapıldı,
+> hepsinin docstring'inde yazıyor. `makemigrations kahve` bile `stok.Musteri`'ye FK
 > eklendiği için aynı şeyi üretebiliyor.
+
+#### Raf etiketi `/etiket/` (2026-09-04'te eklendi)
+
+Devlet ürünlerin rafta barkodlu fiyat etiketiyle durmasını istiyor. Sayfa
+admin'den besleniyor: **Stok ürünleri → seç → "Seçili ürünler için raf etiketi
+yazdır"**. Listedeki her satırda tek ürünlük **"yazdır"** bağlantısı da var
+(fiyat değişince tek etiket yeniden basmak için).
+
+Etikette ne var: üstte **ortalanmış** ürün adı (beyaz zemin, altında ince çizgi), altında
+`KDV Dahildir.` / `Birim: AD` / `Üretim Yeri:` / `F.D.T: gg.aa.yyyy`, sağda büyük
+fiyat, sağ altta barkod ve rakamları. Fotoğraftaki örnek etiketin düzeni.
+
+**Varsayılan çıktı dükkândaki Xprinter XP-470B termal yazıcı için:** 95 × 39 mm
+rulo, **her etiket ayrı sayfa** (`@page{size:95mm 39mm;margin:0}`). Araç
+çubuğundan A4'e de geçilebilir (49,5×30 / 66×40 / 99×57 mm, sayfaya 36/21/10
+etiket), o zaman "baştan boş bırak" alanı yarım kalmış etiket kâğıdını
+kurtarıyor.
+
+| Ayar | Ne işe yarar |
+|---|---|
+| Etiket ölçüsü | Termal rulo ya da üç A4 ölçüsü |
+| Sayfa düzeni | Tek tek (her etiket ayrı sayfa) / A4'e sığdır |
+| Ürün başına | Aynı üründen kaç kopya |
+| Baştan boş bırak | Sadece A4'te; kullanılmış etiket kâğıdını atlar |
+| Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
+| Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
+
+**Barkod `stok/barkod.py`'de sıfırdan çiziliyor** — `python-barcode` kurulmadı,
+proje kuralı yeni bağımlılık eklememek. Seçim şöyle:
+
+| Barkod değeri | Simgeleme |
+|---|---|
+| 13 hane, kontrol hanesi tutuyor | EAN-13 |
+| 8 hane, kontrol hanesi tutuyor | EAN-8 |
+| geri kalan her şey (dahili kodlar dâhil) | Code 128 |
+
+> **Kontrol hanesi tutmayan sayıyı EAN olarak çizmiyoruz.** Okuyucu böyle bir
+> barkodu hiç okumaz; hata ancak etiketler basılıp rafa asıldıktan sonra fark
+> edilir. Code 128 sayının kendisini olduğu gibi taşıyor, yani okutulduğunda
+> etiketteki rakamların aynısı çıkıyor.
+
+`stok/tests.py` EAN kod tablolarını **yapısal bağıntıyla** kilitliyor
+(`SAG = SOL_TEK`'in tersi, `SOL_CIFT = SAG`'ın ters çevrilmişi); tabloya elle
+dokunulup bir hane yanlış yazılırsa oradan yakalanır.
+
+> **Tuzak:** etikette `grid-template-rows` **`minmax(0,1fr)`** olmalı. Düz `1fr`
+> satırı içeriğe kilitliyor; 39 mm'ye sığmadığı anda barkod aşağı taşıp
+> kırpılıyor ve etiket sessizce okunmaz hale geliyor.
+
+Etiketin CSS'i **şablonun içinde** (`templates/system/user/etiket.html`), ayrı bir
+static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
+
+#### `Stok`'a eklenen etiket alanları
+| Alan | Ne |
+|---|---|
+| `birim` | Etiketteki "Birim:" — varsayılan `AD`, admin listesinden toplu düzenlenebilir |
+| `uretim_yeri` | Etiketteki "Üretim Yeri:" — boş bırakılırsa satır boş çıkar |
+| `fiyat_tarihi` | Etiketteki **F.D.T.** — `Tutar` her değiştiğinde kendiliğinden bugüne çekilir |
+
+`guncelleme_tarihi` F.D.T.'nin yerine geçemez: **stok adedi değişince o da
+ilerliyor**, fiyatı yıllardır sabit ürüne dünün tarihini basardı. `Stok.save()`
+fiyatın değişip değişmediğini `from_db`'de hatırlanan tutardan anlıyor — zam
+eylemleri ve içe aktarma binlerce ürünü tek tek kaydediyor, her kayıt için
+fazladan `SELECT` açmak pahalı olurdu. Migration `0012` var olan ürünlerin
+alanını `guncelleme_tarihi`'nden dolduruyor.
 
 #### Yedekleme / geri yükleme (asıl değerli veri burada)
 **En pratik yol — admin'den indir:** `/admin/stok/stok/` → üstteki kutuyu işaretle →
@@ -574,6 +644,23 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04
+- **Raf etiketi `/etiket/`** — devlet barkodlu fiyat etiketi istiyor. Admin'de
+  ürünleri seç → "Seçili ürünler için raf etiketi yazdır". Varsayılan çıktı
+  dükkândaki **Xprinter XP-470B** için 95 × 39 mm, her etiket ayrı sayfa;
+  A4'e sığdıran üç ölçü de var.
+- **Barkod çizimi `stok/barkod.py`** — EAN-13 / EAN-8 / Code 128, SVG, harici
+  paket yok. Kontrol hanesi tutmayan sayı EAN olarak çizilmiyor, Code 128'e
+  düşüyor: okuyucunun okumadığı bir etiket basılmasın.
+- **`Stok`'a `birim`, `uretim_yeri`, `fiyat_tarihi`** (migration `0012`).
+  F.D.T. `guncelleme_tarihi`'nden ayrı bir alan, çünkü o alan stok adedi
+  değişince de ilerliyordu. Var olan ürünler migration'da dolduruldu.
+- **Etikette `minmax(0,1fr)`** — düz `1fr` ile barkod 39 mm'ye sığmayıp
+  kırpılıyordu; ekranda sorun görünmüyor, sadece baskıda ortaya çıkıyor.
+- Ürün adı etikette **ortalı** ve **beyaz zeminde** (altında ince çizgi);
+  sol sütundaki dört bilgi satırı dikeyde ortalandı, sol alt köşedeki boşluk
+  kapandı. Siyah şerit isteğe bağlı kaldı.
 
 ### 2026-08-31
 - **Mobilde hiçbir fotoğraf yüklenmiyordu** — TLS'i Cloudflare sonlandırıyor,

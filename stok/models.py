@@ -7,6 +7,11 @@ from decimal import Decimal
 # Create your models here.
 
 
+# Stok.from_db okunan tutari isaretler. "Hic okunmadi" ile "None okundu" ayri
+# seyler; ayirmak icin nobetci deger.
+_OKUNMADI = object()
+
+
 class UrunGruplari(models.Model):
     Grup_Adi = models.CharField(max_length=255, unique=True)
     def __str__(self):
@@ -43,13 +48,61 @@ class Stok(models.Model):
     Ekleme_Tarih = models.DateTimeField(auto_now_add=True)
     guncelleme_tarihi = models.DateTimeField(auto_now=True)
 
+    # Raf etiketi alanlari. Etiket yonetmeligi urunun birimini ve fiyatin en son
+    # ne zaman degistigini istiyor; guncelleme_tarihi bunun yerine gecemez,
+    # cunku stok adedi degisince de o tarih ilerliyor.
+    birim = models.CharField(
+        max_length=8, default="AD", blank=True,
+        verbose_name="Birim",
+        help_text="Etikete basilan birim: AD, KG, MT, PK...",
+    )
+    uretim_yeri = models.CharField(
+        max_length=60, blank=True,
+        verbose_name="Üretim yeri",
+        help_text="Etikete basılır. Boş bırakılırsa satır boş çıkar.",
+    )
+    fiyat_tarihi = models.DateField(
+        null=True, blank=True,
+        verbose_name="Fiyat değişim tarihi",
+        help_text="Etiketteki F.D.T. Tutar her değiştiğinde kendiliğinden bugüne çekilir.",
+    )
+
     def __str__(self):
         return f"{self.Urun_Adi}"
     class Meta:
         verbose_name_plural = 'Stok urunleri'
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        """Okunan tutari hatirla ki save() fiyatin degisip degismedigini bilsin.
+
+        Ayri bir SELECT atmaya gerek kalmiyor; zam eylemleri ve ice aktarma
+        binlerce urunu tek tek kaydediyor, oralarda her kayit icin fazladan
+        sorgu acmak pahali olurdu.
+        """
+        nesne = super().from_db(db, field_names, values)
+        if "Tutar" in field_names:
+            nesne._yuklenen_tutar = nesne.Tutar
+        return nesne
+
     def save(self, *args, **kwargs):
         self.Urun_Genel = f"{self.Urun_Adi} - {self.Barkod}"
+
+        if self._state.adding:
+            # Yeni urun: elle tarih yazilmadiysa bugun.
+            fiyat_degisti = self.fiyat_tarihi is None
+        else:
+            onceki = getattr(self, "_yuklenen_tutar", _OKUNMADI)
+            fiyat_degisti = onceki is not _OKUNMADI and self.Tutar != onceki
+
+        if fiyat_degisti:
+            self.fiyat_tarihi = timezone.localdate()
+            alanlar = kwargs.get("update_fields")
+            if alanlar is not None and "fiyat_tarihi" not in alanlar:
+                kwargs["update_fields"] = list(alanlar) + ["fiyat_tarihi"]
+
         super().save(*args, **kwargs)
+        self._yuklenen_tutar = self.Tutar
 
 
 

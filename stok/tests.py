@@ -8,6 +8,7 @@ Calistirmak icin:
     python manage.py test stok
 """
 
+from datetime import date
 from decimal import Decimal
 import shutil
 import tempfile
@@ -21,6 +22,8 @@ from django.utils import timezone
 
 from kahve.models import KahveSatis
 
+from . import barkod
+from . import etiket as etiket_modulu
 from . import rapor
 from .models import (BorcHareketi, Liste_Grup, Musteri, Satis, SatisSatiri,
                      SepetUrun, Stok, StokHareketi, UrunGruplari)
@@ -933,3 +936,339 @@ class OzelIndirimTesti(TestCase):
 
         self.assertEqual(anonim.post(reverse("api-indirim-uygula"),
                                      {"tur": "tl", "deger": "50"}).status_code, 302)
+
+
+class BarkodCizimiTesti(TestCase):
+    """stok/barkod.py -- disaridan paket kurmadan cizilen barkod.
+
+    Yanlis cizilmis bir barkod ekranda dogru gorunur ama okuyucu okumaz; hata
+    ancak raf etiketleri basildiktan sonra fark edilir. Testler kod tablolarini
+    ve kontrol hanesini kilitliyor.
+    """
+
+    def test_kod_tablolari_tutarli(self):
+        """SAG = SOL_TEK'in tersi, SOL_CIFT = SAG'in ters cevrilmisi.
+
+        Tablolara elle dokunulup bir hane yanlis yazilirsa buradan yakalanir.
+        """
+        for hane in range(10):
+            self.assertEqual(
+                barkod.SAG[hane],
+                barkod.SOL_TEK[hane].translate(str.maketrans("01", "10")),
+                f"{hane} icin sag kod sol kodun tersi olmali",
+            )
+            self.assertEqual(barkod.SOL_CIFT[hane], barkod.SAG[hane][::-1])
+
+    def test_ean13_kontrol_hanesi(self):
+        self.assertEqual(barkod.ean_kontrol_hanesi("868067980102"), 7)
+        self.assertEqual(barkod.ean_kontrol_hanesi("590123412345"), 7)
+
+    def test_ean8_kontrol_hanesi(self):
+        self.assertEqual(barkod.ean_kontrol_hanesi("9638507"), 4)
+
+    def test_gecerli_ean13_ean13_cizilir(self):
+        cizim = barkod.barkod_ciz(8680679801027)
+
+        self.assertEqual(cizim.tur, "EAN-13")
+        self.assertEqual(cizim.metin, "8680679801027")
+        # 11 sessiz + 95 govde + 7 sessiz
+        self.assertEqual(cizim.genislik, 113)
+        govde = cizim.moduller[11:-7]
+        self.assertTrue(govde.startswith("101"), "bas koruma cubugu")
+        self.assertTrue(govde.endswith("101"), "son koruma cubugu")
+        self.assertEqual(govde[45:50], "01010", "orta koruma cubugu")
+
+    def test_kontrol_hanesi_tutmayan_sayi_ean_olarak_cizilmez(self):
+        """Okuyucu gecersiz EAN'i hic okumaz; Code 128 ise sayiyi oldugu gibi
+        tasir, yani okutuldugunda etiketteki rakamlarin ayni cikar."""
+        cizim = barkod.barkod_ciz(8680679801020)
+
+        self.assertEqual(cizim.tur, "Code 128")
+        self.assertEqual(cizim.metin, "8680679801020")
+
+    def test_gecerli_ean8_ean8_cizilir(self):
+        cizim = barkod.barkod_ciz(96385074)
+
+        self.assertEqual(cizim.tur, "EAN-8")
+        self.assertEqual(cizim.genislik, 11 + 67 + 7)
+
+    def test_kisa_dahili_barkod_code128_olur(self):
+        cizim = barkod.barkod_ciz(1234)
+
+        self.assertEqual(cizim.tur, "Code 128")
+        self.assertEqual(cizim.metin, "1234")
+
+    def test_code128_kontrol_toplami(self):
+        """Start C (105) + 1*12 + 2*34 = 185; 185 % 103 = 82."""
+        degerler = barkod.code128_degerleri("1234")
+
+        self.assertEqual(degerler, [105, 12, 34, 82, 106])
+
+    def test_code128_tek_sayida_hane(self):
+        """Tek haneli kalinti C kumesinde kodlanamaz; cizim yine de uretilmeli."""
+        cizim = barkod.barkod_ciz(12345)
+
+        self.assertEqual(cizim.tur, "Code 128")
+        self.assertTrue(cizim.moduller.strip("0"))
+
+    def test_bos_deger_barkod_uretmez(self):
+        self.assertIsNone(barkod.barkod_ciz(""))
+        self.assertIsNone(barkod.barkod_ciz(None))
+
+    def test_svg_olcek_bagimsiz(self):
+        """viewBox modul sayisi kadar; etiket kucuk ya da buyuk olsun bar
+        oranlari bozulmadan olceklensin."""
+        svg = barkod.barkod_ciz(8680679801027).svg
+
+        self.assertIn('viewBox="0 0 113 100"', svg)
+        self.assertIn('fill="#000"', svg)
+        self.assertIn("</svg>", svg)
+
+
+class FiyatDegisimTarihiTesti(TestCase):
+    """Etiketteki F.D.T. alani.
+
+    guncelleme_tarihi bunun yerine gecemez: stok adedi degisince o da ilerliyor,
+    etikette fiyat degismemis urun icin yanlis tarih basardi.
+    """
+
+    def setUp(self):
+        self.bugun = timezone.localdate()
+        self.urun = Stok.objects.create(Urun_Adi="Guaj Boya", Barkod=8680679801027, Tutar=110)
+
+    def test_yeni_urun_bugunu_alir(self):
+        self.assertEqual(self.urun.fiyat_tarihi, self.bugun)
+
+    def test_fiyat_degisince_tarih_tazelenir(self):
+        Stok.objects.filter(pk=self.urun.pk).update(fiyat_tarihi=date(2020, 1, 1))
+
+        urun = Stok.objects.get(pk=self.urun.pk)
+        urun.Tutar = Decimal("125.00")
+        urun.save()
+
+        self.assertEqual(urun.fiyat_tarihi, self.bugun)
+
+    def test_fiyat_degismeyince_tarihe_dokunulmaz(self):
+        eski = date(2020, 1, 1)
+        Stok.objects.filter(pk=self.urun.pk).update(fiyat_tarihi=eski)
+
+        urun = Stok.objects.get(pk=self.urun.pk)
+        urun.Urun_Adi = "Guaj Boya 25 ml"
+        urun.stok_adedi = 40
+        urun.save()
+
+        self.assertEqual(urun.fiyat_tarihi, eski)
+
+    def test_satista_stok_dusunce_tarihe_dokunulmaz(self):
+        """satis.py urunu save(update_fields=['stok_adedi']) ile kaydediyor."""
+        eski = date(2020, 1, 1)
+        Stok.objects.filter(pk=self.urun.pk).update(fiyat_tarihi=eski, stok_adedi=10)
+
+        urun = Stok.objects.get(pk=self.urun.pk)
+        urun.stok_adedi = 9
+        urun.save(update_fields=["stok_adedi"])
+        urun.refresh_from_db()
+
+        self.assertEqual(urun.fiyat_tarihi, eski)
+
+    def test_admin_zam_eylemi_tarihi_tazeler(self):
+        Stok.objects.filter(pk=self.urun.pk).update(fiyat_tarihi=date(2020, 1, 1))
+        User.objects.create_superuser("yonetici", "y@o.com", "gizli-sifre-123")
+        self.client.login(username="yonetici", password="gizli-sifre-123")
+
+        self.client.post("/admin/stok/stok/", {
+            "action": "Yuzde10ZamYap",
+            "_selected_action": [str(self.urun.pk)],
+        })
+
+        self.urun.refresh_from_db()
+        self.assertEqual(self.urun.fiyat_tarihi, self.bugun)
+        self.assertEqual(self.urun.Tutar, Decimal("122.00"))
+
+    def test_elle_yazilan_tarih_korunur(self):
+        urun = Stok.objects.create(
+            Urun_Adi="Elle Tarihli", Barkod=8690000000777,
+            Tutar=50, fiyat_tarihi=date(2024, 5, 6),
+        )
+
+        self.assertEqual(urun.fiyat_tarihi, date(2024, 5, 6))
+
+
+class EtiketSayfasiTesti(TestCase):
+    """/etiket/ -- raf etiketi cikti sayfasi."""
+
+    def setUp(self):
+        self.sifre = "kasa-sifresi-123"
+        User.objects.create_user("kasa", password=self.sifre)
+        self.client.login(username="kasa", password=self.sifre)
+
+        self.urun = Stok.objects.create(
+            Urun_Adi="Lets 6 Renk Guaj Boya 25ml", Barkod=8680679801027,
+            Tutar=Decimal("110.00"), birim="AD", uretim_yeri="Türkiye",
+        )
+        self.ikinci = Stok.objects.create(
+            Urun_Adi="Silgi", Barkod=8690000000002, Tutar=Decimal("12.50"))
+
+    def _govde(self, **parametreler):
+        cevap = self.client.get(reverse("etiket"), parametreler)
+        self.assertEqual(cevap.status_code, 200)
+        return cevap.content.decode()
+
+    def test_anonim_giremez(self):
+        anonim = Client()
+
+        self.assertEqual(anonim.get(reverse("etiket")).status_code, 302)
+
+    def test_etikette_yonetmeligin_istedigi_her_sey_var(self):
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("Lets 6 Renk Guaj Boya 25ml", govde)
+        self.assertIn("110,00", govde)          # tr yerellestirmesi: virgul
+        self.assertIn("KDV Dahildir.", govde)
+        self.assertIn("Birim: AD", govde)
+        self.assertIn("Üretim Yeri: Türkiye", govde)
+        self.assertIn(f"F.D.T: {timezone.localdate():%d.%m.%Y}", govde)
+        self.assertIn("8680679801027", govde)
+        self.assertIn('viewBox="0 0 113 100"', govde)
+
+    def test_birimi_bos_urun_ad_yazar(self):
+        Stok.objects.filter(pk=self.ikinci.pk).update(birim="")
+
+        self.assertIn("Birim: AD", self._govde(ids=str(self.ikinci.pk)))
+
+    def test_secim_sirasi_korunur(self):
+        govde = self._govde(ids=f"{self.ikinci.pk},{self.urun.pk}")
+
+        self.assertLess(govde.index("Silgi"), govde.index("Lets 6 Renk"))
+
+    def test_oturumdaki_secim_okunur(self):
+        oturum = self.client.session
+        oturum[etiket_modulu.OTURUM_ANAHTARI] = [self.urun.pk]
+        oturum.save()
+
+        self.assertIn("Lets 6 Renk Guaj Boya 25ml", self._govde())
+
+    def test_kopya_sayisi_kadar_basilir(self):
+        govde = self._govde(ids=str(self.urun.pk), kopya="3")
+
+        self.assertEqual(govde.count('<article class="etiket">'), 3)
+
+    def test_kopya_sinirlari_zorlanamaz(self):
+        for deger in ("0", "-5", "abc", "9999"):
+            govde = self._govde(ids=str(self.urun.pk), kopya=deger)
+            sayi = govde.count('<article class="etiket">')
+            self.assertGreaterEqual(sayi, 1)
+            self.assertLessEqual(sayi, etiket_modulu.EN_COK_KOPYA)
+
+    def test_bilinmeyen_boyut_varsayilana_duser(self):
+        govde = self._govde(ids=str(self.urun.pk), boyut="devasa")
+
+        self.assertIn(f"et-{etiket_modulu.VARSAYILAN_OLCU}", govde)
+
+    def test_varsayilan_dukkandaki_etiket_yazicisi(self):
+        """Gunluk is Xprinter XP-470B'den cikiyor: 95 x 39 mm rulo, tek tek."""
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("@page{size:95mm 39mm;margin:0}", govde)
+        self.assertIn("et-termal", govde)
+        self.assertIn("et-tek", govde)
+
+    def test_varsayilan_isim_seridi_beyaz(self):
+        """Termal kafa bos yere yanmasin: ad siyah zemin yerine altciizgili.
+        Siyah serit isteyen kutuyu isaretler."""
+        beyaz = self._govde(ids=str(self.urun.pk))
+        siyah = self._govde(ids=str(self.urun.pk), serit="1")
+
+        # Tirnak sart: CSS blogu her iki sinifin kurallarini da tasiyor,
+        # aranan sey kagida basilan kapsayicinin class'i.
+        self.assertIn('et-cizgili"', beyaz)
+        self.assertNotIn('et-seritli"', beyaz)
+        self.assertIn('et-seritli"', siyah)
+
+    def test_tek_duzende_her_etiket_ayri_sayfaya_gider(self):
+        govde = self._govde(ids=str(self.urun.pk), duzen="tek")
+
+        self.assertIn("break-after:page", govde)
+
+    def test_a4_duzeninde_kagit_a4_olur(self):
+        govde = self._govde(ids=str(self.urun.pk), duzen="sayfa", boyut="orta")
+
+        self.assertIn("@page{size:A4 portrait;margin:6mm}", govde)
+        self.assertNotIn("break-after:page", govde)
+
+    def test_tek_duzende_bastan_bos_birakilmaz(self):
+        """Rulodaki etiketin "sayfa basi" diye bir yeri yok."""
+        govde = self._govde(ids=str(self.urun.pk), duzen="tek", atla="5")
+
+        self.assertNotIn('<div class="etiket-bos">', govde)
+
+    def test_bilinmeyen_duzen_varsayilana_duser(self):
+        govde = self._govde(ids=str(self.urun.pk), duzen="rulo-mu-ne")
+
+        self.assertIn("et-tek", govde)
+
+    def test_bastan_bos_birakma(self):
+        """Yarim kalmis etiket sayfasi tekrar kullanilabilsin."""
+        govde = self._govde(ids=str(self.urun.pk), duzen="sayfa", atla="5")
+
+        self.assertEqual(govde.count('<div class="etiket-bos">'), 5)
+
+    def test_arama_ile_urun_bulunur(self):
+        govde = self._govde(q="Silgi")
+
+        self.assertIn("<span>Silgi</span>", govde)
+        self.assertNotIn("<span>Lets 6 Renk Guaj Boya 25ml</span>", govde)
+
+    def test_secim_yoksa_yol_gosterilir(self):
+        govde = self._govde()
+
+        self.assertIn("Etiket basılacak ürün seçilmedi", govde)
+        self.assertNotIn('<article class="etiket">', govde)
+
+    def test_kontrol_hanesi_bozuk_barkod_sayfayi_dusurmez(self):
+        bozuk = Stok.objects.create(Urun_Adi="Dahili Kod", Barkod=4071, Tutar=5)
+        govde = self._govde(ids=str(bozuk.pk))
+
+        self.assertIn("4071", govde)
+        self.assertIn("<svg", govde)
+
+    def test_tek_sorguyla_urunler_cekilir(self):
+        """Etiket sayfasi yuzlerce urunle acilabiliyor; her urun icin ayri
+        sorgu acilmamali."""
+        idler = ",".join(str(u.pk) for u in Stok.objects.all())
+
+        with self.assertNumQueries(3):   # oturum + kullanici + urunler
+            self.client.get(reverse("etiket"), {"ids": idler})
+
+
+class EtiketAdminEylemiTesti(TestCase):
+    """Admin'deki 'raf etiketi yazdir' eylemi."""
+
+    def setUp(self):
+        User.objects.create_superuser("yonetici", "y@o.com", "gizli-sifre-123")
+        self.client.login(username="yonetici", password="gizli-sifre-123")
+        self.urun = Stok.objects.create(Urun_Adi="Defter", Barkod=8690000000010, Tutar=45)
+
+    def test_eylem_etiket_sayfasina_gonderir(self):
+        cevap = self.client.post("/admin/stok/stok/", {
+            "action": "etiket_yazdir",
+            "_selected_action": [str(self.urun.pk)],
+        })
+
+        self.assertRedirects(cevap, reverse("etiket"))
+        self.assertEqual(
+            self.client.session[etiket_modulu.OTURUM_ANAHTARI], [self.urun.pk])
+
+    def test_secim_url_yerine_oturumda_tasinir(self):
+        """'Tumunu sec' ile yuzlerce urun secilince adres satiri tasmasin."""
+        cevap = self.client.post("/admin/stok/stok/", {
+            "action": "etiket_yazdir",
+            "_selected_action": [str(self.urun.pk)],
+        })
+
+        self.assertNotIn("ids=", cevap["Location"])
+
+    def test_listede_tek_urunluk_etiket_baglantisi_var(self):
+        govde = self.client.get("/admin/stok/stok/").content.decode()
+
+        self.assertIn(f"{reverse('etiket')}?ids={self.urun.pk}", govde)

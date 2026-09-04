@@ -147,7 +147,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 202 test (73 stok + 129 kahve)
+python3 manage.py test stok kahve     # 241 test (112 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -675,7 +675,20 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
   kırpılıyordu; ekranda sorun görünmüyor, sadece baskıda ortaya çıkıyor.
 - Ürün adı etikette **ortalı** ve **beyaz zeminde** (altında ince çizgi);
   sol sütundaki dört bilgi satırı dikeyde ortalandı, sol alt köşedeki boşluk
-  kapandı. Siyah şerit isteğe bağlı kaldı.
+  kapandı. Siyah şerit isteğe bağlı kaldı — beyaz varsayılan aynı zamanda
+  termal kafayı boş yere yakmıyor.
+- **Baskı ruloda kayıyordu** — etiketler `inline-grid`'di, `break-after: page`
+  satır-içi kutulara uygulanmadığı için yazıcı sayfa sonlarını hiç görmüyordu;
+  etiketlerin üstü kırpılıyordu. Ekranda hiçbir belirtisi yoktu. Etiketler
+  blok seviyesine alındı; ayrıca yükseklik sayfa boyuyla tam eşit olmasın diye
+  yarım milim pay bırakıldı (eşitken her etiketin ardına boş sayfa düşüyordu).
+- **Ürün listesi ekrana sığmıyordu** — `formfield_overrides` bütün
+  `CharField`'leri 90 karakter yapıyor, `birim` liste içinde düzenlenebilir
+  olunca her satıra 90 karakterlik kutu düştü. `KISA_ALANLAR` +
+  `formfield_for_dbfield` ile daraltıldı.
+- **Etiket sayfası kasıyordu** — punto sığdırma JS'i yazma ile okumayı iç içe
+  yapıp her etiket için ayrı yerleşim hesabı çıkartıyordu; artık önce hepsi
+  sıfırlanıp sonra hepsi ölçülüyor.
 
 ### 2026-08-31
 - **Mobilde hiçbir fotoğraf yüklenmiyordu** — TLS'i Cloudflare sonlandırıyor,

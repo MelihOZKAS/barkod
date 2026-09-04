@@ -754,6 +754,7 @@
         kaydetBtn.type = 'button';
         kaydetBtn.textContent = 'Kaydet';
         kaydetBtn.style.cssText = 'width:100%;padding:9px;background:#0d9488;color:#fff;border:none;border-radius:9px;font-weight:600;cursor:pointer;';
+        kaydetBtn.id = 'yeni-musteri-kaydet';
         kaydetBtn.addEventListener('click', yeniMusteriKaydet);
         formDiv.appendChild(kaydetBtn);
         musteriBolum.appendChild(formDiv);
@@ -907,13 +908,29 @@
             Swal.showValidationMessage('Müşteri ismi zorunludur.');
             return;
         }
+        // Cift tiklama korumasi: istek donene kadar buton kapali. Aksi halde
+        // ayni musteri iki kez kaydediliyordu.
+        var btn = document.getElementById('yeni-musteri-kaydet');
+        if (btn.disabled) { return; }
+        btn.disabled = true;
+        btn.textContent = 'Kaydediliyor…';
         $.post('/api/hizli-musteri-ekle/', { isim_soyisim: isim, Cep_Telefonu: tel }, function(data) {
             if (data.success) {
+                // Sunucu var olan kaydi dondurmus olabilir; listede ayni id'den
+                // ikinci bir satir olusmasin.
+                var sira = -1;
+                for (var i = 0; i < tumMusteriler.length; i++) {
+                    if (String(tumMusteriler[i].id) === String(data.musteri.id)) { sira = i; break; }
+                }
+                if (sira >= 0) { tumMusteriler.splice(sira, 1); }
                 tumMusteriler.unshift(data.musteri);
                 musteriListesiRenderle(tumMusteriler);
                 document.getElementById('yeni-musteri-form').style.display = 'none';
                 document.getElementById('yeni-musteri-isim').value = '';
                 document.getElementById('yeni-musteri-tel').value = '';
+                if (data.mevcut) {
+                    Swal.showValidationMessage('Bu müşteri zaten kayıtlıydı, mevcut hanesi seçildi.');
+                }
                 setTimeout(function() {
                     var radios = document.querySelectorAll('input[name="swal-musteri"]');
                     if (radios.length > 0) radios[0].checked = true;
@@ -921,6 +938,9 @@
             } else {
                 Swal.showValidationMessage(data.error);
             }
+        }).always(function () {
+            btn.disabled = false;
+            btn.textContent = 'Kaydet';
         });
     }
 

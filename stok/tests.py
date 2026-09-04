@@ -1415,3 +1415,144 @@ class EtiketAdminEylemiTesti(TestCase):
         govde = self.client.get("/admin/stok/stok/").content.decode()
 
         self.assertIn(f"{reverse('etiket')}?ids={self.urun.pk}", govde)
+
+
+class MukerrerMusteriTesti(TestCase):
+    """Kasada ayni musteri iki kez eklenince iki hane aciliyordu.
+
+    Canlida gorulen hali: borca aktarma penceresinde ayni isim iki kez
+    listeleniyor, birinde 3145 TL borc, digerinde "borcu yok" yaziyordu.
+    """
+
+    def setUp(self):
+        self.kullanici = User.objects.create_user("kasiyer", password="parola")
+        self.client.force_login(self.kullanici)
+
+    def ekle(self, isim, telefon=""):
+        return self.client.post(
+            reverse("api-hizli-musteri-ekle"),
+            {"isim_soyisim": isim, "Cep_Telefonu": telefon},
+        ).json()
+
+    def test_ayni_isim_ve_telefon_ikinci_kayit_acmaz(self):
+        ilk = self.ekle("Psikolog Hanım", "5321009317")
+        ikinci = self.ekle("Psikolog Hanım", "5321009317")
+
+        self.assertEqual(Musteri.objects.count(), 1)
+        self.assertTrue(ikinci["mevcut"])
+        self.assertEqual(ilk["musteri"]["id"], ikinci["musteri"]["id"])
+
+    def test_mevcut_kaydin_borcu_donuyor(self):
+        """Ikinci kez eklenince "borcu yok" degil, gercek borc gorunmeli."""
+        self.ekle("Psikolog Hanım", "5321009317")
+        musteri = Musteri.objects.get()
+        musteri.borc = Decimal("3145.00")
+        musteri.save()
+
+        cevap = self.ekle("Psikolog Hanım", "5321009317")
+
+        self.assertEqual(cevap["musteri"]["borc"], "3145.00")
+
+    def test_buyuk_kucuk_harf_farki_yeni_kayit_acmaz(self):
+        self.ekle("PSİKOLOG HANIM", "5321009317")
+        self.ekle("psikolog hanım", "5321009317")
+
+        self.assertEqual(Musteri.objects.count(), 1)
+
+    def test_bosluklu_telefon_ayni_kayit_sayilir(self):
+        """Alan tam sayi: "0532 100 93 17" eskiden ValueError firlatiyordu."""
+        self.ekle("Psikolog Hanım", "5321009317")
+        cevap = self.ekle("Psikolog Hanım", "532 100 93 17")
+
+        self.assertEqual(Musteri.objects.count(), 1)
+        self.assertTrue(cevap["mevcut"])
+
+    def test_telefon_bos_birakilirsa_isim_yeterli(self):
+        self.ekle("Ali Veli")
+        self.ekle("Ali Veli")
+
+        self.assertEqual(Musteri.objects.count(), 1)
+
+    def test_farkli_telefon_ayri_musteridir(self):
+        self.ekle("Ali Veli", "5551112233")
+        self.ekle("Ali Veli", "5324445566")
+
+        self.assertEqual(Musteri.objects.count(), 2)
+
+
+class MusteriBirlestirmeTesti(TestCase):
+    """Admin'deki birlestirme eylemi: mukerrer kayitlar tek haneye toplanir."""
+
+    def setUp(self):
+        self.yonetici = User.objects.create_superuser("patron", "p@x.com", "parola")
+        self.client.force_login(self.yonetici)
+
+        self.eski = Musteri.objects.create(
+            isim_soyisim="Psikolog Hanım", Cep_Telefonu=5321009317, borc=Decimal("3145.00")
+        )
+        self.yeni = Musteri.objects.create(
+            isim_soyisim="Psikolog Hanım", Cep_Telefonu=5321009317, borc=Decimal("250.00")
+        )
+        BorcHareketi.objects.create(
+            musteri=self.eski, tutar=Decimal("3145.00"), aciklama="ilk borç",
+            onceki_borc=Decimal("0.00"),
+        )
+        BorcHareketi.objects.create(
+            musteri=self.yeni, tutar=Decimal("250.00"), aciklama="yeni hane",
+            onceki_borc=Decimal("0.00"),
+        )
+        self.satis = Satis.objects.create(
+            toplam=Decimal("250.00"), borc_tutar=Decimal("250.00"),
+            odeme_turu=Satis.Odeme.BORC, borc_musteri=self.yeni,
+        )
+        self.kahve_satisi = KahveSatis.objects.create(
+            toplam=Decimal("60.00"), odeme_turu=KahveSatis.Odeme.BORC,
+            borc_musteri=self.yeni,
+        )
+
+    def birlestir(self, onayli, idler=None):
+        idler = idler or [self.eski.pk, self.yeni.pk]
+        veri = {
+            "action": "musterileri_birlestir",
+            "_selected_action": [str(i) for i in idler],
+        }
+        if onayli:
+            veri["birlestir_onay"] = "evet"
+        return self.client.post("/admin/stok/musteri/", veri, follow=True)
+
+    def test_onaysiz_istek_hicbir_seyi_degistirmez(self):
+        cevap = self.birlestir(onayli=False)
+
+        self.assertEqual(Musteri.objects.count(), 2)
+        self.assertIn("Silinecek kayıtlar", cevap.content.decode())
+
+    def test_onaylandiginda_tek_kayit_kalir_ve_borclar_toplanir(self):
+        self.birlestir(onayli=True)
+
+        self.assertEqual(Musteri.objects.count(), 1)
+        kalan = Musteri.objects.get()
+        self.assertEqual(kalan.pk, self.eski.pk)
+        self.assertEqual(kalan.borc, Decimal("3395.00"))
+
+    def test_borc_hareketleri_ve_satislar_tasinir(self):
+        self.birlestir(onayli=True)
+
+        self.assertEqual(BorcHareketi.objects.filter(musteri=self.eski).count(), 2)
+        self.satis.refresh_from_db()
+        self.kahve_satisi.refresh_from_db()
+        self.assertEqual(self.satis.borc_musteri_id, self.eski.pk)
+        self.assertEqual(self.kahve_satisi.borc_musteri_id, self.eski.pk)
+
+    def test_tek_kayit_secilirse_uyarir(self):
+        cevap = self.birlestir(onayli=True, idler=[self.eski.pk])
+
+        self.assertEqual(Musteri.objects.count(), 2)
+        self.assertIn("en az iki müşteri", cevap.content.decode())
+
+    def test_mukerrer_filtresi_sadece_tekrarlayanlari_gosterir(self):
+        Musteri.objects.create(isim_soyisim="Tek Kişi", Cep_Telefonu=5550000000)
+
+        govde = self.client.get("/admin/stok/musteri/?mukerrer=evet").content.decode()
+
+        self.assertIn("Psikolog Hanım", govde)
+        self.assertNotIn("Tek Kişi", govde)

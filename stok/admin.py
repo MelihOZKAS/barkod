@@ -4,10 +4,13 @@ from datetime import datetime
 from decimal import Decimal
 
 from django import forms
+from django.apps import apps
 from django.contrib import admin, messages
-from django.db import models
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.db import models, transaction
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -178,10 +181,99 @@ admin.site.register(Stok, StokAdmin)
 
 
 
+class MukerrerMusteriFiltresi(admin.SimpleListFilter):
+    """Ayni isimden birden fazla kayit varsa hepsini yan yana getirir.
+
+    Kasadaki hizli ekleme bir donem ayni musteriyi ikinci kez kaydediyordu;
+    borcu olan hane ile bos hane listede yan yana duruyor, kasiyer yanlis
+    olani seciyordu. Bu filtre onlari bulmak icin.
+    """
+
+    title = "Mükerrer kayıt"
+    parameter_name = "mukerrer"
+
+    def lookups(self, request, model_admin):
+        return (("evet", "Aynı isimden birden fazla"),)
+
+    def queryset(self, request, queryset):
+        if self.value() != "evet":
+            return queryset
+        tekrarlayan = (
+            Musteri.objects.values("isim_soyisim")
+            .annotate(adet=models.Count("id"))
+            .filter(adet__gt=1)
+            .values_list("isim_soyisim", flat=True)
+        )
+        return queryset.filter(isim_soyisim__in=list(tekrarlayan))
+
+
 class MusteriAdmin(admin.ModelAdmin):
-    list_display = ("isim_soyisim","Cep_Telefonu","borc",)
+    list_display = ("isim_soyisim", "Cep_Telefonu", "borc", "Ekleme_Tarih", "id")
     search_fields = ("isim_soyisim","Cep_Telefonu",)
-    list_filter = ("Ekleme_Tarih",)
+    list_filter = (MukerrerMusteriFiltresi, "Ekleme_Tarih")
+    ordering = ("isim_soyisim", "Ekleme_Tarih")
+    actions = ["musterileri_birlestir"]
+
+    @admin.action(description="Seçili müşterileri tek kayıtta birleştir")
+    def musterileri_birlestir(self, request, queryset):
+        """Mukerrer musteri kayitlarini tek haneye toplar.
+
+        Iki asamali: once ne olacagini gosteren onay sayfasi cikar, kullanici
+        onaylamadan hicbir sey degismez. Canli veri; yanlis secimle iki ayri
+        musterinin borcu birlesirse geri almak zor.
+        """
+        secilenler = list(queryset.order_by("Ekleme_Tarih", "id"))
+        if len(secilenler) < 2:
+            self.message_user(
+                request, "Birleştirmek için en az iki müşteri seçin.", messages.WARNING
+            )
+            return None
+
+        hedef, digerleri = secilenler[0], secilenler[1:]
+        # Cross-app import: kahve zaten stok'u iceriye aliyor, ters yonde
+        # dogrudan import dairesel bagimlilik yapardi.
+        KahveSatis = apps.get_model("kahve", "KahveSatis")
+
+        if request.POST.get("birlestir_onay") != "evet":
+            return TemplateResponse(request, "admin/stok/musteri/birlestir_onay.html", {
+                **self.admin_site.each_context(request),
+                "baslik": "Müşterileri birleştir",
+                "hedef": hedef,
+                "digerleri": digerleri,
+                "toplam_borc": sum((m.borc for m in secilenler), Decimal("0.00")),
+                "hareket_sayisi": BorcHareketi.objects.filter(musteri__in=secilenler).count(),
+                "secilenler": secilenler,
+                "eylem": "musterileri_birlestir",
+                "secim_alani": ACTION_CHECKBOX_NAME,
+            })
+
+        with transaction.atomic():
+            BorcHareketi.objects.filter(musteri__in=digerleri).update(musteri=hedef)
+            Satis.objects.filter(borc_musteri__in=digerleri).update(borc_musteri=hedef)
+            KahveSatis.objects.filter(borc_musteri__in=digerleri).update(borc_musteri=hedef)
+
+            hedef.borc = sum((m.borc for m in secilenler), Decimal("0.00"))
+            if not hedef.Cep_Telefonu:
+                for m in digerleri:
+                    if m.Cep_Telefonu:
+                        hedef.Cep_Telefonu = m.Cep_Telefonu
+                        break
+            not_satiri = "%s: %d mükerrer kayıt bu haneyle birleştirildi." % (
+                datetime.now().strftime("%d.%m.%Y"), len(digerleri),
+            )
+            hedef.aciklama = ((hedef.aciklama or "").strip() + "\n" + not_satiri).strip()
+            hedef.save()
+
+            Musteri.objects.filter(pk__in=[m.pk for m in digerleri]).delete()
+
+        self.message_user(
+            request,
+            "%s: %d kayıt birleştirildi, borç %s ₺ oldu."
+            % (hedef.isim_soyisim, len(secilenler), hedef.borc),
+            messages.SUCCESS,
+        )
+        return None
+
 
 admin.site.register(Musteri, MusteriAdmin)
 

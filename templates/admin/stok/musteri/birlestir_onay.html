@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Mukerrer musteri kayitlarini birlestirmeden once ne olacagini gosteren onay
+sayfasi. Canli veri: yanlis secimle iki ayri musterinin borcu tek haneye
+duserse geri almak zor, o yuzden tek tikla calisan bir eylem degil.
+{% endcomment %}
+
+{% block content %}
+<h1>Müşterileri birleştir</h1>
+
+<p>Seçilen <b>{{ secilenler|length }}</b> kayıt tek haneye toplanacak.
+  <b>Kalan kayıt en eski olanıdır</b>; borç hareketleri, kırtasiye ve kahve
+  satışları ona taşınır, diğer kayıtlar silinir.</p>
+
+<h2>Kalacak kayıt</h2>
+<ul>
+  <li><b>{{ hedef.isim_soyisim }}</b>
+    — {{ hedef.Cep_Telefonu|default:"telefon yok" }}
+    — şu anki borcu {{ hedef.borc }} ₺
+    — eklenme {{ hedef.Ekleme_Tarih|date:"d.m.Y" }} (id {{ hedef.id }})</li>
+</ul>
+
+<h2>Silinecek kayıtlar</h2>
+<ul>
+  {% for m in digerleri %}
+    <li>{{ m.isim_soyisim }}
+      — {{ m.Cep_Telefonu|default:"telefon yok" }}
+      — borcu {{ m.borc }} ₺
+      — eklenme {{ m.Ekleme_Tarih|date:"d.m.Y" }} (id {{ m.id }})</li>
+  {% endfor %}
+</ul>
+
+<p><b>Sonuç:</b> {{ hareket_sayisi }} borç hareketi tek hanede toplanacak,
+  borç <b>{{ toplam_borc }} ₺</b> olacak.</p>
+
+<p style="color:#b91c1c"><b>Dikkat:</b> bunlar gerçekten aynı kişi değilse iki
+  ayrı müşterinin borcu birleşir ve geri almak zordur. Aynı kişi olduklarından
+  emin olun.</p>
+
+<form method="post">{% csrf_token %}
+  {% for m in secilenler %}
+    <input type="hidden" name="{{ secim_alani }}" value="{{ m.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ eylem }}">
+  <input type="hidden" name="birlestir_onay" value="evet">
+  <input type="submit" value="Evet, birleştir" class="default">
+  <a href="." class="button cancel-link">Vazgeç</a>
+</form>
+{% endblock %}

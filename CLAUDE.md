@@ -152,7 +152,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 259 test (130 stok + 129 kahve)
+python3 manage.py test stok kahve     # 270 test (141 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -455,6 +455,44 @@ fiyatın değişip değişmediğini `from_db`'de hatırlanan tutardan anlıyor �
 eylemleri ve içe aktarma binlerce ürünü tek tek kaydediyor, her kayıt için
 fazladan `SELECT` açmak pahalı olurdu. Migration `0012` var olan ürünlerin
 alanını `guncelleme_tarihi`'nden dolduruyor.
+
+#### Mükerrer müşteri kaydı (2026-09-04'te kapatıldı)
+
+Kasadaki **hızlı müşteri ekle** var olan kaydı hiç aramıyordu: aynı müşteriyi
+ikinci kez yazan kasiyer ikinci bir borç hanesi açıyordu. Canlıda görülen
+hali — borca aktarma penceresinde aynı isim iki kez, birinde 3145 TL borç,
+diğerinde "borcu yok"; kasiyerin hangisini seçtiği şansa kalıyordu.
+
+Üç yerden kapatıldı:
+1. **Sunucu** (`hizli_musteri_ekle`) — kayıt açmadan önce `mevcut_musteri`
+   ile arıyor, bulursa **var olanı** döndürüyor (`mevcut: true`).
+2. **Kasa ekranı** — Kaydet butonu istek dönene kadar kapalı (çift tıklama
+   iki kayıt açıyordu) ve dönen müşteri listede zaten varsa satır
+   çoğaltılmıyor, güncelleniyor.
+3. **Telefon** artık sadece rakamlara indirgeniyor. Alan
+   `PositiveBigIntegerField`: "0532 100 93 17" eskiden `ValueError` → 500
+   veriyordu, ayrıca aynı numaranın boşluklu/boşluksuz yazılması iki kayıt
+   sayılıyordu.
+
+> **İsim karşılaştırması Python'da, veritabanında değil.** `iexact`
+> SQLite'ta sadece ASCII'yi kapsıyor, PostgreSQL de `I/ı` ve `İ/i` çiftlerini
+> Türkçe kurallarına göre eşlemiyor — "PSİKOLOG HANIM" ile "psikolog hanım"
+> veritabanı için ayrı. `isim_anahtari()` bu iki harfi elle çevirip
+> karşılaştırıyor. Telefon verilmediyse müşteri tablosu baştan sona taranıyor;
+> tablo birkaç bin satır ve sorgu sadece "yeni müşteri" butonunda çalışıyor.
+
+**Var olan mükerrer kayıtlar admin'den birleştirilir:**
+`/admin/stok/musteri/` → sağdaki **"Mükerrer kayıt → Aynı isimden birden
+fazla"** filtresi hepsini yan yana getirir → ikisini işaretle → Eylem:
+**"Seçili müşterileri tek kayıtta birleştir"**.
+
+- **En eski kayıt kalır.** Borç hareketleri, kırtasiye satışları
+  (`Satis.borc_musteri`) ve kahve satışları (`KahveSatis.borc_musteri`) ona
+  taşınır, borçlar toplanır, diğerleri silinir.
+- Tek tıkla çalışmaz: önce **ne olacağını gösteren onay sayfası** çıkar
+  (`templates/admin/stok/musteri/birlestir_onay.html`). Canlı veri; yanlış
+  seçimle iki ayrı müşterinin borcu birleşirse geri almak zor.
+- Eylem `transaction.atomic` içinde; yarıda kalırsa hiçbir şey değişmez.
 
 #### Yedekleme / geri yükleme (asıl değerli veri burada)
 **En pratik yol — admin'den indir:** `/admin/stok/stok/` → üstteki kutuyu işaretle →
@@ -769,6 +807,15 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 > Her oturumda buraya ekle. Yeni kayıt en üste.
 
 ### 2026-09-04 (beşinci oturum)
+- **Mükerrer müşteri kaydı** — kasadaki hızlı ekleme var olan kaydı hiç
+  aramıyordu; aynı müşterinin biri borçlu biri boş iki hanesi oluşuyordu.
+  Artık sunucu var olanı döndürüyor, Kaydet butonu çift tıklamaya kapalı,
+  telefon rakamlara indirgeniyor. İsim karşılaştırması Türkçe `I/İ` çiftini
+  bildiği için Python'da yapılıyor.
+- **Admin'e "Seçili müşterileri tek kayıtta birleştir"** — onay sayfalı,
+  `transaction.atomic`; borç hareketlerini ve iki tezgâhın satışlarını en
+  eski kayda taşıyıp borçları topluyor. Yanındaki **"Mükerrer kayıt"**
+  filtresi tekrarlayanları yan yana getiriyor.
 - **Etiketin içi dolduruldu.** Basılan etikette dört bilgi satırı 6,4 punto
   ile sol sütunun ortasında toplanıyor, etiketin sol yarısı bomboş
   görünüyordu. Yeni ölçüler: ürün adı 11,5 → **13 pt** (şerit 7,4 → 8,6 mm),

@@ -885,23 +885,75 @@ def musteri_listesi_json(request):
     return JsonResponse({'musteriler': data})
 
 
+def _telefon_rakamlari(ham):
+    """Girilen telefondan sadece rakamlari alir.
+
+    Alan PositiveBigIntegerField: "0532 100 93 17" gibi bosluklu bir deger
+    dogrudan kaydedilmeye calisilinca ValueError firlatiyordu. Ayrica ayni
+    numaranin bosluklu ve bosluksuz yazilmasi iki ayri kayit aciyordu.
+    """
+    return "".join(ch for ch in (ham or "") if ch.isdigit())
+
+
+# Turkce buyuk/kucuk harf esleri. Karsilastirma veritabanina birakilamiyor:
+# SQLite'in iexact'i sadece ASCII'yi kapsiyor, PostgreSQL de "I/i" ve "İ/ı"
+# ciftlerini Turkce kurallarina gore eslemiyor. "PSİKOLOG HANIM" ile
+# "psikolog hanım" ayni kisi ama veritabani icin ayni degil.
+_TURKCE_ESLER = {"İ": "i", "I": "ı"}
+
+
+def isim_anahtari(isim):
+    """Isimleri karsilastirmak icin normalize eder."""
+    cevrilmis = "".join(_TURKCE_ESLER.get(ch, ch) for ch in (isim or ""))
+    return " ".join(cevrilmis.lower().split())
+
+
+def mevcut_musteri(isim, telefon):
+    """Bu musteri zaten kayitli mi? Kayitliysa dondurur.
+
+    Telefon girildiyse kimlik odur: ayni isim + ayni numara kesinlikle ayni
+    kisi. Telefon bos birakildiysa NOT NULL kisiti yuzunden asagida sahte bir
+    numara uretiliyor, yani karsilastirilacak tek sey isim kaliyor -- ayni ismi
+    ikinci kez yazan kasiyer yeni bir hane degil, var olan haneyi gormeli.
+
+    Telefon yoksa musteri tablosu bastan sona taraniyor; tablo birkac bin
+    satir ve bu sorgu sadece "yeni musteri" butonuna basildiginda calisiyor.
+    """
+    aranan = isim_anahtari(isim)
+    sorgu = Musteri.objects.all()
+    if telefon:
+        sorgu = sorgu.filter(Cep_Telefonu=telefon)
+    for musteri in sorgu.order_by("id"):
+        if isim_anahtari(musteri.isim_soyisim) == aranan:
+            return musteri
+    return None
+
+
 @csrf_exempt
 @login_required(login_url='giris-yap')
 def hizli_musteri_ekle(request):
     if request.method == 'POST':
         isim = request.POST.get('isim_soyisim', '').strip()
-        telefon = request.POST.get('Cep_Telefonu', '').strip()
+        telefon = _telefon_rakamlari(request.POST.get('Cep_Telefonu', ''))
         if not isim:
             return JsonResponse({'success': False, 'error': 'İsim zorunludur.'})
-        if not telefon:
-            telefon = random.randint(1, 100000000)
-        musteri = Musteri.objects.create(isim_soyisim=isim, Cep_Telefonu=telefon, borc=0)
+
+        # Mukerrer kayit acma. Kasada ayni musteri iki kez eklenince borcu olan
+        # hane ile bos hane yan yana cikiyor, kasiyer yanlis olani seciyordu.
+        musteri = mevcut_musteri(isim, telefon)
+        zaten_vardi = musteri is not None
+        if not zaten_vardi:
+            if not telefon:
+                telefon = random.randint(1, 100000000)
+            musteri = Musteri.objects.create(isim_soyisim=isim, Cep_Telefonu=telefon, borc=0)
+
         return JsonResponse({
             'success': True,
+            'mevcut': zaten_vardi,
             'musteri': {
                 'id': musteri.id,
                 'isim_soyisim': musteri.isim_soyisim,
-                'Cep_Telefonu': str(musteri.Cep_Telefonu),
+                'Cep_Telefonu': str(musteri.Cep_Telefonu) if musteri.Cep_Telefonu else '',
                 'borc': str(musteri.borc),
             }
         })

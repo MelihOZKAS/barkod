@@ -1240,6 +1240,77 @@ class EtiketSayfasiTesti(TestCase):
         with self.assertNumQueries(3):   # oturum + kullanici + urunler
             self.client.get(reverse("etiket"), {"ids": idler})
 
+    def test_barkod_termal_kafaya_gore_ciziliyor(self):
+        """Kenar yumusatma 203 dpi tek bit kafada cubuk genisligini kaydiriyor;
+        SVG crispEdges olmadan basilan barkod okunmuyor."""
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn('shape-rendering="crispEdges"', govde)
+        # Barkodun genisligi modul sayisindan hesaplaniyor, sutuna esnetilmiyor.
+        self.assertIn("--barkod-modul:113", govde)
+
+    def test_barkod_turleri_ekranda_sayiliyor(self):
+        """Hepsi Code 128 cikiyorsa barkod verisinde sorun var demektir;
+        kullanici bunu ekranda gorsun."""
+        govde = self._govde(ids=f"{self.urun.pk},{self.ikinci.pk}")
+
+        self.assertIn("EAN-13: 1", govde)      # 8680679801027 gecerli
+        self.assertIn("Code 128: 1", govde)    # 8690000000002 kontrol hanesi tutmuyor
+
+
+class EtiketOlcuBaskisiTesti(TestCase):
+    """Sinama etiketi ve baski kaydirma -- yazicinin kagidi kacirdigi durumlar."""
+
+    def setUp(self):
+        User.objects.create_user("kasa", password="kasa-sifresi-123")
+        self.client.login(username="kasa", password="kasa-sifresi-123")
+        self.urun = Stok.objects.create(
+            Urun_Adi="Silgi", Barkod=8680679801027, Tutar=Decimal("12.50"))
+
+    def _govde(self, **parametreler):
+        cevap = self.client.get(reverse("etiket"), parametreler)
+        self.assertEqual(cevap.status_code, 200)
+        return cevap.content.decode()
+
+    def test_sinama_cetvelli_tek_etiket_basar(self):
+        govde = self._govde(sinama="1", ids=str(self.urun.pk))
+
+        self.assertIn("et-sinama", govde)
+        self.assertIn("SOL ÜST", govde)
+        self.assertIn("SAĞ ALT", govde)
+        self.assertIn("95 × 39 mm", govde)
+        self.assertIn('style="left:90mm"', govde)      # yatay cetvel kenara kadar
+        self.assertIn('style="top:35mm"', govde)       # dikey cetvel kenara kadar
+        # Urun etiketi basilmaz: 600 urun secili olsa da barkod cizilmesin.
+        self.assertNotIn("KDV Dahildir.", govde)
+
+    def test_sinama_kapaliyken_urun_etiketi_cikar(self):
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("KDV Dahildir.", govde)
+        self.assertNotIn('class="et-sinama"', govde)
+
+    def test_kaydirma_css_e_noktali_yaziliyor(self):
+        """Turkce yerellestirmede {{ 1.5 }} "1,5" basar, o da gecersiz CSS."""
+        govde = self._govde(ids=str(self.urun.pk), kx="2.5", ky="-3")
+
+        self.assertIn("--et-kx:2.5mm;--et-ky:-3mm", govde)
+
+    def test_kaydirma_virgullu_de_kabul_edilir(self):
+        self.assertIn("--et-kx:1.5mm", self._govde(ids=str(self.urun.pk), kx="1,5"))
+
+    def test_kaydirma_sinirlari_ve_copu_sifira_duser(self):
+        for deger in ("500", "-500", "abc", "", "NaN", "inf"):
+            with self.subTest(deger=deger):
+                govde = self._govde(ids=str(self.urun.pk), kx=deger)
+                self.assertRegex(govde, r"--et-kx:(20|-20|0)mm")
+                self.assertNotIn("--et-kx:abcmm", govde)
+
+    def test_kaydirma_baskida_uygulaniyor(self):
+        govde = self._govde(ids=str(self.urun.pk), kx="2", ky="2")
+
+        self.assertIn("left:var(--et-kx,0);top:var(--et-ky,0)", govde)
+
 
 class EtiketAdminEylemiTesti(TestCase):
     """Admin'deki 'raf etiketi yazdir' eylemi."""

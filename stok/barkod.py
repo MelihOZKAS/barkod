@@ -95,9 +95,13 @@ class Barkod:
         30 civari dikdortgen kaliyor.
         """
         parcalar = [
+            # shape-rendering=crispEdges sart: termal yazici 203 dpi ve tek
+            # bit: kenar yumusatmadan gelen gri pikselleri ya siyaha ya beyaza
+            # yuvarliyor, cubuk genislikleri rastgele kayiyor ve okuyucu
+            # barkodu okumuyor. crispEdges her modulu tam piksele oturtuyor.
             f'<svg class="barkod-svg" viewBox="0 0 {self.genislik} 100" '
-            f'preserveAspectRatio="none" role="img" '
-            f'aria-label="Barkod {self.metin}">',
+            f'preserveAspectRatio="none" shape-rendering="crispEdges" '
+            f'role="img" aria-label="Barkod {self.metin}">',
             f'<rect width="{self.genislik}" height="100" fill="#fff"/>',
         ]
         basla = 0

@@ -52,12 +52,16 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .et-dizi{display:flex;flex-wrap:wrap;align-content:flex-start}
 
 /* ---------- etiketin kendisi ---------- */
-.etiket,.etiket-bos{
+.etiket,.etiket-bos,.et-sinama{
   flex:0 0 auto;
   width:var(--et-g);height:var(--et-y);
   box-sizing:border-box;overflow:hidden;
   break-inside:avoid;page-break-inside:avoid;
-  background:#fff;color:#000}
+  background:#fff;color:#000;
+  /* Tarayicinin "arka plan grafikleri" kutusu VARSAYILAN OLARAK KAPALI:
+     acilmazsa siyah serit hic basilmaz. Kenarliklar ve SVG dolgusu bundan
+     etkilenmiyor, bu yuzden beyaz varsayilan cizgiyle ayriliyor. */
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .etiket-bos{display:block}
 .etiket{
   display:grid;
@@ -98,12 +102,18 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 /* barkod */
 .et-barkod{grid-area:barkod;margin:0;display:flex;flex-direction:column;
   justify-content:flex-end;align-items:stretch;min-height:0}
-.et-barkod .barkod-svg{display:block;width:100%}
+/* Her modul tam --et-mw genisliginde. Sutuna gore esnetilirse modul
+   genisligi kusuratli piksele denk geliyor, cubuklar bir kalin bir ince
+   basiliyor ve okuyucu zorlaniyor. Sigmayacak kadar uzun barkodda (uzun bir
+   Code 128) %100'e duser; dar cikmasi hic cikmamasindan iyi. */
+.et-barkod .barkod-svg{display:block;margin:0 auto;
+  width:min(100%, calc(var(--barkod-modul, 113) * var(--et-mw, .3mm)))}
 .et-barkod figcaption{text-align:center;letter-spacing:.06em;
   font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
 .et-barkod-yok{text-align:center;color:#666}
 
 /* ---------- olcuye gore yazi boylari ---------- */
+.et-kucuk{--et-mw:.4mm}
 .et-kucuk .etiket{padding:0}
 .et-kucuk .etiket .et-ad{height:5.4mm;padding:0 1.4mm;font-size:7pt}
 .et-kucuk .et-bilgi{padding:1mm 0 1mm 1.4mm;font-size:4.6pt}
@@ -114,6 +124,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
 /* 95 x 39 mm rulo: dort bilgi satiri + fiyat + barkod tam sigmali.
    Yukseklikler buyutulurse barkod asagi tasar ve kirpilir. */
+.et-termal{--et-mw:.45mm}
 .et-termal .etiket .et-ad{height:7.4mm;padding:0 3mm;font-size:11.5pt}
 .et-termal .et-bilgi{padding:1.4mm 0 1.4mm 3mm;font-size:6.4pt}
 .et-termal .et-fiyat{padding:1.4mm 3mm 0 0;font-size:24pt}
@@ -121,6 +132,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .et-termal .et-barkod .barkod-svg{height:9.6mm}
 .et-termal .et-barkod figcaption{font-size:6.4pt;margin-top:.4mm}
 
+.et-orta{--et-mw:.3mm}
 .et-orta .etiket .et-ad{height:7mm;padding:0 2mm;font-size:9.5pt}
 .et-orta .et-bilgi{padding:1.6mm 0 1.6mm 2mm;font-size:6pt}
 .et-orta .et-fiyat{padding:1.6mm 2mm 0 0;font-size:19pt}
@@ -128,12 +140,40 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 .et-orta .et-barkod .barkod-svg{height:9mm}
 .et-orta .et-barkod figcaption{font-size:6pt;margin-top:.4mm}
 
+.et-buyuk{--et-mw:.45mm}
 .et-buyuk .etiket .et-ad{height:10mm;padding:0 3mm;font-size:13.5pt}
 .et-buyuk .et-bilgi{padding:2.4mm 0 2.4mm 3mm;font-size:8pt}
 .et-buyuk .et-fiyat{padding:2.4mm 3mm 0 0;font-size:28pt}
 .et-buyuk .et-barkod{padding:0 3mm 2.4mm}
 .et-buyuk .et-barkod .barkod-svg{height:13mm}
 .et-buyuk .et-barkod figcaption{font-size:8pt;margin-top:.6mm}
+
+/* ---------- sinama (olcu) etiketi ----------
+   Fotograftan "biraz kaymis" demek yerine kac milim kaydigini olcmek icin.
+   Butun isaretler KENARLIK ile ciziliyor, arka planla degil: tarayicinin
+   "arka plan grafikleri" kutusu kapaliyken de kagida ciksinlar. */
+.et-sinama{position:relative;border:.4mm solid #000;
+  font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif}
+.et-sinama-tik{position:absolute}
+.et-sinama-tik--ust{top:0;width:0;height:1.6mm;border-left:.2mm solid #000}
+.et-sinama-tik--sol{left:0;height:0;width:1.6mm;border-top:.2mm solid #000}
+.et-sinama-tik--on{height:3mm}
+.et-sinama-tik--on.et-sinama-tik--sol{width:3mm;height:0}
+.et-sinama-mm{position:absolute;font-size:5pt;line-height:1;
+  font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+.et-sinama-mm--ust{top:3.4mm;transform:translateX(-50%)}
+.et-sinama-mm--sol{left:3.4mm;transform:translateY(-50%)}
+.et-sinama-kose{position:absolute;font-size:5pt;font-weight:700;
+  letter-spacing:.06em;white-space:nowrap}
+.et-sinama-kose--sol-ust{left:.8mm;top:5.8mm}
+.et-sinama-kose--sag-ust{right:.8mm;top:5.8mm}
+.et-sinama-kose--sol-alt{left:.8mm;bottom:.8mm}
+.et-sinama-kose--sag-alt{right:.8mm;bottom:.8mm}
+.et-sinama-orta{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;gap:.8mm}
+.et-sinama-orta b{font-size:11pt;font-weight:800}
+.et-sinama-orta span{font-size:6pt;max-width:60%}
+.et-tek .et-sinama{margin:0 var(--b2) var(--b2) 0;box-shadow:var(--golge)}
 
 /* ---------- tek tek dizilis (ekranda) ---------- */
 .et-tek .et-kagit{background:transparent;box-shadow:none;width:auto;
@@ -160,11 +200,17 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
   /* Yarim milimlik pay: etiket sayfa boyuyla TAM esitse yazicinin yuvarlamasi
      yuzunden her etiketin ardina bos bir sayfa dusebiliyor, rulonun yarisi
      bosa gidiyor. */
-  .et-tek .etiket{display:grid;margin:0;box-shadow:none;outline:0;
+  .et-tek .etiket,.et-tek .et-sinama{margin:0;box-shadow:none;
     height:calc(var(--et-y) - .5mm);
+    /* Yazicinin kagidi kacirdigi kadar geri al. position:relative kaydirmasi
+       yerlesimi degistirmiyor, sadece boyanan yeri kaydiriyor: sayfa sonlari
+       oldugu yerde kaliyor. */
+    position:relative;left:var(--et-kx,0);top:var(--et-ky,0);
     break-after:page;page-break-after:always}
+  .et-tek .etiket{display:grid;outline:0}
   /* Son etiketten sonra bos bir sayfa cikmasin. */
-  .et-tek .etiket:last-child{break-after:auto;page-break-after:auto}
+  .et-tek .etiket:last-child,.et-tek .et-sinama:last-child{
+    break-after:auto;page-break-after:auto}
 {% endif %}
 }
 </style>
@@ -211,6 +257,18 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
     </div>
     {% endif %}
 
+    {% if duzen == 'tek' %}
+    <div class="et-alan">
+      <label for="et-kx">Sağa kaydır</label>
+      <input id="et-kx" type="number" name="kx" step="0.5" min="-20" max="20" value="{{ kay_x }}">
+    </div>
+
+    <div class="et-alan">
+      <label for="et-ky">Aşağı kaydır</label>
+      <input id="et-ky" type="number" name="ky" step="0.5" min="-20" max="20" value="{{ kay_y }}">
+    </div>
+    {% endif %}
+
     <div class="et-alan">
       <label for="et-ara">Ürün ara</label>
       <input id="et-ara" type="search" name="q" value="{{ arama }}" placeholder="ad ya da barkod">
@@ -224,19 +282,25 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
       <input type="hidden" name="kesim" value="0">
       <input type="checkbox" name="kesim" value="1" {% if kesim %}checked{% endif %}> Kesim çizgisi
     </label>
+    <label class="et-kutu">
+      <input type="hidden" name="sinama" value="0">
+      <input type="checkbox" name="sinama" value="1" {% if sinama %}checked{% endif %}> Ölçü baskısı
+    </label>
 
     <button class="et-dugme et-dugme--sade" type="submit">Uygula</button>
     <button class="et-dugme et-dugme--asil" type="button" onclick="window.print()">Yazdır</button>
 
     <p class="et-ozet">
-      <b>{{ urun_sayisi }}</b> ürün · <b>{{ etiketler|length }}</b> etiket<br>
+      {% if sinama %}<b>Ölçü baskısı açık</b><br>tek bir cetvelli etiket çıkar
+      {% else %}<b>{{ urun_sayisi }}</b> ürün · <b>{{ etiketler|length }}</b> etiket<br>
       {% if duzen == 'tek' %}her etiket ayrı sayfa · kağıt {{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm
       {% else %}sayfa başına {{ sayfada }} adet{% endif %}
+      {% if barkod_ozeti %}<br>{% for tur, adet in barkod_ozeti %}{{ tur }}: {{ adet }}{% if not forloop.last %} · {% endif %}{% endfor %}{% endif %}{% endif %}
     </p>
   </div>
 </form>
 
-{% if not etiketler %}
+{% if not etiketler and not sinama %}
   <div class="et-bos">
     <h2>Etiket basılacak ürün seçilmedi</h2>
     <p>Yönetim panelinde <b>Stok ürünleri</b> listesinden ürünleri işaretleyip
@@ -247,8 +311,33 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
 <div class="et-sarmal et-{{ duzen }}">
 <div class="et-kagit et-{{ olcu_anahtari }}{% if olcu.dar %} et-dar{% endif %}{% if kesim %} et-kesimli{% endif %}{% if serit %} et-seritli{% else %} et-cizgili{% endif %}"
-     style="--et-g:{{ olcu.genislik|stringformat:'g' }}mm;--et-y:{{ olcu.yukseklik|stringformat:'g' }}mm">
+     style="--et-g:{{ olcu.genislik|stringformat:'g' }}mm;--et-y:{{ olcu.yukseklik|stringformat:'g' }}mm;--et-kx:{{ kay_x }}mm;--et-ky:{{ kay_y }}mm">
   <div class="et-dizi">
+    {% if sinama %}
+      {% comment %}
+      Olcu etiketi: cercevenin dort kenari da kagida ciktiysa boy dogru,
+      cikmadiysa cetvelden kac milim kaybedildigi sayilabiliyor.
+      {% endcomment %}
+      <div class="et-sinama">
+        {% for mm in cetvel_x %}
+          <i class="et-sinama-tik et-sinama-tik--ust{% if mm|divisibleby:10 %} et-sinama-tik--on{% endif %}" style="left:{{ mm }}mm"></i>
+          {% if mm and mm|divisibleby:10 %}<span class="et-sinama-mm et-sinama-mm--ust" style="left:{{ mm }}mm">{{ mm }}</span>{% endif %}
+        {% endfor %}
+        {% for mm in cetvel_y %}
+          <i class="et-sinama-tik et-sinama-tik--sol{% if mm|divisibleby:10 %} et-sinama-tik--on{% endif %}" style="top:{{ mm }}mm"></i>
+          {% if mm and mm|divisibleby:10 %}<span class="et-sinama-mm et-sinama-mm--sol" style="top:{{ mm }}mm">{{ mm }}</span>{% endif %}
+        {% endfor %}
+        <span class="et-sinama-kose et-sinama-kose--sol-ust">SOL ÜST</span>
+        <span class="et-sinama-kose et-sinama-kose--sag-ust">SAĞ ÜST</span>
+        <span class="et-sinama-kose et-sinama-kose--sol-alt">SOL ALT</span>
+        <span class="et-sinama-kose et-sinama-kose--sag-alt">SAĞ ALT</span>
+        <div class="et-sinama-orta">
+          <b>{{ olcu.genislik|stringformat:'g' }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
+          <span>Dört kenardaki çerçeve de görünüyorsa ölçü doğru. Görünmüyorsa
+            cetvelden kaç mm eksik olduğunu okuyup “kaydır” alanlarına yazın.</span>
+        </div>
+      </div>
+    {% else %}
     {% for bos in bos_yerler %}<div class="etiket-bos"></div>{% endfor %}
 
     {% for veri in etiketler %}
@@ -264,7 +353,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
         <p class="et-fiyat">{{ veri.urun.Tutar|default:0|floatformat:2 }} ₺</p>
 
-        <figure class="et-barkod">
+        <figure class="et-barkod" style="--barkod-modul:{{ veri.barkod_modul }}">
           {% if veri.barkod_svg %}
             {{ veri.barkod_svg }}
             <figcaption>{{ veri.barkod_metin }}</figcaption>
@@ -274,6 +363,7 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
         </figure>
       </article>
     {% endfor %}
+    {% endif %}
   </div>
 </div>
 </div>

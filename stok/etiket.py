@@ -10,6 +10,9 @@ Secim iki yoldan gelir:
   * dogrudan baglanti -> ?ids=12,13  ya da  ?q=defter
 """
 
+import math
+from collections import Counter
+
 from .barkod import barkod_ciz
 from .models import Stok
 
@@ -59,6 +62,14 @@ VARSAYILAN_DUZEN = "tek"
 EN_COK_URUN = 600      # tek seferde basilacak urun sayisi
 EN_COK_KOPYA = 50      # urun basina kopya
 
+# Termal yazicilar etiketi her zaman ayni noktadan baslatmiyor (bosluk sensoru
+# kalibrasyonu, rulonun gerginligi). Kullanici basilan seyi milim milim
+# kaydirabilsin diye; 20 mm'den fazlasi zaten baska bir arizadir.
+EN_COK_KAYDIRMA = 20.0
+
+# Sinama etiketindeki cetvel araligi.
+CETVEL_ARALIGI = 5
+
 
 def _sayi(deger, varsayilan, en_az, en_cok):
     try:
@@ -66,6 +77,22 @@ def _sayi(deger, varsayilan, en_az, en_cok):
     except (TypeError, ValueError):
         return varsayilan
     return max(en_az, min(en_cok, sonuc))
+
+
+def _ondalik(deger, varsayilan, en_az, en_cok):
+    """Milim cinsinden kaydirma. Virgullu yazilirsa da kabul edilir."""
+    try:
+        sonuc = float(str(deger).replace(",", "."))
+    except (TypeError, ValueError):
+        return varsayilan
+    if not math.isfinite(sonuc):
+        return varsayilan
+    return max(en_az, min(en_cok, round(sonuc, 2)))
+
+
+def _cetvel(uzunluk):
+    """Sinama etiketindeki cetvel isaretleri: 0'dan kenara kadar 5 mm'de bir."""
+    return list(range(0, int(uzunluk) + 1, CETVEL_ARALIGI))
 
 
 def secilen_urunler(istek):
@@ -96,6 +123,9 @@ def etiket_verisi(urun):
         "barkod_svg": cizim.svg if cizim else "",
         "barkod_metin": cizim.metin if cizim else str(urun.Barkod),
         "barkod_turu": cizim.tur if cizim else "",
+        # Modul sayisi: barkodun genisligi bundan hesaplaniyor, boylece her
+        # modul ayni milim genisliginde ciziliyor (bkz. --et-mw).
+        "barkod_modul": cizim.genislik if cizim else 0,
         # F.D.T. once fiyat tarihinden, o hic yazilmamissa son guncellemeden.
         "fiyat_tarihi": urun.fiyat_tarihi or (
             urun.guncelleme_tarihi.date() if urun.guncelleme_tarihi else None
@@ -120,12 +150,19 @@ def sayfa_baglami(istek):
     # sayfasi tekrar kullanilsin diye. Tek tek basarken diye bir sey yok.
     atla = 0 if duzen == "tek" else _sayi(istek.GET.get("atla"), 0, 0, sayfada - 1)
 
+    # Sinama baskisi: urun etiketi yerine tek bir olcu etiketi cikar. Barkod
+    # cizmeye gerek yok, 600 urun secili olsa bile bos yere ugrasmasin.
+    sinama = istek.GET.get("sinama") == "1"
+
     urunler = secilen_urunler(istek)
     etiketler = []
-    for urun in urunler:
-        veri = etiket_verisi(urun)
-        # Ayni cizim kopya sayisi kadar tekrarlanir; barkod bir kez uretilir.
-        etiketler.extend([veri] * kopya)
+    turler = Counter()
+    if not sinama:
+        for urun in urunler:
+            veri = etiket_verisi(urun)
+            turler[veri["barkod_turu"] or "Barkodsuz"] += 1
+            # Ayni cizim kopya sayisi kadar tekrarlanir; barkod bir kez uretilir.
+            etiketler.extend([veri] * kopya)
 
     return {
         "etiketler": etiketler,
@@ -144,6 +181,20 @@ def sayfa_baglami(istek):
         "serit": istek.GET.get("serit", "0") != "0",
         # Rulo etiketi zaten kesilmis geliyor; kesim cizgisi sadece A4'te lazim.
         "kesim": istek.GET.get("kesim", "0" if duzen == "tek" else "1") != "0",
+        # Yazicinin kagidi kacirdigi durumda baskiyi elle kaydirmak icin.
+        # CSS'e basildigi icin "%g": Turkce yerellestirmede {{ 1.5 }} "1,5"
+        # yazilir, o da gecersiz bir CSS uzunlugu olur.
+        "kay_x": "%g" % _ondalik(istek.GET.get("kx"), 0.0,
+                                 -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
+        "kay_y": "%g" % _ondalik(istek.GET.get("ky"), 0.0,
+                                 -EN_COK_KAYDIRMA, EN_COK_KAYDIRMA),
+        "sinama": sinama,
+        # Hangi simgelemeden kac tane cikacak. Ekranda gorunur, kagida
+        # basilmaz: kontrol hanesi tutmayan barkodlar Code 128'e dustugu icin
+        # "hepsi Code 128" ciktisi barkod verisinde bir sorun oldugunu soyler.
+        "barkod_ozeti": turler.most_common(),
+        "cetvel_x": _cetvel(olcu["genislik"]),
+        "cetvel_y": _cetvel(olcu["yukseklik"]),
         "arama": (istek.GET.get("q") or "").strip(),
         "ids": (istek.GET.get("ids") or "").strip(),
         "en_cok_urun": EN_COK_URUN,

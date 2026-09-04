@@ -82,6 +82,9 @@ python3 manage.py makemigrations --dry-run -v 2
    **95 × 39 mm** özel kâğıt tanımlı olmalı, yazdırma penceresinde ölçek **%100**
    ve "sayfaya sığdır" kapalı. Sayfa `@page` ile boyu kendisi bildiriyor ama
    sürücüde o boy yoksa Chrome A4'e düşürüp etiketi küçültür.
+   Doğrulaması: `/etiket/` → **"Ölçü baskısı"** kutusunu işaretle → Yazdır.
+   Cetvelli tek bir etiket çıkar; dört kenardaki çerçeve de kâğıda çıktıysa
+   boy doğrudur.
 
 ### Ters giderse
 ```bash
@@ -147,7 +150,7 @@ Yerel veritabanını repoya koyma. Yüklenen görseller `media/` altına düşer
 
 ### Test
 ```bash
-python3 manage.py test stok kahve     # 241 test (112 stok + 129 kahve)
+python3 manage.py test stok kahve     # 249 test (120 stok + 129 kahve)
 cd mobilapp && flutter analyze && flutter test    # 4 test
 ```
 
@@ -293,6 +296,8 @@ kurtarıyor.
 | Baştan boş bırak | Sadece A4'te; kullanılmış etiket kâğıdını atlar |
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
+| **Ölçü baskısı** | Ürün yerine cetvelli tek bir sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
+| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı ±20 mm kaydırır. Yazıcının kâğıdı kaçırdığı kadar geri alır |
 
 **Barkod `stok/barkod.py`'de sıfırdan çiziliyor** — `python-barcode` kurulmadı,
 proje kuralı yeni bağımlılık eklememek. Seçim şöyle:
@@ -307,6 +312,29 @@ proje kuralı yeni bağımlılık eklememek. Seçim şöyle:
 > barkodu hiç okumaz; hata ancak etiketler basılıp rafa asıldıktan sonra fark
 > edilir. Code 128 sayının kendisini olduğu gibi taşıyor, yani okutulduğunda
 > etiketteki rakamların aynısı çıkıyor.
+
+**Barkodun kâğıda basılması ayrı bir iş.** Termal kafa 203 dpi ve **tek bit**:
+gri diye bir şey yok, kenar yumuşatmadan gelen her gri piksel ya siyaha ya
+beyaza yuvarlanıyor ve çubuk genişlikleri rastgele kayıyor — okuyucu böyle bir
+barkodu okumuyor. İki önlem var:
+- SVG'de **`shape-rendering="crispEdges"`** (`stok/barkod.py`): her modül tam
+  piksele oturuyor.
+- Barkodun genişliği **modül sayısından** hesaplanıyor
+  (`width: min(100%, modül × --et-mw)`), sütuna esnetilmiyor. Sığmayacak kadar
+  uzun bir Code 128'de %100'e düşüyor — dar çıkması hiç çıkmamasından iyi.
+  `--et-mw` ölçü başına ayarlı: 95 × 39 mm'de `.45mm`, yani EAN-13 sütunu
+  neredeyse dolduruyor.
+
+> **Tuzak:** tarayıcının yazdırma penceresindeki **"arka plan grafikleri"
+> kutusu varsayılan olarak KAPALI**. `background` ile çizilen hiçbir şey
+> kâğıda çıkmıyor — siyah şerit dahil. Etikette bütün çizgiler bu yüzden
+> `border` ile çiziliyor, barkod da SVG dolgusuyla (ikisi de arka plan
+> sayılmıyor). Şeridi isteyenler için `print-color-adjust: exact` var ama
+> ona güvenmeyin.
+
+Araç çubuğunda **hangi simgelemeden kaç etiket çıkacağı** yazıyor (ekranda,
+kâğıda basılmaz). Hepsi "Code 128" görünüyorsa barkod verisinde sorun var
+demektir: kontrol hanesi tutmayan 13 haneli sayı EAN-13 olarak çizilmiyor.
 
 `stok/tests.py` EAN kod tablolarını **yapısal bağıntıyla** kilitliyor
 (`SAG = SOL_TEK`'in tersi, `SOL_CIFT = SAG`'ın ters çevrilmişi); tabloya elle
@@ -328,6 +356,21 @@ dokunulup bir hane yanlış yazılırsa oradan yakalanır.
 
 Etiketin CSS'i **şablonun içinde** (`templates/system/user/etiket.html`), ayrı bir
 static dosyada değil: `collectstatic` unutulursa basılan etiket bozulmasın.
+
+##### Etiket kayarak ya da eksik çıkıyorsa
+Ekranda doğru görünüp kâğıda yanlış çıkması **her zaman** yazıcı/sürücü tarafı
+değil; önce hangisi olduğunu ölçün, tahmin etmeyin:
+
+1. `/etiket/` → **"Ölçü baskısı"** işaretle → Yazdır. Cetvelli tek bir etiket çıkar.
+2. **Dört kenardaki çerçeve de görünüyorsa** boy doğru, sorun yazıcıda değil.
+3. Bir kenar eksikse cetvelden **kaç mm** eksik olduğunu okuyun ve o kadarını
+   **"sağa kaydır" / "aşağı kaydır"** alanlarına yazın (eksi değer de kabul).
+   Kaydırma `position: relative` ile yapılıyor: sadece boyanan yer kayıyor,
+   sayfa sonları olduğu yerde kalıyor.
+4. Kaydırma 3-4 mm'yi geçiyorsa asıl iş sürücüde: XP-470B'de kâğıt boyu
+   **95 × 39 mm** tanımlı mı, yazdırma penceresinde ölçek **%100** ve
+   "sayfaya sığdır" kapalı mı, etiket boşluk sensörü kalibre edilmiş mi
+   (yazıcının besleme düğmesiyle).
 
 #### `Stok`'a eklenen etiket alanları
 | Alan | Ne |
@@ -659,6 +702,22 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-04 (ikinci oturum)
+- **Ölçü baskısı** — kâğıda çıkanı ölçmenin yolu yoktu, "sanki kaymış" ile
+  uğraşılıyordu. Araç çubuğundaki kutu artık cetvelli tek bir sınama etiketi
+  basıyor: çerçevenin hangi kenarı eksik, kaç mm eksik, doğrudan okunuyor.
+- **Sağa / aşağı kaydırma** — yazıcının kaçırdığı kadarı ±20 mm elle geri
+  alınabiliyor. `position: relative` ile: sayfa sonları yerinde kalıyor.
+- **Barkod termal kafaya göre çiziliyor** — SVG'ye `shape-rendering="crispEdges"`
+  eklendi (203 dpi tek bit kafada kenar yumuşatma çubuk genişliklerini
+  kaydırıyor, okuyucu barkodu okumuyordu) ve genişlik sütuna esnetilmek yerine
+  modül sayısından hesaplanıyor.
+- **Barkod türü sayacı** — araç çubuğunda kaç EAN-13, kaç Code 128 çıkacağı
+  yazıyor. Hepsi Code 128 ise ürünlerin barkod hanesinde sorun var demektir.
+- **"Arka plan grafikleri" tuzağı yazıldı** — tarayıcı o kutu kapalıyken
+  `background` ile çizilen hiçbir şeyi basmıyor; etiketteki bütün çizgiler
+  bu yüzden `border`.
 
 ### 2026-09-04
 - **Raf etiketi `/etiket/`** — devlet barkodlu fiyat etiketi istiyor. Admin'de

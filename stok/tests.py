@@ -1328,6 +1328,18 @@ class EtiketOlcuBaskisiTesti(TestCase):
         self.assertIn("--et-g:82mm", govde)
         self.assertIn("--et-kx:0mm", govde)
 
+    def test_termal_tasarimda_icerik_kenardan_iceride(self):
+        """2026-09-05'te basilan etikette sayfanin ilk ~4,8 mm'si dumduz
+        kirpilmisti ("KDV Dahildir." -> "DV Dahildir.", adin altindaki cizgi de
+        ayni hizada kesik), sag ucta "60,00 TL" ve barkod etiket kenarinda
+        kalmisti. Icerik etiket kutusunun kenarina degil, soldan 6 / sagdan
+        5 mm iceriye kurulu olmali -- kaydirmayla (kx) degil, padding'le:
+        kaydirma sag ucu da etiketin disina iter."""
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn(".et-termal .etiket{padding:0 5mm 0 6mm}", govde)
+        self.assertIn("--et-kx:0mm", govde)
+
     def test_tasarim_boyu_kagittan_uzun_olamaz(self):
         """Kagidi asan tasarimin fazlasi zaten basilmaz; sinira otursun."""
         govde = self._govde(ids=str(self.urun.pk), boy="300")
@@ -1350,17 +1362,36 @@ class EtiketOlcuBaskisiTesti(TestCase):
 
         self.assertIn("--et-kx:0mm", govde)
 
-    def test_ayarlar_oturumda_hatirlaniyor(self):
+    def test_olcu_duzen_serit_oturumda_hatirlaniyor(self):
         """Admin eylemi /etiket/'e parametresiz yonlendiriyor; bir kere kurulan
-        ayar her baskida gecerli olmali."""
-        self._govde(ids=str(self.urun.pk), kx="6.5", boy="60", boyut="orta", serit="1")
+        olcu ve serit her baskida gecerli olmali."""
+        self._govde(ids=str(self.urun.pk), boyut="orta", serit="1")
 
         govde = self._govde(ids=str(self.urun.pk))
 
-        self.assertIn("--et-kx:6.5mm", govde)
-        self.assertIn("--et-g:60mm", govde)
         self.assertIn('et-orta', govde)
         self.assertIn('et-seritli"', govde)
+
+    def test_kaydirma_ve_boy_oturumda_hatirlanmaz(self):
+        """Oturumda saklanan kx=-8 bir kere sessizce takilip her baskiyi
+        kirpti. Etiketi basan kisi hicbir seyi elle degistirmiyor; bu dort
+        deger sadece URL'den okunur, bir sonraki baskiya tasinmaz."""
+        self._govde(ids=str(self.urun.pk), kx="6.5", ky="2", boy="60", kagit="90")
+
+        govde = self._govde(ids=str(self.urun.pk))
+
+        self.assertIn("--et-g:82mm", govde)
+        self.assertIn("--et-kx:0mm;--et-ky:0mm", govde)
+        self.assertIn("size:95mm 39mm", govde)
+        self.assertNotIn("Varsayılana dön", govde)
+
+    def test_arac_cubugunda_elle_ayar_kutusu_yok(self):
+        """Kagit boyu / tasarim boyu / kaydirma kutulari kaldirildi: dogru
+        degerler koda gomulu, kullanici ugrasmasin."""
+        govde = self._govde(ids=str(self.urun.pk))
+
+        for ad in ("kagit", "boy", "kx", "ky"):
+            self.assertNotIn(f'name="{ad}"', govde)
 
     def test_negatif_kaydirma_sifira_oturur(self):
         """Sola kaydirilan tasarimin sayfa disinda kalan kismini yazici hic

@@ -299,15 +299,15 @@ kurtarıyor.
 | Siyah şerit | **Varsayılan kapalı** — ad beyaz zeminde çıkar; termal kafa boş yere yanmaz, baskı hızlanır. Açılırsa isim siyah şeride oturur |
 | Kesim çizgisi | Sadece A4'te anlamlı; tek tek düzende varsayılan kapalı |
 | **Ölçü baskısı** | Ürün yerine cetvelli, 1-2-3 numaralı üç sınama etiketi basar — bkz. aşağıdaki "kayarak çıkıyorsa" |
-| **Kâğıt boyu** | Sadece tek tek düzende. `@page`'e yazılan boy. **Windows sürücüsündeki özel kâğıtla AYNI olmalı** — tutmazsa yazıcı her etikette kayar |
-| **Tasarım boyu** | Sadece tek tek düzende. Kâğıttan kısa olabilir. **Dükkândaki yazıcı için varsayılan 82 mm** — aşağıya bak |
-| **Sağa / aşağı kaydır** | Sadece tek tek düzende; baskıyı **0…20 mm** kaydırır. **Negatif olamaz** — bkz. aşağıdaki kutu |
+| ~~Kâğıt boyu · Tasarım boyu · Sağa / aşağı kaydır~~ | **2026-09-05'te araç çubuğundan kaldırıldı.** Kullanıcı kararı: *"elle değiştirmesin kullanıcı, sadece senin yaptığın datalar olsun"*. Doğru değerler `OLCULER["termal"]`'e gömülü (kâğıt 95, tasarım 82, kaydırma 0). Aynı adlı URL parametreleri (`?kagit=&boy=&kx=&ky=`) tanı için duruyor ama **oturumda hatırlanmıyor** |
 
-**Ayarlar oturumda hatırlanıyor** (`AYAR_ANAHTARI`). Ölçü, düzen, kaydırma,
-şerit ve kesim bir kere kurulunca admin'den gelen her baskı öyle çıkar; admin
-eylemi `/etiket/`'e parametresiz yönlendirdiği için bu şart. **Kopya sayısı ve
+**Ayarlar oturumda hatırlanıyor** (`AYAR_ANAHTARI`). Ölçü, düzen, şerit ve
+kesim bir kere kurulunca admin'den gelen her baskı öyle çıkar; admin eylemi
+`/etiket/`'e parametresiz yönlendirdiği için bu şart. **Kopya sayısı ve
 "baştan boş bırak" bilerek hatırlanmıyor** — işe özeller, hatırlanırsa bir
-dahaki sefere sessizce 10 kopya basar.
+dahaki sefere sessizce 10 kopya basar. **Kâğıt/tasarım boyu ve kaydırma da
+hatırlanmıyor** (2026-09-05): oturumda takılı kalan bir `kx=-8` her baskıyı
+kırpmıştı; hatırlanmayan ayar takılamaz.
 
 Listedeki tek ürünlük **"yazdır"** bağlantısı `?bas=1` ile açılıyor: sayfa
 yüklenince yazdırma penceresini kendisi açar. Kasadaki kişi sayfayla uğraşmaz.
@@ -428,8 +428,33 @@ kesim deliğine düşer.
 
 > **Modül genişliği `--et-mw: .375mm`** — 203 dpi kafada tam **3 nokta**.
 > 0,45 mm 3,6 nokta ediyordu, yuvarlama çubukları bir kalın bir ince basıyor.
-> 113 × 0,375 = 42,4 mm; 82 mm'lik tasarımda barkod sütunu 43,2 mm, yani barkod
-> hâlâ sütuna esnetilmeden sığıyor.
+> 113 × 0,375 = 42,4 mm (EAN-13, sessiz bölgelerle); barkod sütunu 42,6 mm,
+> yani barkod hâlâ sütuna esnetilmeden sığıyor.
+
+##### Güvenli alan — içerik kutunun kenarında değil, 6 / 5 mm içeride (2026-09-05)
+
+Basılmış etikette dört bilgi satırının ilk harfi ve adın altındaki çizgi
+**aynı dikey hizada, dümdüz** kesikti ("KDV" → "DV", "Birim" → "irim",
+"F.D.T" → ".D.T"); sağ uçta "60,00 ₺"nin işareti ve barkodun sağı etiketin
+fiziksel kenarında kalmıştı. İki ayrı şey:
+
+1. **Yazıcı sayfanın ilk ~4,8 mm'sini hiç basmıyor** (3/16 inç — sürücünün
+   "basılamayan alan" şeridi; kesik çizgi gibi düz olması bundan). Kaydırma
+   −8 değildi; o düzeltme (`c2b126e`) zaten push edilmemişti.
+2. **Tasarımın sonu etiketin kenarından taşıyor** — yazıcı sayfayı ~20 mm
+   ileriden başlattığı için 82 mm'nin son 2–3 mm'si kesim çentiğine düşüyor.
+
+Çözüm `.et-termal .etiket{padding:0 5mm 0 6mm}`: içerik soldan 6, sağdan 5 mm
+içeride, kırpılan şerit tasarımın boş kısmına denk geliyor. **Kaydırmayla
+(kx) değil padding'le** — kaydırma sağ ucu da etiketin dışına iter. İçerik
+genişliği 71 mm; sütunlar %40/%60 → bilgi 28,4 mm (F.D.T. 7,2 pt ile 25,9 mm
+sığıyor), barkod 42,6 mm. Headless Chrome'da 203 dpi'a basılıp ölçüldü:
+mürekkep yatayda **6,1–76,8 mm**, tek sayfa, ölçü baskısı üç sayfa.
+
+> **Tuzak:** baskıyı `file://` ile açılmış kopyadan sınarken `atlas.css`
+> yüklenmezse gövdenin 8 px kenar boşluğu sıfırlanmıyor; her şey 2,1 mm
+> kayıyor, etiket sayfaya sığmayıp arkasına boş sayfa düşüyor. Gerçek
+> siteyle ilgisi yok — CSS'i yanına kopyalayıp öyle sına.
 
 ##### Etiketin başındaki boşluk — sebebi sürücüdeki kâğıt boyu
 
@@ -457,8 +482,18 @@ başlıyor. Ölçülen 8 / 19 / 20 mm bu birikmenin farklı anlarıdır.
 **Doğrulaması `/etiket/` → "Ölçü baskısı":** cetvelli, 1-2-3 numaralı üç etiket
 basar. **Üçü de aynı yerden başlıyorsa** birikme yok. Her biri bir öncekinden
 biraz daha ileride başlıyorsa kâğıt boyu etiketten kısa; aralarda boş etiket
-kalıyorsa uzun. Çerçevenin eksik kenarı varsa cetvelden kaç mm olduğu okunup
-"kaydır" alanlarına yazılır (sadece ileri yönde).
+kalıyorsa uzun. Çerçevenin eksik kenarı varsa cetvelden kaç mm olduğu okunur
+(kaydırma artık sadece `?kx=` ile, koda gömmek için).
+
+> **Kullanıcı kararı (2026-09-05): operatöre elle ayar yaptırılmayacak.**
+> *"Elle değiştirmesin kullanıcı, sadece senin yaptığın datalar olsun."*
+> Araç çubuğundaki kâğıt/tasarım/kaydırma kutuları ve sürücü kılavuzu bu
+> yüzden kaldırıldı. Sonuç: **baştaki ~2 cm boşluk kalıyor** — bunu ne CSS,
+> ne PDF, ne resim kapatır; sayfa yazıcının başladığı yerde başlıyor. Tasarım
+> o boşluğun ardındaki alana kurulu, hiçbir şey kırpılmıyor. Boşluk bir gün
+> kapatılmak istenirse tek yol yazıcı tarafı (sürücüde kâğıt 103 × 39, gap
+> kalibrasyonu, backfeed) ve ardından `OLCULER["termal"]`'de `genislik`/`basim`
+> değişikliği — yani yine kod, kutu değil. Bir daha ölçüp `basim` oynama.
 
 #### `Stok`'a eklenen etiket alanları
 | Alan | Ne |
@@ -828,6 +863,24 @@ bozuluyor). Buna karşılık **kullanıcının gördüğü her metinde tam Türk
 ## Değişiklik günlüğü
 
 > Her oturumda buraya ekle. Yeni kayıt en üste.
+
+### 2026-09-05 (yedinci oturum)
+- **Etiketin solu hâlâ kesik çıkıyordu — bu kez sebep kaydırma değil,
+  yazıcının basamadığı şerit.** Fotoğrafta dört satırın ilk harfi ve adın
+  altındaki çizgi aynı dikey hizada dümdüz kesik: sayfanın ilk ~4,8 mm'si
+  (3/16 inç) hiç basılmıyor; sağda "₺" ve barkodun ucu etiket kenarında.
+  Termal tasarımda içerik artık **soldan 6 / sağdan 5 mm içeride**
+  (`padding`, kaydırma değil); sütunlar ve F.D.T. puntosu buna göre.
+  Headless Chrome'la 203 dpi'da basılıp ölçüldü: mürekkep 6,1–76,8 mm.
+- **Elle ayar kutuları kaldırıldı** — kullanıcı: "elle değiştirmesin,
+  sadece senin yaptığın datalar olsun". Kâğıt boyu, tasarım boyu ve
+  kaydırma araç çubuğunda yok; URL'den okunuyor ama **oturumda
+  hatırlanmıyor**. Sürücü kurulum kılavuzu da sayfaya konmadı.
+- **Önceki oturumun düzeltmesi hiç push edilmemişti** (`c2b126e`, origin'in
+  1 commit ilerisi). Sunucu hâlâ o düzeltmeden önceki koddaydı.
+- Baştaki ~2 cm boşluk kodla kapatılamaz; sebebi ve tek çözümü (yazıcı
+  tarafı) "Etiketin başındaki boşluk" bölümünde. Kullanıcı elle ayar
+  istemediği için boşluk bilerek bırakıldı, tasarım onun ardına kurulu.
 
 ### 2026-09-04 (altıncı oturum)
 - **Etiketin solu kesik çıkıyordu: `kx = -8` oturumda takılı kalmıştı.**

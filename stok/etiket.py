@@ -23,7 +23,13 @@ AYAR_ANAHTARI = "etiket_ayarlari"
 # parametresiz yonlendiriyor, oradan gelen her baski en son kullanilan ayarla
 # ciksin. Kopya sayisi ve "bastan bos birak" bilerek DISARIDA: ise ozeller,
 # hatirlanirsa bir dahaki sefere sessizce 10 kopya basar.
-HATIRLANAN_AYARLAR = ("boyut", "duzen", "kagit", "boy", "kx", "ky", "serit", "kesim")
+#
+# Kagit boyu, tasarim boyu ve kaydirma (kagit, boy, kx, ky) da DISARIDA
+# (2026-09-05): etiketi basan kisi hicbir seyi elle degistirmesin, dogru
+# degerler OLCULER'e gomulu. Oturumda saklanan bir kx=-8 bir kere sessizce
+# takilip her baskiyi kirpti; hatirlanmayan ayar takilamaz. Parametreler
+# URL'den hala okunuyor (tani icin: ?sinama=1&kx=5), araç çubuğunda yok.
+HATIRLANAN_AYARLAR = ("boyut", "duzen", "serit", "kesim")
 
 # A4'un basilabilir alani 6 mm kenar bosluguyla 198 x 285 mm. Olculer o alana
 # tam sigacak sekilde secildi; satir sayisi asagi yuvarlandi ki son satir
@@ -38,10 +44,16 @@ OLCULER = {
         "dar": False,
         # Tasarim kagidin tamamini kullanmiyor: dukkandaki yazici sayfayi
         # etiketin basindan ~20 mm ILERIDE basliyor, etiketin kendisi de
-        # 95 degil ~102 mm. Ikisi birlikte, etikette kullanilabilir yer
+        # 95 degil ~102,8 mm. Ikisi birlikte, etikette kullanilabilir yer
         # 82 mm. Olcu 2026-09-04'te basilmis gercek bir etiketten alindi:
         # barkodun kagit uzerindeki genisligi bilindigi icin (95 modul x
         # 0,45 mm = 42,75 mm) fotograftan milim okunabiliyor.
+        #
+        # Bu 82 mm'nin icinde icerik soldan 6, sagdan 5 mm iceride duruyor
+        # (etiket.html, "GUVENLI ALAN"): yazici sayfanin ilk ~4,8 mm'sini
+        # dumduz kirpiyor, sonu da etiketin fiziksel kenarindan tasiyor.
+        # Bastaki ~20 mm bosluk ise yazicinin isi baslattigi yer -- CSS,
+        # PDF ya da resim, hicbir cikti bunu degistiremez; surucu ayari.
         "basim": 82.0,
         # Kaydirma SIFIR ve artik negatif olamiyor -- bkz. EN_AZ_KAYDIRMA.
         "kaydirma_x": 0.0, "kaydirma_y": 0.0,
@@ -96,9 +108,8 @@ EN_AZ_KAYDIRMA = 0.0
 
 # Kagit boyu. Tarayicinin @page'e yazdigi olcu, Windows surucusundeki ozel
 # kagitla AYNI olmali; tutmazsa yazici sayfayi etiketin ortasindan baslatiyor
-# ya da olcekleyip kucultuyor. Varsayilan olcuden gelir, elle degistirilebilir:
-# surucudeki kagit gercek etiket boyuna cekilince ("solu bos kaliyor" sorununun
-# tek gercek carsi) buradaki sayi da onunla ayni yapilir.
+# ya da olcekleyip kucultuyor. Olcuden gelir; URL'den (?kagit=) sadece tani
+# icin degistirilir, arac cubugunda kutusu yok.
 EN_AZ_KAGIT = 20.0
 EN_COK_KAGIT = 200.0
 
@@ -220,9 +231,10 @@ def sayfa_baglami(istek):
     # Kagit ve tasarim boyu sadece tek tek dizilişte anlamli: A4'te etiketler
     # zaten kesilmis, ikisi de kagidin kendisi.
     if duzen == "tek":
-        kagit = _ondalik(ayar.get("kagit"), olcu["genislik"], EN_AZ_KAGIT, EN_COK_KAGIT)
+        # Dordu de sadece URL'den: oturumda hatirlanmiyor (HATIRLANAN_AYARLAR).
+        kagit = _ondalik(istek.GET.get("kagit"), olcu["genislik"], EN_AZ_KAGIT, EN_COK_KAGIT)
         varsayilan_boy = min(olcu.get("basim", kagit), kagit)
-        basim = _ondalik(ayar.get("boy"), varsayilan_boy, EN_AZ_BASIM, kagit)
+        basim = _ondalik(istek.GET.get("boy"), varsayilan_boy, EN_AZ_BASIM, kagit)
     else:
         kagit = varsayilan_boy = basim = olcu["genislik"]
 
@@ -248,9 +260,9 @@ def sayfa_baglami(istek):
 
     # Negatif kaydirma yok: EN_AZ_KAYDIRMA'daki gerekceye bak. Eski oturumda
     # saklanan -8 de buraya, yani 0'a oturuyor.
-    kay_x = _ondalik(ayar.get("kx"), olcu.get("kaydirma_x", 0.0),
+    kay_x = _ondalik(istek.GET.get("kx"), olcu.get("kaydirma_x", 0.0),
                      EN_AZ_KAYDIRMA, EN_COK_KAYDIRMA)
-    kay_y = _ondalik(ayar.get("ky"), olcu.get("kaydirma_y", 0.0),
+    kay_y = _ondalik(istek.GET.get("ky"), olcu.get("kaydirma_y", 0.0),
                      EN_AZ_KAYDIRMA, EN_COK_KAYDIRMA)
 
     sapmalar = []

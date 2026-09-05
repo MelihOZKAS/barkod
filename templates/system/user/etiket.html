@@ -143,20 +143,36 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
      barkod 11,4 + rakamlar 2,8 + 2,1 = 16,3
    toplam 36,3 mm; kalan 2,2 mm fiyat satirina pay olarak kaliyor.
    Yukseklikler bundan fazla buyutulurse barkod asagi tasar ve kirpilir.
-   Genislik: bilgi sutunu 32,8 - 3 = 29,8 mm; en uzun satir "F.D.T:
-   03.09.2026" JetBrains Mono ile 17 x 0,6 em = 27,4 mm, sigiyor.
-   Modul genisligi 0,375 mm = 203 dpi kafada TAM 3 nokta. Kusuratli bir
-   modul (0,45 mm = 3,6 nokta) yuvarlanirken cubuklari bir kalin bir ince
-   basiyor. 113 modul x 0,375 = 42,4 mm; 82 mm'lik tasarimda barkod sutunu
-   43,2 mm, yani barkod hala sutuna esnetilmeden sigiyor. */
+
+   GUVENLI ALAN (2026-09-05): dukkandaki yazici sayfanin ilk ~4,8 mm'sini
+   (3/16 inc; surucunun "basilamayan alan" seridi) DUMDUZ kirpiyor,
+   tasarimin sonu da etiketin fiziksel kenarindan tasiyor. Basilmis
+   etikette dort bilgi satirinin ilk harfi ve adin altindaki cizgi ayni
+   dikey hizada kesikti ("KDV" -> "DV", "Birim" -> "irim", "F.D.T" ->
+   ".D.T"); "60,00 TL" isaretinin sagi ve barkodun sag ucu etiket kenarinda
+   kalmisti. Icerik bu yuzden etiket kutusunun kenarina degil, soldan 6 /
+   sagdan 5 mm iceriye kurulu: kirpilan serit tasarimin bos kismina denk
+   geliyor. Bu pay kaydirmayla (kx) DEGIL padding'le verildi -- kaydirma
+   tasarimin sag ucunu da etiketin disina iter.
+   Genislik: icerik 82 - 11 = 71 mm. Bilgi sutunu %40 = 28,4 mm; en uzun
+   satir "F.D.T: 03.09.2026" JetBrains Mono 7,2 pt ile 17 x 0,6 em =
+   25,9 mm, sigiyor. Barkod sutunu %60 = 42,6 mm; modul genisligi
+   0,375 mm = 203 dpi kafada TAM 3 nokta (kusuratli modul cubuklari bir
+   kalin bir ince bastiriyor), 113 modul x 0,375 = 42,4 mm, barkod hala
+   sutuna esnetilmeden sigiyor. */
 .et-termal{--et-mw:.375mm}
-.et-termal .etiket .et-ad{height:8.6mm;padding:0 3mm;font-size:13pt}
-.et-termal .et-bilgi{padding:1.6mm 0 1.6mm 3mm;font-size:7.6pt;
+.et-termal .etiket{padding:0 5mm 0 6mm}
+/* margin-top: iki satira sarilan ad seridi tepeden tepeye dolduruyor,
+   I harfinin noktasi etiketin 0. mm'sine geliyordu. Padding ise olmaz:
+   sigdirma JS'i clientHeight'i olcuyor, padding'i de yazi alani sanir. */
+.et-termal .etiket .et-ad{height:8.6mm;margin-top:.6mm;padding:0 1mm;font-size:13pt}
+.et-termal .et-bilgi{padding:1.6mm 0;font-size:7.6pt;
   /* Ortalamak yerine sutunun tamamina yay: dort satir ortada toplaninca
      bilgi sutununun alti da ustu de bos kaliyordu. */
   justify-content:space-evenly;gap:0}
-.et-termal .et-fiyat{padding:1.4mm 3mm 0 0;font-size:24pt}
-.et-termal .et-barkod{padding:0 3mm 1.6mm}
+.et-termal .et-fdt{font-size:7.2pt}
+.et-termal .et-fiyat{padding:1.4mm 0 0;font-size:24pt}
+.et-termal .et-barkod{padding:0 0 1.6mm}
 .et-termal .et-barkod .barkod-svg{height:11.4mm}
 .et-termal .et-barkod figcaption{font-size:7pt;margin-top:.5mm}
 
@@ -252,8 +268,8 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
 
   <div class="et-cubuk-ic">
     <h1>Raf etiketi
-      <small>Ayarlar hatırlanıyor — bir kere doğru kurulunca her baskı öyle çıkar.{% if duzen == 'tek' %} Kağıt {{ kagit }} × {{ olcu.yukseklik|stringformat:'g' }} mm, ölçek %100.<br>
-        <b>Etiketin başı boş kalıyorsa</b> sebebi tarayıcı değil, yazıcının kâğıt boyu: sürücüde <b>{{ kagit }} mm</b> yazıyor ama rulodaki etiket ~102,8 mm. Yazıcı her etikette aradaki farkı kaydırıyor. Çözüm sürücüdeki özel kâğıdı gerçek boya çekmek, sonra buradaki <b>Kâğıt boyu</b> ve <b>Tasarım boyu</b>nu da aynı yapmak.{% endif %}</small>
+      <small>Hiçbir ayar gerekmiyor: ölçüler dükkândaki yazıcıya göre koda gömülü.{% if duzen == 'tek' %} Kağıt {{ kagit }} × {{ olcu.yukseklik|stringformat:'g' }} mm, tasarım {{ basim }} mm, ölçek %100.<br>
+        <b>Etiketin başındaki ~2 cm boşluğu yazıcı bırakıyor:</b> işe başlarken etiket kafanın ilerisinde duruyor, sayfa oradan başlıyor. Tarayıcıyla ilgisi yok; PDF ya da resim de aynı yerden başlar. Tasarım o boşluğun ardındaki alana göre kurulu, hiçbir şey kırpılmaz.{% endif %}</small>
     </h1>
 
     <div class="et-alan">
@@ -288,32 +304,12 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
     </div>
     {% endif %}
 
-    {% if duzen == 'tek' %}
-    <div class="et-alan">
-      <label for="et-kagit" title="Windows'ta yazıcı sürücüsünde tanımlı özel kâğıtla AYNI olmalı">Kâğıt boyu</label>
-      <input id="et-kagit" type="number" name="kagit" step="0.1" min="20" max="200" value="{{ kagit }}">
-    </div>
-
-    <div class="et-alan">
-      <label for="et-boy">Tasarım boyu</label>
-      <input id="et-boy" type="number" name="boy" step="0.5" min="20"
-             max="{{ kagit }}" value="{{ basim }}">
-    </div>
-
     {% comment %}
-    Kaydirma NEGATIF OLAMAZ: sola kaydirilan tasarimin sayfa disinda kalan
-    kismini yazici hic basmiyor, bilgi satirlarinin basi kayboluyor.
+    Kagit boyu, tasarim boyu ve kaydirma kutulari 2026-09-05'te KALDIRILDI:
+    etiketi basan kisi hicbir seyi elle degistirmesin, dogru degerler koda
+    gomulu (stok/etiket.py OLCULER["termal"]). Ayni adli URL parametreleri
+    tani koymak icin duruyor (?sinama=1&kx=5 gibi), oturumda hatirlanmiyor.
     {% endcomment %}
-    <div class="et-alan">
-      <label for="et-kx">Sağa kaydır</label>
-      <input id="et-kx" type="number" name="kx" step="0.5" min="0" max="20" value="{{ kay_x }}">
-    </div>
-
-    <div class="et-alan">
-      <label for="et-ky">Aşağı kaydır</label>
-      <input id="et-ky" type="number" name="ky" step="0.5" min="0" max="20" value="{{ kay_y }}">
-    </div>
-    {% endif %}
 
     <div class="et-alan">
       <label for="et-ara">Ürün ara</label>
@@ -390,8 +386,9 @@ collectstatic unutulursa yazdirilan etiket bozulmasin. Sayfanin geri kalani
           <b>{{ sira }}. etiket · {{ basim }} × {{ olcu.yukseklik|stringformat:'g' }} mm</b>
           <span>Üçü de <b>aynı yerden</b> başlıyorsa kayma yok. Her biri bir
             öncekinden biraz daha ileride başlıyorsa <b>kayma birikiyor</b>:
-            yazıcının kâğıt boyu gerçek etiketten kısa, sürücüdeki ölçüyü
-            düzeltin. Aralarda boş etiket kaldıysa tersi — kâğıt boyu uzun.</span>
+            yazıcının kâğıt boyu gerçek etiketten kısa. Aralarda boş etiket
+            kaldıysa tersi — kâğıt boyu uzun. Çerçevenin eksik kenarı varsa
+            cetvelden kaç mm okunuyorsa o kadarı hiç basılmıyor.</span>
         </div>
       </div>
       {% endfor %}
